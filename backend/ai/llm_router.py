@@ -103,17 +103,33 @@ class LlamaServerManager:
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
         max_tokens: int = 1024,
-        temperature: float = 0.7,
+        temperature: Optional[float] = None,
+        thinking_mode: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Executes chat completion with deterministic tool execution loop.
+        Supports 'Thinking' mode and 'Normal' mode (default: Normal).
         """
         self.start_server()
+
+        if thinking_mode is None:
+            thinking_mode = config_manager.get("ai_provider", "thinking_mode", False)
+
+        # Official PrismML parameters:
+        # Thinking mode: temp=1.0, top_p=0.95, presence_penalty=1.0
+        # Normal mode:   temp=0.7, top_p=0.80, presence_penalty=1.5
+        if temperature is None:
+            temperature = 1.0 if thinking_mode else 0.7
+        top_p = 0.95 if thinking_mode else 0.80
+        presence_penalty = 1.0 if thinking_mode else 1.5
 
         payload: Dict[str, Any] = {
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
+            "top_p": top_p,
+            "presence_penalty": presence_penalty,
+            "chat_template_kwargs": {"enable_thinking": thinking_mode},
         }
         if tools:
             payload["tools"] = tools
@@ -163,7 +179,7 @@ class LlamaServerManager:
         }
 
     def clean_dictation(self, raw_text: str) -> str:
-        """Cleans stutters, filler words, and repetitions using Ternary-Bonsai."""
+        """Cleans stutters, filler words, and repetitions using Ternary-Bonsai in Normal Mode."""
         if not raw_text.strip():
             return ""
 
@@ -171,7 +187,7 @@ class LlamaServerManager:
             {"role": "system", "content": DICTATION_SYSTEM_PROMPT},
             {"role": "user", "content": raw_text}
         ]
-        result = self.chat_completion(messages, tools=None, max_tokens=768, temperature=0.1)
+        result = self.chat_completion(messages, tools=None, max_tokens=256, thinking_mode=False)
         return result.get("content", "").strip()
 
 

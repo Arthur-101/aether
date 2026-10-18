@@ -49,6 +49,7 @@ def get_default_config() -> Dict[str, Any]:
             "context_length": 8192,
             "gpu_layers": -1,
             "kv_cache_type": "q8_0",
+            "thinking_mode": False,  # Default: Normal mode (Direct, low-latency responses)
         },
         "voice": {
             "stt_engine": "local_phonon2",

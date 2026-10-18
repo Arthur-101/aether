@@ -81,19 +81,34 @@ def run_tests():
     assert llm_router.is_healthy(), "llama-server health check failed"
     print("  PASS: llama-server is healthy and running on port 8089.")
 
-    # Test basic completion
-    print("  Testing chat completion...")
-    res = llm_router.chat_completion(
-        messages=[{"role": "user", "content": "Say the word ONLINE and nothing else."}],
-        max_tokens=256,
-        temperature=0.1
+    # Test 4a: Normal Mode (Default - Fast & Direct)
+    print("  Testing Normal Mode (thinking_mode=False)...")
+    res_normal = llm_router.chat_completion(
+        messages=[{"role": "user", "content": "What is 15 * 4?"}],
+        max_tokens=64,
+        thinking_mode=False
     )
-    reply = res.get("content", "").strip()
-    print(f"  Ternary-Bonsai Output: '{reply}'")
-    assert len(reply) > 0, "Empty response from Ternary-Bonsai"
-    print("  PASS: Ternary-Bonsai responded successfully!")
+    reply_normal = res_normal.get("content", "").strip()
+    print(f"  Normal Output: '{reply_normal}'")
+    assert len(reply_normal) > 0 and "60" in reply_normal
+    assert not res_normal.get("reasoning"), "Reasoning should be empty in Normal Mode"
+    print("  PASS: Normal Mode responded directly with zero thinking overhead!")
 
-    # Test Smart Dictation cleaning
+    # Test 4b: Thinking Mode (Chain of Thought Enabled)
+    print("  Testing Thinking Mode (thinking_mode=True)...")
+    res_thinking = llm_router.chat_completion(
+        messages=[{"role": "user", "content": "What is 15 * 4?"}],
+        max_tokens=256,
+        thinking_mode=True
+    )
+    reply_thinking = res_thinking.get("content", "").strip()
+    reasoning = res_thinking.get("reasoning", "").strip()
+    print(f"  Thinking Chain-of-Thought ({len(reasoning)} chars): '{reasoning[:120]}...'")
+    print(f"  Thinking Final Output: '{reply_thinking}'")
+    assert len(reasoning) > 0, "Reasoning should be present in Thinking Mode"
+    print("  PASS: Thinking Mode captured deep chain-of-thought successfully!")
+
+    # Test 4c: Smart Dictation cleaning (always Normal Mode)
     print("  Testing Smart Dictation cleaning...")
     raw_stutter = "uh um please can you like send the report to Rahul no wait to Vikram"
     cleaned = llm_router.clean_dictation(raw_stutter)
