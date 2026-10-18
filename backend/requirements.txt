@@ -1,0 +1,46 @@
+# Aether Backend Dependencies
+# Core API & Async WebSocket Server
+fastapi>=0.115.0
+uvicorn>=0.30.0
+websockets>=13.0
+platformdirs>=4.3.0
+pydantic>=2.9.0
+
+# Database & Vector Engine (CPU Embeddings, 0 VRAM)
+sqlite-vec>=0.1.6
+fastembed>=0.4.0
+
+# LLM & Local Runtime
+# Note: llama-cpp-python is already installed in Python 3.12 environment
+llama-cpp-python>=0.3.0
+
+# FastMCP & Background Scheduler
+fastmcp>=0.1.0
+APScheduler>=3.10.4
+
+# OS Hooks & Telemetry
+pynput>=1.7.7
+pywin32>=306
+pywinauto>=0.6.8
+pycaw>=20240210
+mss>=9.0.1
+pyperclip>=1.9.0
+keyboard>=0.13.5
+psutil>=6.0.0
+
+# Audio & Voice Pipeline (Phonon-2 & Paradee)
+sounddevice>=0.5.0
+soundfile>=0.12.1
+pyaudiowpatch>=0.2.12
+onnxruntime>=1.19.0
+numpy>=1.26.0
+
+# Media & Document Processing Tools
+pillow>=10.2.0
+pillow-heif>=0.18.0
+piexif>=1.1.3
+rembg>=2.0.59
+pymupdf>=1.24.10
+pymupdf4llm>=0.0.17
+pdf2docx>=0.5.8
+markitdown>=0.0.1a4
