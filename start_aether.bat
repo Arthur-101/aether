@@ -1,20 +1,16 @@
 @echo off
 title Launching Aether
 echo ==============================================
-echo   Launching Project Aether (Backend + UI)
+echo   Launching Project Aether (Native Overlay)
 echo ==============================================
 cd /d "%~dp0"
 
 echo [1/2] Starting Python Backend Daemon...
-start "Aether Backend" cmd /k "cd /d "%~dp0" && py -3.12 -m backend.main"
+start "Aether Backend" /D "%~dp0" cmd /k py -3.12 -m backend.main
 
 timeout /t 2 /nobreak >nul
 
-echo [2/2] Starting Frontend UI...
-start "Aether Frontend" cmd /k "cd /d "%~dp0\frontend" && npm run dev"
+echo [2/2] Starting Transparent Tauri Overlay...
+start "Aether Overlay" /D "%~dp0\frontend" cmd /k npm run tauri dev
 
-timeout /t 2 /nobreak >nul
-echo Opening Aether Desktop Interface at http://localhost:1420...
-start http://localhost:1420
-
-echo Aether is running!
+echo Aether native overlay is starting. No browser will open.

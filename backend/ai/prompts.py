@@ -5,6 +5,9 @@ Optimized for small/local models (Ternary-Bonsai-2-9B) with zero token waste.
 """
 
 from typing import Any, Dict, List, Optional
+import base64
+import mimetypes
+from pathlib import Path
 
 DICTATION_SYSTEM_PROMPT = """You are an expert real-time dictation cleaner.
 Your job is to transform raw, spoken microphone transcripts into clean, readable text:
@@ -28,15 +31,34 @@ Rules:
 3. Answer the user's spoken question accurately based on the visual evidence."""
 
 
+def _vision_user_content(current_prompt: str, image_paths: List[str]) -> Any:
+    """Builds an OpenAI-compatible multimodal user message for attached images."""
+    content: List[Dict[str, Any]] = [{"type": "text", "text": current_prompt}]
+    for raw_path in image_paths:
+        path = Path(raw_path)
+        if not path.exists():
+            continue
+        mime = mimetypes.guess_type(path.name)[0] or "image/png"
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        content.append(
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{encoded}"}}
+        )
+    return content
+
+
 def build_assistant_messages(
     current_prompt: str,
     session_context: str = "",
     window_context: Optional[Dict[str, Any]] = None,
     user_preferences: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, str]]:
+    image_paths: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
     """
     Assembles a compact prompt payload strictly under 2,500 tokens:
-    [System + Preferences] + [Relevant Session Memory] + [Active Window] + [Current Turn]
+    [System + Preferences + Session Memory + Active Window] + [Current Turn].
+
+    All context is merged into one system message because several GGUF chat
+    templates (including Ternary-Bonsai) reject a second system role.
     """
     system_sections = [ASSISTANT_SYSTEM_PROMPT]
 
@@ -44,6 +66,9 @@ def build_assistant_messages(
         prefs_text = ", ".join(f"{k}: {v}" for k, v in user_preferences.items() if v)
         if prefs_text:
             system_sections.append(f"\n[User Profile / Facts]\n{prefs_text}")
+
+    if session_context:
+        system_sections.append(f"\n[Session Memory]\n{session_context}")
 
     if window_context and window_context.get("window_title"):
         title = window_context["window_title"]
@@ -55,9 +80,10 @@ def build_assistant_messages(
             system_sections.append(f"\n[Active Window: {title}]")
 
     messages = [{"role": "system", "content": "\n".join(system_sections)}]
-
-    if session_context:
-        messages.append({"role": "system", "content": f"[Session Memory]\n{session_context}"})
-
-    messages.append({"role": "user", "content": current_prompt})
+    user_content = (
+        _vision_user_content(current_prompt, image_paths)
+        if image_paths
+        else current_prompt
+    )
+    messages.append({"role": "user", "content": user_content})
     return messages

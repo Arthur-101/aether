@@ -12,8 +12,10 @@ for %%P in (8765 1420 8089) do (
     )
 )
 
-:: Ensure llama-server is closed to release VRAM
+:: Ensure llama-server and the overlay are closed
 taskkill /F /IM llama-server.exe >nul 2>&1
+taskkill /F /IM app.exe >nul 2>&1
+taskkill /F /IM Aether.exe >nul 2>&1
 
 echo All Aether ports (8765, 1420, 8089) are now closed and freed!
 timeout /t 2 >nul

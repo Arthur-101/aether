@@ -7,10 +7,12 @@ Translates FastMCP tool definitions into OpenAI/GGUF function schemas.
 from typing import Any, Callable, Dict, List
 from fastmcp import FastMCP
 from .media_tools import (
-    convert_image_format,
+    add_background,
     compress_media,
-    strip_image_metadata,
+    convert_image_format,
+    crop_image,
     remove_image_background,
+    strip_image_metadata,
 )
 from .doc_tools import convert_document, search_dropped_file
 from .clock_scheduler import schedule_one_time_task, schedule_recurring_routine
@@ -38,6 +40,15 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "search_dropped_file": search_dropped_file,
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
+    "crop_image": crop_image,
+    "add_background": add_background,
+}
+
+# Tools that must receive the active session id even if the model omits it.
+SESSION_SCOPED_TOOLS = {
+    "search_dropped_file",
+    "schedule_one_time_task",
+    "schedule_recurring_routine",
 }
 
 

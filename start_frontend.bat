@@ -1,6 +1,6 @@
 @echo off
-title Aether Frontend
+title Aether Overlay
 cd /d "%~dp0\frontend"
-echo Starting Aether Vite Frontend on http://localhost:1420...
-npm run dev
+echo Starting Aether transparent Tauri overlay...
+npm run tauri dev
 pause

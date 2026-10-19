@@ -49,6 +49,28 @@ class SessionManager:
         self.last_interaction = now
         return self.active_session_id
 
+    def create_empty_session(self) -> Dict[str, Any]:
+        """Creates a blank session (used by the Drawer's New Chat button)."""
+        now = datetime.now()
+        self.active_session_id = str(uuid.uuid4())
+        self.last_interaction = now
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO sessions (id, title) VALUES (?, ?)",
+            (self.active_session_id, "New Session"),
+        )
+        conn.commit()
+        conn.close()
+        return {
+            "session": {
+                "id": self.active_session_id,
+                "title": "New Session",
+                "last_turn_prompt": "",
+                "last_turn_reply": "",
+            },
+            "history": [],
+        }
+
     def switch_session(self, session_id: str) -> Dict[str, Any]:
         """Switches the active session and returns session info + history."""
         conn = get_db()
@@ -131,7 +153,44 @@ class SessionManager:
         if last_prompt and last_reply:
             context_parts.append(f"[Immediate Previous Turn]\nUser: {last_prompt}\nAI: {last_reply}")
 
+        try:
+            from ..mcp_tools.attachment_tools import build_attachment_context
+
+            attachment_context = build_attachment_context(session_id, current_prompt)
+            if attachment_context:
+                context_parts.append(attachment_context)
+        except Exception:
+            pass
+
         return "\n\n".join(context_parts)
+
+    def delete_session(self, session_id: str) -> bool:
+        """Deletes a session and all of its vectors, attachments, and tasks."""
+        conn = get_db()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM chat_memory WHERE session_id = ?", (session_id,))
+            for row in cur.fetchall():
+                cur.execute("DELETE FROM vec_chat_memory WHERE memory_id = ?", (row["id"],))
+            cur.execute("SELECT id FROM doc_chunks WHERE session_id = ?", (session_id,))
+            for row in cur.fetchall():
+                cur.execute("DELETE FROM vec_doc_chunks WHERE chunk_id = ?", (row["id"],))
+            for table in (
+                "chat_memory",
+                "doc_chunks",
+                "session_attachments",
+                "scheduled_tasks",
+            ):
+                cur.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
+            cur.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            deleted = cur.rowcount > 0
+            conn.commit()
+        finally:
+            conn.close()
+        if self.active_session_id == session_id:
+            self.active_session_id = None
+            self.last_interaction = datetime.min
+        return deleted
 
     def commit_turn(self, session_id: str, user_prompt: str, ai_reply: str) -> None:
         """Saves current turn to chat_memory + vec_chat_memory and updates 1-turn buffer."""

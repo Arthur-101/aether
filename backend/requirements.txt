@@ -27,6 +27,12 @@ mss>=9.0.1
 pyperclip>=1.9.0
 keyboard>=0.13.5
 psutil>=6.0.0
+winsdk>=1.0.0b10
+nvidia-ml-py>=12.0.0
+screen-brightness-control>=0.23.0
+
+# Cloud LLM Providers (Gemini / Groq / OpenAI via LiteLLM)
+litellm>=1.50.0
 
 # Audio & Voice Pipeline (Phonon-2 & Paradee)
 sounddevice>=0.5.0

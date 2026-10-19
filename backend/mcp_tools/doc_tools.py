@@ -9,6 +9,14 @@ from typing import Any, Dict, List
 import fitz  # PyMuPDF
 from ..db.database import get_db
 from ..ai.embedder import embed_text
+from ..output_paths import exported_path
+from .attachment_tools import (  # re-exported for the ASK pipeline
+    ASK_EXTENSIONS,
+    is_ask_eligible,
+    attach_file_for_ask,
+    build_attachment_context,
+    image_attachment_paths,
+)
 
 
 def convert_document(file_path: str, target_format: str) -> str:
@@ -24,7 +32,7 @@ def convert_document(file_path: str, target_format: str) -> str:
     if p.suffix.lower() == ".pdf":
         if fmt == "docx":
             from pdf2docx import Converter
-            out_path = p.with_suffix(".docx")
+            out_path = exported_path(p, f"{p.stem}.docx")
             cv = Converter(str(p))
             cv.convert(str(out_path))
             cv.close()
@@ -34,14 +42,14 @@ def convert_document(file_path: str, target_format: str) -> str:
             doc = fitz.open(str(p))
             page = doc.load_page(0)
             pix = page.get_pixmap(dpi=200)
-            out_path = p.with_name(f"{p.stem}.{fmt}")
+            out_path = exported_path(p, f"{p.stem}.{fmt}")
             pix.save(str(out_path))
             doc.close()
             return str(out_path)
 
         elif fmt == "txt":
             import pymupdf4llm
-            out_path = p.with_suffix(".txt")
+            out_path = exported_path(p, f"{p.stem}.txt")
             md_text = pymupdf4llm.to_markdown(str(p))
             out_path.write_text(md_text, encoding="utf-8")
             return str(out_path)

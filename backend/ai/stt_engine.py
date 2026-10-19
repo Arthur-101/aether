@@ -4,13 +4,15 @@ Microphone audio capture via sounddevice and local transcription pipeline.
 Records audio at 16,000 Hz mono while hotkey is held.
 """
 
+import logging
 import threading
 from pathlib import Path
 from typing import List, Optional
 import numpy as np
 import sounddevice as sd
-from ..config_manager import config_manager
+from ..config_manager import config_manager, find_model_dir, get_models_dir
 
+logger = logging.getLogger("aether.stt")
 SAMPLE_RATE = 16000
 
 
@@ -74,7 +76,10 @@ class STTEngine:
         configured = config_manager.get("voice", "stt_model_dir", "")
         if configured and Path(configured).exists():
             return Path(configured)
-        return Path("E:/Codes/Models/model_phonon2_c4c_int6")
+        discovered = find_model_dir(
+            ["*phonon2*", "*phonon*"], get_models_dir()
+        )
+        return Path(discovered) if discovered else get_models_dir()
 
     def is_available(self) -> bool:
         """Checks if local STT model files exist."""
@@ -99,8 +104,14 @@ class STTEngine:
         # When local Phonon-2 runtime container is engaged
         model_dir = self._resolve_model_dir()
         if (model_dir / "model.fermion").exists():
-            # Transcription stub returning speech indicator until binary decoder is bound
-            return "Local speech input captured"
+            # The fermion decoder binary is not bundled yet. Never inject
+            # placeholder text into the user's applications.
+            logger.warning(
+                "Phonon-2 model found at %s but the decoder runtime is not bound; "
+                "dictation is disabled until a real STT backend is installed.",
+                model_dir,
+            )
+            return ""
 
         return ""
 

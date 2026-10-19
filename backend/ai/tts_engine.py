@@ -10,7 +10,7 @@ from typing import Optional
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
-from ..config_manager import config_manager
+from ..config_manager import config_manager, find_model_file, get_models_dir
 
 SAMPLE_RATE = 24000
 
@@ -29,14 +29,17 @@ class ParadeeTTSEngine:
         if configured and Path(configured).exists():
             model_p = Path(configured)
         else:
-            # Check default local directory
-            model_p = Path("E:/Codes/Models/models/onnx/paradee.onnx")
+            discovered = find_model_file(
+                ["paradee.onnx", "**/paradee.onnx", "*.onnx"], get_models_dir()
+            )
+            model_p = Path(discovered) if discovered else get_models_dir() / "paradee.onnx"
 
-        # config.json lives next to /models or parent directory
+        # config.json lives next to /models or in an ancestor models folder
         config_candidates = [
             model_p.parent.parent / "config.json",
             model_p.parent / "config.json",
-            Path("E:/Codes/Models/models/config.json"),
+            get_models_dir() / "models" / "config.json",
+            get_models_dir() / "config.json",
         ]
         config_p = next((p for p in config_candidates if p.exists()), config_candidates[0])
         return model_p, config_p
@@ -110,6 +113,7 @@ class ParadeeTTSEngine:
 
     def speak(self, text: str, speed: float = 1.0, blocking: bool = True) -> None:
         """Synthesizes text and streams to speakers via sounddevice."""
+        speed = float(config_manager.get("voice", "tts_speed", speed) or speed)
         audio = self.synthesize(text, speed=speed)
         sd.play(audio, samplerate=SAMPLE_RATE)
         if blocking:

@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "aether",
+  "productName": "Aether",
   "version": "0.1.0",
   "identifier": "com.aether.assistant",
   "build": {
@@ -12,16 +12,19 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Aether",
         "width": 1920,
         "height": 1080,
-        "resizable": true,
+        "resizable": false,
         "fullscreen": false,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
-        "skipTaskbar": false,
-        "shadow": false
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": false,
+        "focus": true
       }
     ],
     "security": {

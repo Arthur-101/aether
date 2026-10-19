@@ -1,7 +1,6 @@
 """
 Aether Backend Daemon — FastAPI + WebSocket Entrypoint
-Boots in < 500ms with CORS, lifespan management, telemetry broadcaster,
-OS hook wiring, and clock scheduler reverse-trigger integration.
+Boots with CORS, lifespan management, telemetry, OS hooks, and system control.
 """
 
 import asyncio
@@ -14,91 +13,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config_manager import config_manager
+from .config_api import router as config_router
 from .event_router import route_event
+from .system_api import router as system_router
 from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 
-TELEMETRY_INTERVAL = 2.0  # seconds
 WS_PORT = 8765
-
-
-# ─── Background Tasks ──────────────────────────────────────────
-
-
-async def _telemetry_loop() -> None:
-    """Pushes SYSTEM_STATS to all clients every 2 seconds."""
-    from .os_hooks.system_controls import get_system_telemetry
-
-    while True:
-        try:
-            if ws_manager.client_count > 0:
-                loop = asyncio.get_event_loop()
-                stats = await loop.run_in_executor(None, get_system_telemetry)
-                await ws_manager.broadcast("SYSTEM_STATS", stats)
-        except Exception as e:
-            logger.debug("Telemetry tick error: %s", e)
-        await asyncio.sleep(TELEMETRY_INTERVAL)
-
-
-# ─── OS Hooks → WebSocket Bridge ────────────────────────────────
-
-
-def _wire_hotkey_callbacks() -> None:
-    """Connects HotkeyManager callbacks to broadcast WS events."""
-    from .os_hooks.hotkeys import hotkey_manager
-
-    _loop = asyncio.get_event_loop()
-
-    def on_voice_state(state: str, text: str) -> None:
-        asyncio.run_coroutine_threadsafe(
-            ws_manager.broadcast("VOICE_STATE", {"state": state, "transcript": text}),
-            _loop,
-        )
-
-    def on_show_wheel(x: int, y: int, path: str, ext: str) -> None:
-        asyncio.run_coroutine_threadsafe(
-            ws_manager.broadcast("SHOW_RADIAL_WHEEL", {
-                "x": x, "y": y, "file_path": path, "ext": ext
-            }),
-            _loop,
-        )
-
-    def on_circle_to_ask() -> None:
-        asyncio.run_coroutine_threadsafe(
-            ws_manager.broadcast("CIRCLE_TO_ASK", {}),
-            _loop,
-        )
-
-    hotkey_manager.on_voice_state = on_voice_state
-    hotkey_manager.on_show_wheel = on_show_wheel
-    hotkey_manager.on_circle_to_ask = on_circle_to_ask
-    hotkey_manager.start()
-    logger.info("Hotkey listeners started")
-
-
-def _wire_clock_scheduler() -> None:
-    """Registers the clock scheduler wake callback to broadcast via WS."""
-    from .mcp_tools.clock_scheduler import register_wake_callback
-
-    _loop = asyncio.get_event_loop()
-
-    def on_clock_trigger(session_id: str, system_event: str, task_id: str) -> None:
-        asyncio.run_coroutine_threadsafe(
-            ws_manager.broadcast("CLOCK_TRIGGER", {
-                "session_id": session_id,
-                "event": system_event,
-                "task_id": task_id,
-            }),
-            _loop,
-        )
-
-    register_wake_callback(on_clock_trigger)
-    logger.info("Clock scheduler wake callback registered")
-
-
-# ─── FastAPI Lifespan ───────────────────────────────────────────
 
 
 @asynccontextmanager
@@ -106,50 +29,30 @@ async def lifespan(app: FastAPI):
     """Startup: init DB, wire hooks, start telemetry. Shutdown: clean up."""
     logger.info("Aether daemon starting on port %d...", WS_PORT)
 
-    # Ensure database tables exist
     from .db.database import init_db
+
     init_db()
-    # Start background telemetry broadcaster
-    telemetry_task = asyncio.create_task(_telemetry_loop())
 
-    # Wire OS hooks and clock scheduler (safe to fail gracefully)
-    try:
-        _wire_hotkey_callbacks()
-    except Exception as e:
-        logger.warning("Hotkey init skipped: %s", e)
+    from .runtime_wiring import start_runtime, stop_runtime, telemetry_loop
 
+    telemetry_task = asyncio.create_task(telemetry_loop())
     try:
-        _wire_clock_scheduler()
-    except Exception as e:
-        logger.warning("Clock scheduler init skipped: %s", e)
+        start_runtime()
+    except Exception as exc:
+        logger.warning("Runtime wiring skipped: %s", exc)
 
     logger.info("Aether daemon ready.")
-    yield
-
-    # Shutdown
-    telemetry_task.cancel()
     try:
-        from .os_hooks.hotkeys import hotkey_manager
-        hotkey_manager.stop()
-    except Exception:
-        pass
-    try:
-        from .ai.llm_router import llm_router
-        llm_router.stop_server()
-    except Exception:
-        pass
-    try:
-        from .mcp_tools.clock_scheduler import scheduler
-        scheduler.shutdown(wait=False)
-    except Exception:
-        pass
-    logger.info("Aether daemon stopped.")
-
-
-# ─── FastAPI App ────────────────────────────────────────────────
+        yield
+    finally:
+        telemetry_task.cancel()
+        stop_runtime()
+        logger.info("Aether daemon stopped.")
 
 
 app = FastAPI(title="Aether", version="0.1.0", lifespan=lifespan)
+app.include_router(config_router)
+app.include_router(system_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -179,8 +82,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 await ws_manager.send_to(ws, "ERROR", {"message": "Invalid JSON"})
     except WebSocketDisconnect:
         await ws_manager.disconnect(ws)
-    except Exception as e:
-        logger.error("WS error: %s", e)
+    except Exception as exc:
+        logger.error("WS error: %s", exc)
         await ws_manager.disconnect(ws)
 
 
@@ -194,12 +97,10 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
-# ─── CLI Entrypoint ─────────────────────────────────────────────
-
-
 def run_daemon() -> None:
     """Launches the Aether backend daemon via uvicorn."""
     import uvicorn
+
     uvicorn.run(
         "backend.main:app",
         host="127.0.0.1",

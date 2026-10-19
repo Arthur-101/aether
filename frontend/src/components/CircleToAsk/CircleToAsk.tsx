@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Camera } from 'lucide-react';
+import { isTauri } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 interface CircleToAskProps {
   isOpen: boolean;
@@ -24,6 +26,12 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !isTauri()) return;
+    // Focus the always-on-top overlay so ESC and drag selection are captured.
+    void getCurrentWindow().setFocus().catch(() => undefined);
+  }, [isOpen]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDrawing(true);
@@ -61,7 +69,8 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
   return (
     <AnimatePresence>
       <div
-        className="fixed inset-0 z-50 cursor-crosshair select-none bg-black/25 backdrop-blur-xs"
+        data-aether-interactive
+        className="aether-interactive fixed inset-0 z-50 cursor-crosshair select-none bg-black/25 backdrop-blur-xs"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

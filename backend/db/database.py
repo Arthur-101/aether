@@ -87,6 +87,21 @@ def init_db(db_path: Optional[Path] = None) -> None:
     );
     """)
 
+    # 5b. Session-scoped ASK attachments (documents, inline buffers, images)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS session_attachments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        inline_text TEXT DEFAULT '',
+        token_count INTEGER DEFAULT 0,
+        chunk_count INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
     # 6. Clipboard History Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS clipboard_history (

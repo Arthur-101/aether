@@ -1,15 +1,25 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Plus, X, Clock, ChevronRight } from 'lucide-react';
-import type { ChatTurn, SessionItem } from '../../types/ipc';
+import {
+  MessageSquare,
+  Plus,
+  X,
+  Clock,
+  Trash2,
+  Paperclip,
+  Database,
+} from 'lucide-react';
+import type { AttachmentItem, SessionItem } from '../../types/ipc';
 
 interface SessionDrawerProps {
   isOpen: boolean;
   sessions: SessionItem[];
   activeSessionId: string;
-  chatHistory: ChatTurn[];
+  attachments: AttachmentItem[];
+  vectorReady: boolean;
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onDeleteSession: (id: string) => void;
   onClose: () => void;
 }
 
@@ -17,128 +27,145 @@ export const SessionDrawer: React.FC<SessionDrawerProps> = ({
   isOpen,
   sessions,
   activeSessionId,
-  chatHistory,
+  attachments,
+  vectorReady,
   onSelectSession,
   onNewSession,
+  onDeleteSession,
   onClose,
 }) => {
+  const ragFiles = attachments.filter(
+    (item) => item.mode === 'inline' || item.mode === 'rag_vector'
+  ).length;
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+            data-aether-interactive
+            className="aether-interactive fixed inset-0 z-40 bg-black/35 backdrop-blur-xs"
           />
 
-          {/* Drawer Panel */}
           <motion.div
-            initial={{ x: -340 }}
-            animate={{ x: 0 }}
-            exit={{ x: -340 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-            className="fixed top-4 left-4 bottom-4 w-[320px] z-50 glass-panel rounded-2xl flex flex-col p-4 shadow-2xl border border-white/10"
+            initial={{ x: -320, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -320, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+            data-aether-interactive
+            className="aether-interactive fixed bottom-3 left-3 top-3 z-50 flex w-[300px] flex-col overflow-hidden rounded-lg border border-white/10 bg-[#202020]/95 shadow-2xl backdrop-blur-xl"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
+            <div className="flex items-center justify-between border-b border-white/10 p-4 pb-3">
               <div className="flex items-center gap-2">
-                <MessageSquare size={18} className="text-cyan-400" />
+                <MessageSquare size={16} className="text-white/60" />
                 <h2 className="text-sm font-semibold text-white">Sessions</h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={onNewSession}
-                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-500 to-indigo-600 text-white text-xs font-medium flex items-center gap-1 hover:opacity-90 transition shadow-sm"
+                  className="flex items-center gap-1 rounded-md bg-[#0067C0] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#0078D4]"
                 >
-                  <Plus size={14} />
+                  <Plus size={13} />
                   <span>New</span>
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
+                  className="rounded-md p-1.5 text-[#8b8b8b] transition hover:bg-white/5 hover:text-white"
+                  title="Close sessions"
                 >
-                  <X size={16} />
+                  <X size={15} />
                 </button>
               </div>
             </div>
 
-            {/* Sessions List */}
-            <div className="flex-1 overflow-y-auto my-3 flex flex-col gap-1.5 pr-1">
-              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1">
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-[#8b8b8b]">
                 Recent Chats
               </div>
 
               {sessions.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-500">
-                  No sessions recorded yet. Start talking or typing to begin!
+                <div className="px-4 py-8 text-center text-xs text-[#8b8b8b]">
+                  No sessions yet. Start a conversation to create one.
                 </div>
               ) : (
-                sessions.map((s) => {
-                  const isActive = s.id === activeSessionId;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => onSelectSession(s.id)}
-                      className={`w-full p-2.5 rounded-xl text-left transition flex flex-col gap-1 ${
-                        isActive
-                          ? 'bg-slate-800/90 border border-cyan-500/50 shadow-md'
-                          : 'bg-white/2 hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  {sessions.map((session) => {
+                    const isActive = session.id === activeSessionId;
+                    return (
+                      <div
+                        key={session.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSelectSession(session.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') onSelectSession(session.id);
+                        }}
+                        className={`group relative flex cursor-pointer flex-col gap-1 rounded-md border-l-2 px-3 py-2.5 text-left transition ${
+                          isActive
+                            ? 'border-[#0067C0] bg-[#2D2D2D]'
+                            : 'border-transparent hover:bg-[#2A2A2A]'
+                        }`}
+                      >
                         <span
-                          className={`text-xs font-medium truncate max-w-[220px] ${
-                            isActive ? 'text-white font-semibold' : 'text-slate-300'
+                          className={`truncate pr-6 text-xs ${
+                            isActive
+                              ? 'font-semibold text-white'
+                              : 'font-medium text-[#d6d6d6]'
                           }`}
                         >
-                          {s.title || 'Untitled Session'}
+                          {session.title || 'Untitled Session'}
                         </span>
-                        {isActive && <ChevronRight size={14} className="text-cyan-400" />}
+                        <div className="flex items-center gap-2 font-mono text-[10px] text-[#8b8b8b]">
+                          <span className="flex items-center gap-1">
+                            <Clock size={9} />
+                            {session.updated_at
+                              ? new Date(session.updated_at).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : 'Now'}
+                          </span>
+                          {session.turn_count !== undefined && (
+                            <span>· {session.turn_count} turns</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteSession(session.id);
+                          }}
+                          className="absolute right-1.5 top-1.5 rounded p-1 text-[#8b8b8b] opacity-0 transition hover:bg-[#ff99a4]/10 hover:text-[#ff99a4] group-hover:opacity-100"
+                          title="Delete session"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-                        <span className="flex items-center gap-1">
-                          <Clock size={10} />
-                          {s.updated_at ? new Date(s.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                        </span>
-                        {s.turn_count !== undefined && (
-                          <span>• {s.turn_count} turns</span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
 
-            {/* Active Session Transcript Preview */}
-            <div className="h-44 border-t border-white/5 pt-2 flex flex-col">
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-                Current Memory Buffer
+            <div className="flex items-center justify-between gap-2 border-t border-white/10 px-3 py-2 text-[10px] text-[#8b8b8b]">
+              <span className="flex min-w-0 items-center gap-1">
+                <Paperclip size={10} className="shrink-0" />
+                <span className="truncate">
+                  {ragFiles > 0 ? `${ragFiles} RAG file${ragFiles === 1 ? '' : 's'}` : 'No active files'}
+                </span>
               </span>
-              <div className="flex-1 overflow-y-auto flex flex-col gap-2 p-2 bg-black/20 rounded-xl text-xs font-sans">
-                {chatHistory.length === 0 ? (
-                  <span className="text-[11px] text-slate-500 italic text-center my-auto">
-                    1-Turn Buffer empty. Speak or type above.
-                  </span>
-                ) : (
-                  chatHistory.map((turn, i) => (
-                    <div key={i} className="flex flex-col gap-1">
-                      <div className="text-[11px] text-cyan-300 bg-cyan-950/40 p-1.5 rounded-lg border border-cyan-900/30">
-                        <span className="font-semibold text-cyan-400 mr-1">You:</span>
-                        {turn.user}
-                      </div>
-                      <div className="text-[11px] text-slate-200 bg-slate-900/40 p-1.5 rounded-lg border border-white/5">
-                        <span className="font-semibold text-indigo-400 mr-1">Aether:</span>
-                        {turn.ai}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <span className="flex shrink-0 items-center gap-1">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    vectorReady ? 'bg-[#6ccb5f]' : 'bg-[#ff99a4]'
+                  }`}
+                />
+                <Database size={10} />
+                <span>Vector DB {vectorReady ? 'Ready' : 'Offline'}</span>
+              </span>
             </div>
           </motion.div>
         </>

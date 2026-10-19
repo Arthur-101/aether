@@ -7,16 +7,16 @@ Strictly follows Rule 1: ZERO Hardcoded Paths. All paths resolve dynamically.
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 from platformdirs import user_data_dir
 
 APP_NAME = "Aether"
-DEFAULT_MODELS_DIR = Path("E:/Codes/Models")  # Checked on local machine if present
 
 
 def get_app_dir() -> Path:
     """Returns %APPDATA%/Aether or equivalent platform directory."""
-    app_dir = Path(user_data_dir(APP_NAME, roaming=True))
+    # appauthor=False prevents platformdirs from producing APPDATA/Aether/Aether
+    app_dir = Path(user_data_dir(APP_NAME, appauthor=False, roaming=True))
     app_dir.mkdir(parents=True, exist_ok=True)
     return app_dir
 
@@ -33,30 +33,64 @@ def get_db_path() -> Path:
     return get_data_dir() / "assistant_data.db"
 
 
+def get_models_dir() -> Path:
+    """Returns the portable models directory (overridable via AETHER_MODELS_DIR)."""
+    override = os.getenv("AETHER_MODELS_DIR", "").strip()
+    models_dir = Path(override) if override else get_app_dir() / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    return models_dir
+
+
+def find_model_file(patterns: List[str], base_dir: Optional[Path] = None) -> str:
+    """Searches the models directory for the first matching glob pattern."""
+    root = base_dir or get_models_dir()
+    for pattern in patterns:
+        matches = sorted(root.rglob(pattern))
+        if matches:
+            return str(matches[0])
+    return ""
+
+
+def find_model_dir(patterns: List[str], base_dir: Optional[Path] = None) -> str:
+    """Searches the models directory for the first matching directory name."""
+    root = base_dir or get_models_dir()
+    for pattern in patterns:
+        matches = sorted(p for p in root.rglob(pattern) if p.is_dir())
+        if matches:
+            return str(matches[0])
+    return ""
+
+
 def get_default_config() -> Dict[str, Any]:
-    """Generates default configuration adhering to PACKAGING_AND_CONFIG.md."""
-    models_dir = DEFAULT_MODELS_DIR if DEFAULT_MODELS_DIR.exists() else get_app_dir() / "models"
-    ternary_gguf = models_dir / "Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf"
-    phonon2_dir = models_dir / "model_phonon2_c4c_int6"
-    paradee_path = models_dir / "models" / "onnx" / "paradee.onnx"
+    """Generates portable defaults adhering to PACKAGING_AND_CONFIG.md."""
+    models_dir = get_models_dir()
+    ternary_gguf = find_model_file(["*Ternary*Bonsai*.gguf", "*.gguf"], models_dir)
+    phonon2_dir = find_model_dir(["*phonon2*", "*phonon*"], models_dir)
+    paradee_path = find_model_file(["paradee.onnx", "**/paradee.onnx"], models_dir)
 
     return {
         "first_run_completed": False,
         "ai_provider": {
-            "mode": "local_gguf",
+            "mode": "local_gguf",  # local_gguf | ollama | cloud
             "local_engine": "llama_cpp",
-            "gguf_model_path": str(ternary_gguf) if ternary_gguf.exists() else "",
+            "gguf_model_path": ternary_gguf,
+            "ollama_base_url": "http://127.0.0.1:11434",
+            "ollama_model_name": "ternary-bonsai-2:9b",
+            "cloud_provider": "gemini",
+            "cloud_model": "gemini-2.5-flash",
+            "api_key": "",
             "context_length": 8192,
             "gpu_layers": -1,
             "kv_cache_type": "q8_0",
-            "thinking_mode": False,  # Default: Normal mode (Direct, low-latency responses)
+            "thinking_mode": False,  # Default: Normal mode (Direct, low-latency)
         },
         "voice": {
             "stt_engine": "local_phonon2",
-            "stt_model_dir": str(phonon2_dir) if phonon2_dir.exists() else "",
+            "stt_model_dir": phonon2_dir,
             "tts_engine": "local_paradee",
-            "tts_model_path": str(paradee_path) if paradee_path.exists() else "",
+            "tts_model_path": paradee_path,
             "tts_voice_id": "af_heart",
+            "tts_speed": 1.0,
             "mic_device_index": None,
         },
         "hotkeys": {
@@ -66,7 +100,7 @@ def get_default_config() -> Dict[str, Any]:
             "toggle_drawer": "<alt>+<space>",
         },
         "storage": {
-            "export_directory": "DESKTOP",
+            "export_directory": "SAME_AS_SOURCE",
             "auto_session_timeout_minutes": 15,
         },
     }
@@ -113,10 +147,24 @@ class ConfigManager:
             json.dump(self._config, f, indent=2)
         temp_path.replace(self.config_path)
 
+    def merge(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Deep-merges a partial config update over the current configuration."""
+        def _merge(base: Dict[str, Any], patch: Dict[str, Any]) -> None:
+            for key, value in patch.items():
+                if isinstance(value, dict) and isinstance(base.get(key), dict):
+                    _merge(base[key], value)
+                else:
+                    base[key] = value
+
+        merged = dict(self._config)
+        _merge(merged, updates)
+        self.save(merged)
+        return self._config
+
     def get(self, section: str, key: str | None = None, default: Any = None) -> Any:
         """Reads a specific configuration key or section safely."""
         sec_val = self._config.get(section, {})
-        if key is None:
+        if key is None or key == "":
             return sec_val
         if isinstance(sec_val, dict):
             return sec_val.get(key, default)
