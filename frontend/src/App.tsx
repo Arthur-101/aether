@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { getCurrentWebview } from '@tauri-apps/api/webview';
+import { useCallback, useEffect, useState } from 'react';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
+import { useTauriFileDrop } from './hooks/useTauriFileDrop';
 import { DesktopIsland } from './components/Island/DesktopIsland';
 import { RadialWheel } from './components/RadialWheel/RadialWheel';
 import { SessionDrawer } from './components/SessionDrawer/SessionDrawer';
@@ -68,8 +68,6 @@ export function App() {
   const [cropFile, setCropFile] = useState<string | null>(null);
   const [addBgFile, setAddBgFile] = useState<string | null>(null);
   const [askRequest, setAskRequest] = useState<{ id: number; filePath: string } | null>(null);
-  const radialWheelOpen = useRef(Boolean(radialWheel));
-  radialWheelOpen.current = Boolean(radialWheel);
 
   const handleAskFile = useCallback(
     (filePath: string) => {
@@ -81,23 +79,7 @@ export function App() {
     [attachFile, closeRadialWheel]
   );
 
-  useEffect(() => {
-    if (!('__TAURI_INTERNALS__' in window)) return;
-    let unlisten: (() => void) | undefined;
-    getCurrentWebview()
-      .onDragDropEvent((event) => {
-        if (event.payload.type !== 'drop') return;
-        // While the wheel is open, Explorer's drop is owned by the wheel's
-        // slice action. Attaching here would incorrectly add the file to chat.
-        if (radialWheelOpen.current) return;
-        event.payload.paths.forEach((filePath) => handleAskFile(filePath));
-      })
-      .then((fn) => {
-        unlisten = fn;
-      })
-      .catch((error) => console.warn('Tauri file drop listener failed:', error));
-    return () => unlisten?.();
-  }, [handleAskFile]);
+  useTauriFileDrop(handleAskFile, radialWheel?.file_path ?? null);
 
   useEffect(() => {
     if (configError) setIsSettingsOpen(true);

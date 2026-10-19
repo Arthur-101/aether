@@ -4,6 +4,11 @@ Lazy wrapper around screen-brightness-control; never imported at daemon startup.
 """
 
 from typing import Optional
+import logging
+
+# SBC logs an EDID parse warning for some laptop panels on every poll; the
+# telemetry poller calls this frequently, so keep the daemon log usable.
+logging.getLogger("screen_brightness_control").setLevel(logging.ERROR)
 
 
 def get_brightness() -> Optional[int]:

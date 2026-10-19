@@ -4,6 +4,7 @@ Strict, specialized prompt definitions for Dictation cleaning, Desktop Assistant
 Optimized for small/local models (Ternary-Bonsai-2-9B) with zero token waste.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 import base64
 import mimetypes
@@ -22,7 +23,8 @@ Rules:
 1. Be concise, direct, and actionable. Avoid robotic pleasantries.
 2. When the user requests an OS action, file conversion, search, or routine, call the appropriate tool.
 3. If relevant past context or active window information is provided, ground your reply on it.
-4. Keep spoken responses brief and natural so they sound great via text-to-speech."""
+4. Keep spoken responses brief and natural so they sound great via text-to-speech.
+5. For reminders or routines, call a scheduling tool with a future date/time. Never claim something was scheduled unless the tool returned a success message."""
 
 VISION_SYSTEM_PROMPT = """You are Aether Vision. You analyze screenshots cropped from the user's desktop.
 Rules:
@@ -61,6 +63,13 @@ def build_assistant_messages(
     templates (including Ternary-Bonsai) reject a second system role.
     """
     system_sections = [ASSISTANT_SYSTEM_PROMPT]
+    local_now = datetime.now().astimezone()
+    timezone_label = local_now.tzname() or local_now.strftime("UTC%z")
+    system_sections.append(
+        "\n[Current Local Date & Time]\n"
+        f"{local_now.strftime('%A, %B %d, %Y at %I:%M %p')} ({timezone_label})\n"
+        "Use this exact current time for every relative date or reminder."
+    )
 
     if user_preferences:
         prefs_text = ", ".join(f"{k}: {v}" for k, v in user_preferences.items() if v)

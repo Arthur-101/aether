@@ -48,7 +48,7 @@ def get_binary_path(binary_name: str) -> str:
 def convert_image_format(file_path: str, target_format: str) -> str:
     """
     Converts an image to target format (png, jpg, webp, heic, tiff, avif, bmp, pdf).
-    Saves the output file in the same directory as the source.
+    Saves to the configured export directory or alongside the source.
     """
     p = Path(file_path)
     if not p.exists():

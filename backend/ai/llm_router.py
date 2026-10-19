@@ -72,8 +72,12 @@ class LLMRouter:
             arguments = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args or {})
         except Exception:
             arguments = {}
-        if name in SESSION_SCOPED_TOOLS and not arguments.get("session_id"):
-            arguments["session_id"] = session_id or session_manager.active_session_id or ""
+        if name in SESSION_SCOPED_TOOLS:
+            # The small local model can invent placeholders such as
+            # "current_session"; always bind tools to the real active session.
+            arguments["session_id"] = (
+                session_id or session_manager.active_session_id or ""
+            )
         return execute_tool(name, arguments)
 
     def chat_completion(

@@ -131,6 +131,9 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
         "reasoning": result.get("reasoning", ""),
         "tools_used": result.get("tool_calls_executed", []),
     })
+    from .task_events import broadcast_tasks
+
+    await broadcast_tasks()
 
 
 @_handler("NEW_SESSION")
@@ -163,6 +166,9 @@ async def _handle_delete_session(payload: Dict[str, Any]) -> None:
     if not sid:
         return
     loop = asyncio.get_running_loop()
+    from .mcp_tools.clock_scheduler import cancel_tasks_for_session
+
+    await loop.run_in_executor(None, lambda: cancel_tasks_for_session(sid))
     deleted = await loop.run_in_executor(
         None, lambda: session_manager.delete_session(sid)
     )
@@ -176,6 +182,9 @@ async def _handle_delete_session(payload: Dict[str, Any]) -> None:
         },
     )
     await ws_manager.broadcast("SESSION_LIST", {"sessions": sessions})
+    from .task_events import broadcast_tasks
+
+    await broadcast_tasks()
 
 
 @_handler("LIST_SESSIONS")
@@ -205,10 +214,12 @@ def _register_builtin_handlers() -> None:
     handlers are still registered lazily by runtime_wiring.start_runtime().
     """
     from .config_events import register_config_events
+    from .task_events import register_task_events
     from .tool_events import register_tool_events
 
     register_config_events()
     register_tool_events()
+    register_task_events()
 
 
 _register_builtin_handlers()

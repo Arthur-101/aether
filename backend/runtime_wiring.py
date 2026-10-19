@@ -101,8 +101,11 @@ def wire_mouse_tracker() -> None:
 
 
 def wire_clock_scheduler() -> None:
-    """Registers the clock scheduler wake callback to broadcast via WS."""
-    from .mcp_tools.clock_scheduler import register_wake_callback
+    """Registers the clock scheduler wake callback and restores saved tasks."""
+    from .mcp_tools.clock_scheduler import (
+        register_wake_callback,
+        restore_scheduled_tasks,
+    )
 
     loop = asyncio.get_running_loop()
 
@@ -116,7 +119,12 @@ def wire_clock_scheduler() -> None:
         )
 
     register_wake_callback(on_clock_trigger)
-    logger.info("Clock scheduler wake callback registered")
+    restored = restore_scheduled_tasks()
+    logger.info(
+        "Clock scheduler ready: %d restored, %d missed",
+        restored["restored"],
+        restored["missed"],
+    )
 
 
 def start_runtime() -> None:
