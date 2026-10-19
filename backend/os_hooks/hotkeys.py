@@ -47,6 +47,7 @@ class HotkeyManager:
         self._lock = threading.RLock()
         self._bindings: Dict[str, HotkeyBinding] = {}
         self._listener: Optional[keyboard.Listener] = None
+        self.suspended = False
         self.drag_detector = DragShiftDetector(
             on_trigger_callback=self._handle_wheel_trigger,
             on_move_callback=self._handle_wheel_move,
@@ -68,6 +69,15 @@ class HotkeyManager:
 
     def _handle_wheel_move(self, x: int, y: int) -> None:
         self.on_wheel_move(x, y)
+
+    def set_suspended(self, suspended: bool) -> None:
+        """Temporarily ignores actions while Settings records a new shortcut."""
+        self.suspended = suspended
+        with self._lock:
+            self._pressed.clear()
+            if suspended:
+                self._active.clear()
+                self._stop_recording_safe()
 
     def _start_recording_safe(self) -> None:
         try:
@@ -112,6 +122,8 @@ class HotkeyManager:
         name = key_name(key)
         with self._lock:
             self._pressed.add(name)
+            if self.suspended:
+                return
             for action, binding in self._bindings.items():
                 if binding.matches(frozenset(self._pressed)):
                     self._start_action(action)
@@ -120,6 +132,8 @@ class HotkeyManager:
         name = key_name(key)
         with self._lock:
             self._pressed.discard(name)
+            if self.suspended:
+                return
             pressed = frozenset(self._pressed)
             for action in list(self._active):
                 binding = self._bindings.get(action)

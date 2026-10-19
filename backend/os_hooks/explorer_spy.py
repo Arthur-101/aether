@@ -97,25 +97,45 @@ def _desktop_selected_path() -> Optional[str]:
     return None
 
 
+def _window_selected_path(window: Any) -> Optional[str]:
+    """Reads the selected (or focused) item from a Shell browser window."""
+    try:
+        selected = window.Document.SelectedItems()
+        if selected.Count > 0:
+            return selected.Item(0).Path
+    except Exception:
+        pass
+    try:
+        # Explorer can report zero selected items while a drag operation is
+        # active even though the dragged item is still focused.
+        focused = window.Document.FocusedItem
+        if focused is not None:
+            return focused.Path
+    except Exception:
+        pass
+    return None
+
+
 def get_selected_explorer_file() -> Optional[str]:
     """Queries Shell.Application COM for the currently selected/dragged item."""
     pythoncom.CoInitialize()
     try:
         shell = win32com.client.Dispatch("Shell.Application")
         fg_hwnd = win32gui.GetForegroundWindow()
+        fg_root = win32gui.GetAncestor(fg_hwnd, 2)  # GA_ROOT
         fg_class = win32gui.GetClassName(fg_hwnd)
 
         # Desktop icons are not exposed by Shell.Application.Windows().
         if fg_class in ("Progman", "WorkerW"):
             return _desktop_selected_path()
 
-        # 1. Check the foreground Explorer window
+        # 1. Check the foreground Explorer window (or its top-level ancestor).
         for window in shell.Windows():
             try:
-                if int(window.HWND) == int(fg_hwnd):
-                    selected = window.Document.SelectedItems()
-                    if selected.Count > 0:
-                        return selected.Item(0).Path
+                if int(window.HWND) in (int(fg_hwnd), int(fg_root)):
+                    path = _window_selected_path(window)
+                    if path:
+                        return path
             except Exception:
                 continue
     except Exception:

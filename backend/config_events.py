@@ -90,9 +90,20 @@ async def _handle_update_config(payload: Dict[str, Any]) -> None:
     )
 
 
+async def _handle_hotkey_capture(payload: Dict[str, Any]) -> None:
+    """Suspends global hotkeys while the Settings recorder is listening."""
+    try:
+        from .os_hooks.hotkeys import hotkey_manager
+
+        hotkey_manager.set_suspended(bool(payload.get("enabled", False)))
+    except Exception:
+        pass
+
+
 def register_config_events() -> None:
     """Registers configuration event handlers."""
     register_handler("TOGGLE_THINKING_MODE", _handle_toggle_thinking)
     register_handler("GET_CONFIG", _handle_get_config)
     register_handler("SAVE_CONFIG", _handle_save_config)
     register_handler("UPDATE_CONFIG", _handle_update_config)
+    register_handler("SET_HOTKEY_CAPTURE", _handle_hotkey_capture)

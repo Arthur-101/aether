@@ -125,6 +125,11 @@ export function useBackendActions(
     (level: number) => sendEvent({ type: 'SET_VOLUME', payload: { level } }),
     [sendEvent]
   );
+  const setHotkeyCapture = useCallback(
+    (enabled: boolean) =>
+      sendEvent({ type: 'SET_HOTKEY_CAPTURE', payload: { enabled } }),
+    [sendEvent]
+  );
   const setMuted = useCallback(
     (muted: boolean) => sendEvent({ type: 'SET_MUTED', payload: { muted } }),
     [sendEvent]
@@ -167,6 +172,7 @@ export function useBackendActions(
     toggleThinking,
     saveConfig,
     setVolume,
+    setHotkeyCapture,
     setMuted,
     setBrightness,
     toggleWifi,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
@@ -45,6 +45,7 @@ export function App() {
     toggleThinking,
     saveConfig,
     setVolume,
+    setHotkeyCapture,
     setMuted,
     setBrightness,
     toggleWifi,
@@ -67,6 +68,8 @@ export function App() {
   const [cropFile, setCropFile] = useState<string | null>(null);
   const [addBgFile, setAddBgFile] = useState<string | null>(null);
   const [askRequest, setAskRequest] = useState<{ id: number; filePath: string } | null>(null);
+  const radialWheelOpen = useRef(Boolean(radialWheel));
+  radialWheelOpen.current = Boolean(radialWheel);
 
   const handleAskFile = useCallback(
     (filePath: string) => {
@@ -84,6 +87,9 @@ export function App() {
     getCurrentWebview()
       .onDragDropEvent((event) => {
         if (event.payload.type !== 'drop') return;
+        // While the wheel is open, Explorer's drop is owned by the wheel's
+        // slice action. Attaching here would incorrectly add the file to chat.
+        if (radialWheelOpen.current) return;
         event.payload.paths.forEach((filePath) => handleAskFile(filePath));
       })
       .then((fn) => {
@@ -194,6 +200,7 @@ export function App() {
         configError={configError}
         onToggleThinking={toggleThinking}
         onSave={saveConfig}
+        onHotkeyCapture={setHotkeyCapture}
         onClose={() => {
           setIsSettingsOpen(false);
           clearConfigError();

@@ -93,6 +93,7 @@ def get_wifi_enabled() -> Optional[bool]:
 
 
 def set_wifi_enabled(enabled: bool) -> bool:
+    _airplane_override["value"] = None
     return _set_radio("wifi", enabled)
 
 
@@ -101,6 +102,7 @@ def get_bluetooth_enabled() -> Optional[bool]:
 
 
 def set_bluetooth_enabled(enabled: bool) -> bool:
+    _airplane_override["value"] = None
     return _set_radio("bluetooth", enabled)
 
 
@@ -150,7 +152,7 @@ def get_bluetooth_device_name() -> str:
 # ─── Airplane Mode ───────────────────────────────────────────────
 def get_airplane_mode() -> bool:
     """Reads Windows Airplane Mode, falling back to all-radio-off inference."""
-    if _airplane_override["value"] is not None and time.time() - _airplane_override["ts"] < 5:
+    if _airplane_override["value"] is not None:
         return bool(_airplane_override["value"])
     try:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _AIRPLANE_KEY) as key:

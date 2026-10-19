@@ -5,6 +5,7 @@ import type { HotkeysConfig } from '../../../types/ipc';
 interface HotkeySettingsProps {
   hotkeys: HotkeysConfig;
   onChange: (patch: Partial<HotkeysConfig>) => void;
+  onRecordingChange: (enabled: boolean) => void;
 }
 
 const rows = [
@@ -58,8 +59,17 @@ function mainKey(event: KeyboardEvent): string | null {
   return null;
 }
 
-export const HotkeySettings: React.FC<HotkeySettingsProps> = ({ hotkeys, onChange }) => {
+export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
+  hotkeys,
+  onChange,
+  onRecordingChange,
+}) => {
   const [recording, setRecording] = useState<keyof HotkeysConfig | null>(null);
+
+  useEffect(() => {
+    onRecordingChange(recording !== null);
+    return () => onRecordingChange(false);
+  }, [recording, onRecordingChange]);
 
   useEffect(() => {
     if (!recording) return;

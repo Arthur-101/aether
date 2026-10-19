@@ -14,6 +14,7 @@ interface SettingsModalProps {
   configError: string | null;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
+  onHotkeyCapture: (enabled: boolean) => void;
   onClose: () => void;
 }
 
@@ -33,6 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   configError,
   onToggleThinking,
   onSave,
+  onHotkeyCapture,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('ai');
@@ -159,7 +161,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <VoiceSettings voice={draft.voice} onChange={updateVoice} />
                   )}
                   {activeTab === 'hotkeys' && (
-                    <HotkeySettings hotkeys={draft.hotkeys} onChange={updateHotkeys} />
+                    <HotkeySettings
+                      hotkeys={draft.hotkeys}
+                      onChange={updateHotkeys}
+                      onRecordingChange={onHotkeyCapture}
+                    />
                   )}
                   {activeTab === 'storage' && (
                     <StorageSettings

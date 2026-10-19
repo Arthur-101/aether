@@ -136,6 +136,7 @@ export type OutgoingEvent =
   | { type: 'GET_CONFIG'; payload: Record<string, never> }
   | { type: 'GET_SYSTEM_STATE'; payload: Record<string, never> }
   | { type: 'SAVE_CONFIG'; payload: { config: AppConfig } }
+  | { type: 'SET_HOTKEY_CAPTURE'; payload: { enabled: boolean } }
   | {
       type: 'UPDATE_CONFIG';
       payload: { section: string; key: string; value: any };

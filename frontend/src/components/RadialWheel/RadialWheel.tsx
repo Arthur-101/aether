@@ -69,11 +69,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   const coreHighlighted = liveHit?.type === 'core' || coreHovered;
   const highlightedIndex = liveIndex ?? hoveredIndex;
   const activeLabel = coreHighlighted
-    ? askEligible
-      ? 'Ask AI'
-      : activeRing === 'format'
-        ? 'Switch to Utility'
-        : 'Switch to Format'
+    ? 'Cancel'
     : highlightedIndex !== null
       ? sliceActionLabel(slices[highlightedIndex], isPdf)
       : activeRing === 'format'
@@ -108,8 +104,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   };
 
   const activateCore = () => {
-    if (askEligible) onAsk(data.file_path);
-    else setActiveRing((ring) => (ring === 'format' ? 'utility' : 'format'));
+    onClose();
   };
 
   // Explorer owns mouse capture during a drag, so backend RADIAL_WHEEL_DROP is
@@ -128,8 +123,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
       return;
     }
     if (hit.type === 'core') {
-      if (askEligible) onAsk(data.file_path);
-      else onClose();
+      onClose();
       return;
     }
     activate(slices[hit.index]);
@@ -177,7 +171,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
             {data.file_path.split(/[\\/]/).pop()}
           </div>
           <div className="mt-0.5 text-[9px] text-[#8b8b8b]">
-            {coreHighlighted ? 'Release to ask' : 'Release on a slice'}
+            {coreHighlighted ? 'Release to cancel' : 'Release on a slice'}
           </div>
         </div>
 
