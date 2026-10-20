@@ -39,6 +39,8 @@ interface DesktopIslandProps {
   bluetoothDevices: BluetoothDeviceInfo[];
   notes: NotesApi;
   model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
+  isExpanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
   onToggleDrawer: () => void;
   onOpenSettings: () => void;
   onKillApp: () => void;
@@ -79,6 +81,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   bluetoothDevices,
   notes,
   model,
+  isExpanded,
+  onExpandedChange,
   onToggleDrawer,
   onOpenSettings,
   onKillApp,
@@ -103,7 +107,6 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onRefreshBluetoothDevices,
   onOpenSettingsPage,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<'controls' | 'chat' | 'tasks' | 'notes'>('controls');
   const [now, setNow] = useState(() => new Date());
 
@@ -114,9 +117,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
 
   useEffect(() => {
     if (!askRequest) return;
-    setIsExpanded(true);
+    onExpandedChange(true);
     setActiveTab('chat');
-  }, [askRequest]);
+  }, [askRequest, onExpandedChange]);
   const browseForAsk = async () => {
     const filePath = await pickNativePath('file', 'all');
     if (filePath) onAskFile(filePath);
@@ -142,7 +145,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
         <IslandPill
           sessionTitle={sessionTitle}
           dotColor={dotColor}
-          onClick={() => setIsExpanded(true)}
+          onClick={() => onExpandedChange(true)}
         />
       )}
 
@@ -163,7 +166,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               onToggleDrawer={onToggleDrawer}
               onOpenSettings={onOpenSettings}
               onKillApp={onKillApp}
-              onClose={() => setIsExpanded(false)}
+              onClose={() => onExpandedChange(false)}
             />
 
             <IslandStatusBar systemStats={systemStats} now={now} />

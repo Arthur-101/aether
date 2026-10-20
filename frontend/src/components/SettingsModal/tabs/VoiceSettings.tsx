@@ -2,6 +2,7 @@ import React from 'react';
 import { FolderOpen, FileSearch } from 'lucide-react';
 import type { VoiceConfig } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
+import { placementBesideSettings } from '../../../lib/externalWindows';
 
 interface VoiceSettingsProps {
   voice: VoiceConfig;
@@ -14,7 +15,7 @@ const labelClass = 'mb-1 block text-[11px] font-medium text-[#c7c7c7]';
 
 export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange }) => {
   const browseStt = async () => {
-    const path = await pickNativePath('directory', 'all');
+    const path = await pickNativePath('directory', 'all', placementBesideSettings());
     if (path) onChange({ stt_model_dir: path });
   };
 

@@ -2,30 +2,37 @@ import React from 'react';
 import { ExternalLink, FolderOpen, Image, Monitor, HardDrive } from 'lucide-react';
 import type { AppConfig } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
-import { openNotesFolder } from '../../../lib/notesApi';
+import { placementBesideSettings } from '../../../lib/externalWindows';
 import { NOTE_THEMES } from '../../Island/noteThemes';
 
 interface StorageSettingsProps {
   storage: NonNullable<AppConfig['storage']>;
+  resolvedNotesDirectory: string;
   onChange: (patch: NonNullable<AppConfig['storage']>) => void;
+  onOpenNotesFolder: (path: string) => void;
 }
 
 const SAME = 'SAME_AS_SOURCE';
 const DESKTOP = 'DESKTOP';
 
-export const StorageSettings: React.FC<StorageSettingsProps> = ({ storage, onChange }) => {
+export const StorageSettings: React.FC<StorageSettingsProps> = ({
+  storage,
+  resolvedNotesDirectory,
+  onChange,
+  onOpenNotesFolder,
+}) => {
   const value = storage.export_directory || SAME;
   const isSame = value === SAME;
   const isDesktop = value === DESKTOP;
   const isCustom = !isSame && !isDesktop;
 
   const chooseFolder = async () => {
-    const folder = await pickNativePath('directory', 'all');
+    const folder = await pickNativePath('directory', 'all', placementBesideSettings());
     if (folder) onChange({ ...storage, export_directory: folder });
   };
 
   const chooseNotesFolder = async () => {
-    const folder = await pickNativePath('directory', 'all');
+    const folder = await pickNativePath('directory', 'all', placementBesideSettings());
     if (folder) onChange({ ...storage, notes_directory: folder });
   };
 
@@ -119,7 +126,7 @@ export const StorageSettings: React.FC<StorageSettingsProps> = ({ storage, onCha
             Browse
           </button>
           <button
-            onClick={() => void openNotesFolder()}
+            onClick={() => onOpenNotesFolder(storage.notes_directory || resolvedNotesDirectory)}
             title="Open notes folder in Explorer"
             className="flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-[#383838] px-2.5 py-2 text-white transition hover:bg-[#444]"
           >

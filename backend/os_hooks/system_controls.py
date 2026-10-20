@@ -5,6 +5,7 @@ dark mode, psutil telemetry, pynvml VRAM, media keys, and wallpaper.
 """
 
 import ctypes
+import threading
 import winreg
 from typing import Any, Dict, Optional
 import psutil
@@ -101,19 +102,39 @@ def get_system_telemetry() -> Dict[str, Any]:
 
 
 # ─── Master Volume (pycaw) ──────────────────────────────────────
+# COM interfaces are apartment-bound. The daemon calls these helpers from
+# asyncio's executor, so cache one endpoint per worker thread instead of
+# reacquiring the default audio device on every slider update.
+_audio_local = threading.local()
+
+
 def _get_audio_endpoint():
+    endpoint = getattr(_audio_local, "endpoint", None)
+    if endpoint is not None:
+        return endpoint
     speakers = AudioUtilities.GetSpeakers()
     if hasattr(speakers, "EndpointVolume"):
-        return speakers.EndpointVolume
-    interface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    return interface.QueryInterface(IAudioEndpointVolume)
+        endpoint = speakers.EndpointVolume
+    else:
+        interface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        endpoint = interface.QueryInterface(IAudioEndpointVolume)
+    _audio_local.endpoint = endpoint
+    return endpoint
+
+
+def _reset_audio_endpoint() -> None:
+    _audio_local.endpoint = None
 
 
 def get_master_volume() -> float:
     try:
         return round(float(_get_audio_endpoint().GetMasterVolumeLevelScalar()), 2)
     except Exception:
-        return 0.5
+        _reset_audio_endpoint()
+        try:
+            return round(float(_get_audio_endpoint().GetMasterVolumeLevelScalar()), 2)
+        except Exception:
+            return 0.5
 
 
 def set_master_volume(level: float) -> float:
@@ -121,7 +142,11 @@ def set_master_volume(level: float) -> float:
     try:
         _get_audio_endpoint().SetMasterVolumeLevelScalar(clamped, None)
     except Exception:
-        pass
+        _reset_audio_endpoint()
+        try:
+            _get_audio_endpoint().SetMasterVolumeLevelScalar(clamped, None)
+        except Exception:
+            pass
     return clamped
 
 
@@ -129,14 +154,22 @@ def get_mute_state() -> bool:
     try:
         return bool(_get_audio_endpoint().GetMute())
     except Exception:
-        return False
+        _reset_audio_endpoint()
+        try:
+            return bool(_get_audio_endpoint().GetMute())
+        except Exception:
+            return False
 
 
 def set_mute_state(muted: bool) -> bool:
     try:
         _get_audio_endpoint().SetMute(int(muted), None)
     except Exception:
-        pass
+        _reset_audio_endpoint()
+        try:
+            _get_audio_endpoint().SetMute(int(muted), None)
+        except Exception:
+            pass
     return muted
 
 

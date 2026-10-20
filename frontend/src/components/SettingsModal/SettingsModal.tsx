@@ -12,9 +12,11 @@ interface SettingsModalProps {
   thinkingMode: boolean;
   config: AppConfig | null;
   configError: string | null;
+  notesDirectory: string;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
   onHotkeyCapture: (enabled: boolean) => void;
+  onOpenNotesFolder: (path: string) => void;
   onClose: () => void;
 }
 
@@ -32,15 +34,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   thinkingMode,
   config,
   configError,
+  notesDirectory,
   onToggleThinking,
   onSave,
   onHotkeyCapture,
+  onOpenNotesFolder,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('ai');
   const [draft, setDraft] = useState<AppConfig | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const defaultOffset = () => ({
+    x: Math.max(0, (window.innerWidth - 620) / 2 - 24),
+    y: 0,
+  });
+  const [offset, setOffset] = useState(defaultOffset);
   const dragRef = useRef<{
     startX: number;
     startY: number;
@@ -53,7 +61,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   }, [isOpen, config]);
 
   useEffect(() => {
-    if (isOpen) setOffset({ x: 0, y: 0 });
+    if (isOpen) setOffset(defaultOffset());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -73,10 +82,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const drag = dragRef.current;
     if (!drag) return;
     const maxX = Math.max(0, (window.innerWidth - 620) / 2 - 12);
-    const maxUp = Math.max(0, window.innerHeight - 520 - 24);
+    const maxDown = Math.max(0, window.innerHeight - 520 - 24);
     setOffset({
       x: Math.min(maxX, Math.max(-maxX, drag.baseX + event.clientX - drag.startX)),
-      y: Math.min(0, Math.max(-maxUp, drag.baseY + event.clientY - drag.startY)),
+      y: Math.min(maxDown, Math.max(0, drag.baseY + event.clientY - drag.startY)),
     });
   };
 
@@ -134,12 +143,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="pointer-events-none fixed inset-0 z-[60] flex items-end justify-center pb-6">
+      <div className="pointer-events-none fixed inset-0 z-[60] flex items-start justify-center pt-3">
         <div
           style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
         >
           <motion.div
             data-aether-interactive
+            data-aether-settings-panel
             initial={{ scale: 0.97, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.97, opacity: 0 }}
@@ -234,7 +244,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'storage' && (
                     <StorageSettings
                       storage={draft.storage ?? {}}
+                      resolvedNotesDirectory={notesDirectory}
                       onChange={updateStorage}
+                      onOpenNotesFolder={onOpenNotesFolder}
                     />
                   )}
                 </>

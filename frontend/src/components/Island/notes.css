@@ -138,6 +138,30 @@
   background-size: 12px 12px;
 }
 
+.note-surface[data-note-theme='meadow'] {
+  --note-bg: #d9e8c9;
+  --note-text: #1d3622;
+  --note-muted: #4e6b4e;
+  --note-accent: #2f6b3f;
+  --note-border: rgba(47, 107, 63, 0.26);
+  --note-hover: rgba(47, 107, 63, 0.12);
+  --note-active: rgba(47, 107, 63, 0.22);
+  --note-code-bg: rgba(37, 82, 46, 0.12);
+  --note-quote: rgba(29, 54, 34, 0.76);
+  background-color: #d9e8c9;
+  background-image:
+    url('./meadowPattern.svg'),
+    url('./meadowLeaves.svg'),
+    radial-gradient(ellipse 70% 75% at 5% 5%, rgba(147, 194, 112, 0.9) 0%, rgba(147, 194, 112, 0) 68%),
+    radial-gradient(ellipse 60% 70% at 100% 0%, rgba(78, 130, 83, 0.72) 0%, rgba(78, 130, 83, 0) 66%),
+    radial-gradient(ellipse 75% 70% at 100% 100%, rgba(193, 221, 160, 0.9) 0%, rgba(193, 221, 160, 0) 70%),
+    radial-gradient(ellipse 65% 70% at 0% 100%, rgba(111, 163, 97, 0.72) 0%, rgba(111, 163, 97, 0) 68%),
+    linear-gradient(130deg, #f3f8eb 0%, #d4e8c2 38%, #b3d29b 70%, #8fba76 100%);
+  background-size: 400px 96px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-position: left bottom, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-repeat: repeat-x, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat;
+}
+
 .note-surface .note-title-input {
   color: var(--note-text);
 }

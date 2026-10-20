@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
 import { useTauriFileDrop } from './hooks/useTauriFileDrop';
@@ -10,6 +10,12 @@ import { AddBgModal } from './components/MicroModals/AddBgModal';
 import { SettingsModal } from './components/SettingsModal/SettingsModal';
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { Notifications } from './components/Notifications';
+import {
+  openExternalTarget,
+  openSettingsPageExternal,
+  placementBesideSettings,
+} from './lib/externalWindows';
+import { openNotesFolder as openNotesFolderFallback } from './lib/notesApi';
 import type { NotesApi } from './types/notes';
 
 function localIso(date: Date): string {
@@ -96,9 +102,63 @@ export function App() {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isIslandExpanded, setIsIslandExpanded] = useState(false);
   const [cropFile, setCropFile] = useState<string | null>(null);
   const [addBgFile, setAddBgFile] = useState<string | null>(null);
   const [askRequest, setAskRequest] = useState<{ id: number; filePath: string } | null>(null);
+  const islandExpandedRef = useRef(false);
+  const islandExpandedBeforeSettings = useRef(false);
+  const settingsOpenRef = useRef(false);
+
+  useEffect(() => {
+    islandExpandedRef.current = isIslandExpanded;
+  }, [isIslandExpanded]);
+
+  useEffect(() => {
+    settingsOpenRef.current = isSettingsOpen;
+  }, [isSettingsOpen]);
+
+  const openSettings = useCallback(() => {
+    if (!settingsOpenRef.current) {
+      islandExpandedBeforeSettings.current = islandExpandedRef.current;
+      settingsOpenRef.current = true;
+      setIsIslandExpanded(false);
+    }
+    setIsSettingsOpen(true);
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    settingsOpenRef.current = false;
+    setIsSettingsOpen(false);
+    clearConfigError();
+    refreshNotes();
+    if (islandExpandedBeforeSettings.current) {
+      setIsIslandExpanded(true);
+    }
+    islandExpandedBeforeSettings.current = false;
+  }, [clearConfigError, refreshNotes]);
+
+  const handleOpenSettingsPage = useCallback(
+    (page: string) => {
+      setIsIslandExpanded(false);
+      void openSettingsPageExternal(page).then((opened) => {
+        if (!opened) openSettingsPage(page);
+      });
+    },
+    [openSettingsPage]
+  );
+
+  const handleOpenNotesFolder = useCallback((path: string) => {
+    setIsIslandExpanded(false);
+    if (!path) {
+      void openNotesFolderFallback();
+      return;
+    }
+    const placement = placementBesideSettings();
+    void openExternalTarget(path, placement).then((opened) => {
+      if (!opened) void openNotesFolderFallback();
+    });
+  }, []);
 
   const handleAskFile = useCallback(
     (filePath: string) => {
@@ -125,8 +185,8 @@ export function App() {
   useTauriFileDrop(handleAskFile, radialWheel?.file_path ?? null);
 
   useEffect(() => {
-    if (configError) setIsSettingsOpen(true);
-  }, [configError]);
+    if (configError) openSettings();
+  }, [configError, openSettings]);
 
   const ai = config?.ai_provider;
   const engineLabel = !ai
@@ -167,6 +227,8 @@ export function App() {
         bluetoothDevices={bluetoothDevices}
         notes={notesApi}
         model={{ status: modelStatus, onLoad: loadModel, onRelease: releaseModel }}
+        isExpanded={isIslandExpanded}
+        onExpandedChange={setIsIslandExpanded}
         onToggleDrawer={() => {
           if (isDrawerOpen) {
             setIsDrawerOpen(false);
@@ -175,7 +237,7 @@ export function App() {
           refreshSessions();
           setIsDrawerOpen(true);
         }}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={openSettings}
         onKillApp={killApp}
         onSendMessage={sendChatMessage}
         onAskFile={handleAskFile}
@@ -196,7 +258,7 @@ export function App() {
         onConnectWifi={connectWifi}
         onDisconnectWifi={disconnectWifi}
         onRefreshBluetoothDevices={refreshBluetoothDevices}
-        onOpenSettingsPage={openSettingsPage}
+        onOpenSettingsPage={handleOpenSettingsPage}
       />
 
       {radialWheel && (
@@ -255,14 +317,12 @@ export function App() {
         thinkingMode={thinkingMode}
         config={config}
         configError={configError}
+        notesDirectory={notesDirectory}
         onToggleThinking={toggleThinking}
         onSave={saveConfig}
         onHotkeyCapture={setHotkeyCapture}
-        onClose={() => {
-          setIsSettingsOpen(false);
-          clearConfigError();
-          refreshNotes();
-        }}
+        onOpenNotesFolder={handleOpenNotesFolder}
+        onClose={closeSettings}
       />
 
       <CircleToAsk

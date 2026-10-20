@@ -10,6 +10,8 @@ interface ControlSliderProps {
   max?: number;
   step?: number;
   onChange: (value: number) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
   onIconClick?: () => void;
   iconTitle?: string;
   onSettings?: () => void;
@@ -25,6 +27,8 @@ export const ControlSlider: React.FC<ControlSliderProps> = ({
   max = 100,
   step = 1,
   onChange,
+  onInteractionStart,
+  onInteractionEnd,
   onIconClick,
   iconTitle,
   onSettings,
@@ -50,6 +54,10 @@ export const ControlSlider: React.FC<ControlSliderProps> = ({
           step={step}
           value={value}
           onChange={(event) => onChange(Number(event.target.value))}
+          onPointerDown={onInteractionStart}
+          onPointerUp={onInteractionEnd}
+          onPointerCancel={onInteractionEnd}
+          onBlur={onInteractionEnd}
           style={{ '--fill': `${fill}%` } as React.CSSProperties}
           className="win-slider h-4 min-w-0 flex-1 cursor-pointer"
         />

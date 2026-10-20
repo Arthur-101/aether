@@ -17,6 +17,7 @@ import type {
   SystemStats,
   WifiProfile,
 } from '../../types/ipc';
+import { useLiveControl } from '../../hooks/useLiveControl';
 import { ControlSlider } from './ControlSlider';
 import { ControlsTile } from './ControlsTile';
 import { BluetoothMenu } from './BluetoothMenu';
@@ -72,8 +73,15 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   const hotspot = stats?.hotspot ?? null;
   const darkMode = stats?.dark_mode ?? true;
   const muted = stats?.muted ?? false;
-  const volume = stats?.volume ?? 0.5;
-  const brightness = stats?.brightness ?? 50;
+  const volumeControl = useLiveControl(
+    Math.round((stats?.volume ?? 0.5) * 100),
+    (value) => onSetVolume(value / 100),
+    { throttleMs: 50, settleMs: 800 }
+  );
+  const brightnessControl = useLiveControl(stats?.brightness ?? 50, onSetBrightness, {
+    throttleMs: 120,
+    settleMs: 1200,
+  });
   const currentSsid =
     stats?.wifi_ssid || wifiProfiles.find((profile) => profile.connected)?.name || '';
   const bluetoothName =
@@ -216,12 +224,14 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
             )
           }
           label="Volume"
-          display={muted ? 'Muted' : `${Math.round(volume * 100)}%`}
-          value={volume * 100}
-          onChange={(value) => {
-            onSetMuted(false);
-            onSetVolume(value / 100);
+          display={muted ? 'Muted' : `${Math.round(volumeControl.value)}%`}
+          value={volumeControl.value}
+          onChange={volumeControl.onChange}
+          onInteractionStart={() => {
+            if (muted) onSetMuted(false);
+            volumeControl.onInteractionStart();
           }}
+          onInteractionEnd={volumeControl.onInteractionEnd}
           onIconClick={() => onSetMuted(!muted)}
           iconTitle={muted ? 'Unmute' : 'Mute'}
           onSettings={() => onOpenSettingsPage('sound')}
@@ -230,9 +240,11 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
         <ControlSlider
           icon={<Sun size={16} className="text-[#60cdff]" />}
           label="Brightness"
-          display={stats?.brightness == null ? '--' : `${brightness}%`}
-          value={brightness}
-          onChange={onSetBrightness}
+          display={stats?.brightness == null ? '--' : `${brightnessControl.value}%`}
+          value={brightnessControl.value}
+          onChange={brightnessControl.onChange}
+          onInteractionStart={brightnessControl.onInteractionStart}
+          onInteractionEnd={brightnessControl.onInteractionEnd}
           onSettings={() => onOpenSettingsPage('display')}
           settingsTitle="Open display settings"
         />

@@ -50,6 +50,15 @@ export const NOTE_THEMES: NoteTheme[] = [
       'repeating-linear-gradient(135deg, rgba(113, 214, 163, 0.4) 0 1px, transparent 1px 5px)',
     patternSize: '5px 5px',
   },
+  {
+    id: 'meadow',
+    label: 'Meadow',
+    swatch: '#cfe3c3',
+    description: 'Blurred greens & blooms',
+    pattern:
+      'radial-gradient(circle at 32% 36%, #f8f1d5 0 1px, rgba(248, 241, 213, 0) 1.7px), radial-gradient(circle at 18% 18%, #a9ce97 0, transparent 55%), radial-gradient(circle at 82% 18%, #4f7d52 0, transparent 52%), radial-gradient(circle at 74% 84%, #7fae6b 0, transparent 52%), radial-gradient(circle at 18% 88%, #5b8a58 0, transparent 55%), linear-gradient(135deg, #f3f8ec, #9fc392)',
+    patternSize: '100% 100%',
+  },
 ];
 
 export function resolveNoteTheme(theme?: string): NoteTheme {
