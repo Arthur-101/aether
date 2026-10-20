@@ -1,15 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Settings, Brain, UploadCloud, FolderOpen } from 'lucide-react';
+import { Menu, Settings, Brain } from 'lucide-react';
 import type {
   AttachmentItem,
   ChatTurn,
+  ModelStatus,
+  ScheduledTask,
   SystemStats,
+  TaskInput,
   VoiceState,
 } from '../../types/ipc';
+import type { NotesApi } from '../../types/notes';
 import { pickNativePath } from '../../lib/system';
 import { IslandControls } from './IslandControls';
+import { KillAppButton } from './KillAppButton';
 import { QuickChat } from './QuickChat';
+import { TaskPanel } from './TaskPanel';
+
+const NotesTab = React.lazy(() =>
+  import('./NotesTab').then((module) => ({ default: module.NotesTab }))
+);
 
 interface DesktopIslandProps {
   sessionTitle: string;
@@ -21,11 +31,19 @@ interface DesktopIslandProps {
   chatPending: string | null;
   attachments: AttachmentItem[];
   askRequest: { id: number; filePath: string } | null;
-  onOpenDrawer: () => void;
+  tasks: ScheduledTask[];
+  notes: NotesApi;
+  model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
+  onToggleDrawer: () => void;
   onOpenSettings: () => void;
+  onKillApp: () => void;
   onSendMessage: (msg: string) => void;
   onAskFile: (filePath: string) => void;
   onDetachFile: (filePath: string) => void;
+  onRefreshTasks: () => void;
+  onCreateTask: (task: TaskInput) => void;
+  onUpdateTask: (task: TaskInput & { task_id: string }) => void;
+  onDeleteTask: (taskId: string) => void;
   onSetVolume: (level: number) => void;
   onSetMuted: (muted: boolean) => void;
   onSetBrightness: (level: number) => void;
@@ -46,11 +64,19 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   chatPending,
   attachments,
   askRequest,
-  onOpenDrawer,
+  tasks,
+  notes,
+  model,
+  onToggleDrawer,
   onOpenSettings,
+  onKillApp,
   onSendMessage,
   onAskFile,
   onDetachFile,
+  onRefreshTasks,
+  onCreateTask,
+  onUpdateTask,
+  onDeleteTask,
   onSetVolume,
   onSetMuted,
   onSetBrightness,
@@ -61,24 +87,27 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onToggleDarkMode,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<'controls' | 'chat' | 'tasks' | 'drop'>('controls');
+  const [activeTab, setActiveTab] = useState<'controls' | 'chat' | 'tasks' | 'notes'>('controls');
 
   useEffect(() => {
     if (!askRequest) return;
     setIsExpanded(true);
     setActiveTab('chat');
   }, [askRequest]);
-
   const browseForAsk = async () => {
     const filePath = await pickNativePath('file', 'all');
     if (filePath) onAskFile(filePath);
   };
-
+  const tabNotes: NotesApi = {
+    ...notes,
+    onAttach: (id) => {
+      notes.onAttach(id);
+      setActiveTab('chat');
+    },
+  };
   const dotColor = {
-    listening: 'bg-[#60cdff] animate-pulse',
-    thinking: 'bg-[#fce100] animate-pulse',
-    speaking: 'bg-[#6ccb5f] animate-pulse',
-    idle: 'bg-[#6ccb5f]',
+    listening: 'bg-[#60cdff] animate-pulse', thinking: 'bg-[#fce100] animate-pulse',
+    speaking: 'bg-[#6ccb5f] animate-pulse', idle: 'bg-[#6ccb5f]',
   }[voiceState];
 
   return (
@@ -115,9 +144,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={onOpenDrawer}
+                  onClick={onToggleDrawer}
                   className="rounded-md bg-white/5 p-1.5 text-[#c7c7c7] transition hover:bg-white/10"
-                  title="Open Session Drawer"
+                  title="Toggle Session Drawer"
                 >
                   <Menu size={16} />
                 </button>
@@ -136,6 +165,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
                     {engineLabel} {thinkingMode ? '· Thinking' : ''}
                   </span>
                 </div>
+                <KillAppButton onKill={onKillApp} />
                 <button
                   onClick={onOpenSettings}
                   className="rounded-md bg-white/5 p-1.5 text-[#c7c7c7] transition hover:bg-white/10"
@@ -157,11 +187,14 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
                 { id: 'controls', label: 'Controls' },
                 { id: 'chat', label: 'Quick Chat' },
                 { id: 'tasks', label: 'Tasks' },
-                { id: 'drop', label: 'Drop Zone' },
+                { id: 'notes', label: 'Notes' },
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                  onClick={() => {
+                    setActiveTab(tab.id as typeof activeTab);
+                    if (tab.id === 'tasks') onRefreshTasks();
+                  }}
                   className={`rounded-md py-1.5 transition ${
                     activeTab === tab.id
                       ? 'bg-[#383838] text-white'
@@ -193,37 +226,34 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
                 pending={chatPending}
                 attachments={attachments}
                 focusToken={askRequest?.id ?? 0}
+                model={model}
+                notes={notes}
+                onBrowseFiles={browseForAsk}
                 onSend={onSendMessage}
                 onDetach={onDetachFile}
               />
             )}
 
             {activeTab === 'tasks' && (
-              <div className="p-6 text-center text-xs text-[#8b8b8b]">
-                <p>No pending clock alarms or routines.</p>
-                <p className="mt-1 text-[10px] text-[#6f6f6f]">
-                  Ask Aether to remind you, or use the scheduler tools in Quick Chat.
-                </p>
-              </div>
+              <TaskPanel
+                tasks={tasks}
+                onRefresh={onRefreshTasks}
+                onCreate={onCreateTask}
+                onUpdate={onUpdateTask}
+                onDelete={onDeleteTask}
+              />
             )}
 
-            {activeTab === 'drop' && (
-              <div className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/20 p-6 text-center">
-                <UploadCloud size={24} className="mb-1 text-[#60cdff]" />
-                <span className="text-xs font-medium text-[#f3f3f3]">
-                  Drop a document, image, or code file
-                </span>
-                <span className="text-[10px] text-[#8b8b8b]">
-                  It attaches to Quick Chat, indexes large files, and is ready to ask.
-                </span>
-                <button
-                  onClick={browseForAsk}
-                  className="mt-2 flex items-center gap-1.5 rounded-md bg-[#0067c0] px-3 py-1.5 text-[11px] font-medium text-white transition hover:bg-[#0078d4]"
-                >
-                  <FolderOpen size={12} />
-                  Browse files
-                </button>
-              </div>
+            {activeTab === 'notes' && (
+              <React.Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-8 text-[10px] text-[#8b8b8b]">
+                    Loading notes…
+                  </div>
+                }
+              >
+                <NotesTab notes={tabNotes} />
+              </React.Suspense>
             )}
           </motion.div>
         )}

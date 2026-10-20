@@ -3,7 +3,15 @@
  * Typed envelopes exchanged over ws://127.0.0.1:8765/ws
  */
 
+import type { NoteSaveInput } from './notes';
+
 export type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
+
+export interface ModelStatus {
+  loaded: boolean;
+  starting: boolean;
+  local: boolean;
+}
 
 export interface SystemStats {
   cpu_percent: number;
@@ -76,6 +84,36 @@ export interface AttachmentItem {
   token_count?: number;
 }
 
+export type TaskScheduleType = 'once' | 'daily' | 'custom';
+
+export interface ScheduledTask {
+  id: string;
+  session_id: string;
+  session_title?: string;
+  prompt_to_execute: string;
+  is_recurring: boolean;
+  schedule_type?: TaskScheduleType;
+  cron_or_iso: string;
+  run_at_iso?: string | null;
+  hour?: number | null;
+  minute?: number | null;
+  start_at_iso?: string | null;
+  end_at_iso?: string | null;
+  next_run_at?: string | null;
+  status?: string;
+}
+
+export interface TaskInput {
+  prompt: string;
+  schedule_type: TaskScheduleType;
+  is_recurring?: boolean;
+  run_at_iso?: string;
+  hour?: number;
+  minute?: number;
+  start_at_iso?: string;
+  end_at_iso?: string;
+}
+
 export interface AIProviderConfig {
   mode: 'local_gguf' | 'ollama' | 'cloud';
   local_engine?: string;
@@ -116,6 +154,8 @@ export interface AppConfig {
   storage?: {
     export_directory?: string;
     auto_session_timeout_minutes?: number;
+    notes_directory?: string;
+    notes_theme?: string;
   };
 }
 
@@ -132,9 +172,22 @@ export type OutgoingEvent =
   | { type: 'ATTACH_FILE'; payload: { file_path: string } }
   | { type: 'DETACH_FILE'; payload: { file_path: string } }
   | { type: 'DELETE_SESSION'; payload: { session_id: string } }
+  | { type: 'LIST_TASKS'; payload: Record<string, never> }
+  | { type: 'CREATE_TASK'; payload: TaskInput }
+  | { type: 'UPDATE_TASK'; payload: TaskInput & { task_id: string } }
+  | { type: 'DELETE_TASK'; payload: { task_id: string } }
+  | { type: 'LIST_NOTES'; payload: Record<string, never> }
+  | { type: 'READ_NOTE'; payload: { note_id: string } }
+  | { type: 'SAVE_NOTE'; payload: NoteSaveInput }
+  | { type: 'DELETE_NOTE'; payload: { note_id: string } }
+  | { type: 'ATTACH_NOTE'; payload: { note_id: string } }
   | { type: 'TOGGLE_THINKING_MODE'; payload: { enabled: boolean } }
   | { type: 'GET_CONFIG'; payload: Record<string, never> }
   | { type: 'GET_SYSTEM_STATE'; payload: Record<string, never> }
+  | { type: 'GET_MODEL_STATUS'; payload: Record<string, never> }
+  | { type: 'LOAD_MODEL'; payload: Record<string, never> }
+  | { type: 'RELEASE_MODEL'; payload: Record<string, never> }
+  | { type: 'KILL_APP'; payload: Record<string, never> }
   | { type: 'SAVE_CONFIG'; payload: { config: AppConfig } }
   | { type: 'SET_HOTKEY_CAPTURE'; payload: { enabled: boolean } }
   | {

@@ -41,24 +41,14 @@ export const SessionDrawer: React.FC<SessionDrawerProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            data-aether-interactive
-            className="aether-interactive fixed inset-0 z-40 bg-black/35 backdrop-blur-xs"
-          />
-
-          <motion.div
-            initial={{ x: -320, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -320, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-            data-aether-interactive
-            className="aether-interactive fixed bottom-3 left-3 top-3 z-50 flex w-[300px] flex-col overflow-hidden rounded-lg border border-white/10 bg-[#202020]/95 shadow-2xl backdrop-blur-xl"
-          >
+        <motion.div
+          initial={{ x: -320, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: -320, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          data-aether-interactive
+          className="aether-interactive fixed bottom-3 left-3 top-3 z-50 flex w-[300px] flex-col overflow-hidden rounded-lg border border-white/10 bg-[#202020]/95 shadow-2xl backdrop-blur-xl"
+        >
             <div className="flex items-center justify-between border-b border-white/10 p-4 pb-3">
               <div className="flex items-center gap-2">
                 <MessageSquare size={16} className="text-white/60" />
@@ -168,7 +158,6 @@ export const SessionDrawer: React.FC<SessionDrawerProps> = ({
               </span>
             </div>
           </motion.div>
-        </>
       )}
     </AnimatePresence>
   );

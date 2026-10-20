@@ -110,20 +110,24 @@ def wire_clock_scheduler() -> None:
     loop = asyncio.get_running_loop()
 
     def on_clock_trigger(session_id: str, system_event: str, task_id: str) -> None:
-        asyncio.run_coroutine_threadsafe(
-            ws_manager.broadcast(
+        async def _notify() -> None:
+            await ws_manager.broadcast(
                 "CLOCK_TRIGGER",
                 {"session_id": session_id, "event": system_event, "task_id": task_id},
-            ),
-            loop,
-        )
+            )
+            from .task_events import broadcast_tasks
+
+            await broadcast_tasks()
+
+        asyncio.run_coroutine_threadsafe(_notify(), loop)
 
     register_wake_callback(on_clock_trigger)
     restored = restore_scheduled_tasks()
     logger.info(
-        "Clock scheduler ready: %d restored, %d missed",
+        "Clock scheduler ready: %d restored, %d missed, %d expired",
         restored["restored"],
         restored["missed"],
+        restored.get("expired", 0),
     )
 
 

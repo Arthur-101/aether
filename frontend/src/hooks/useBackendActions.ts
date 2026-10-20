@@ -10,7 +10,9 @@ import type {
   ChatTurn,
   OutgoingEvent,
   SessionItem,
+  TaskInput,
 } from '../types/ipc';
+import type { NoteSaveInput } from '../types/notes';
 
 type Dispatch<T> = (value: T | ((prev: T) => T)) => void;
 
@@ -66,6 +68,70 @@ export function useBackendActions(
   const refreshSessions = useCallback(() => {
     sendEvent({ type: 'LIST_SESSIONS', payload: {} });
   }, [sendEvent]);
+
+  const refreshTasks = useCallback(() => {
+    sendEvent({ type: 'LIST_TASKS', payload: {} });
+  }, [sendEvent]);
+
+  const loadModel = useCallback(
+    () => sendEvent({ type: 'LOAD_MODEL', payload: {} }),
+    [sendEvent]
+  );
+
+  const releaseModel = useCallback(
+    () => sendEvent({ type: 'RELEASE_MODEL', payload: {} }),
+    [sendEvent]
+  );
+
+  const killApp = useCallback(
+    () => sendEvent({ type: 'KILL_APP', payload: {} }),
+    [sendEvent]
+  );
+
+  const createTask = useCallback(
+    (payload: TaskInput) => sendEvent({ type: 'CREATE_TASK', payload }),
+    [sendEvent]
+  );
+
+  const updateTask = useCallback(
+    (payload: TaskInput & { task_id: string }) =>
+      sendEvent({ type: 'UPDATE_TASK', payload }),
+    [sendEvent]
+  );
+
+  const deleteTask = useCallback(
+    (taskId: string) =>
+      sendEvent({ type: 'DELETE_TASK', payload: { task_id: taskId } }),
+    [sendEvent]
+  );
+
+  const refreshNotes = useCallback(
+    () => sendEvent({ type: 'LIST_NOTES', payload: {} }),
+    [sendEvent]
+  );
+
+  const readNote = useCallback(
+    (noteId: string) =>
+      sendEvent({ type: 'READ_NOTE', payload: { note_id: noteId } }),
+    [sendEvent]
+  );
+
+  const saveNote = useCallback(
+    (payload: NoteSaveInput) => sendEvent({ type: 'SAVE_NOTE', payload }),
+    [sendEvent]
+  );
+
+  const deleteNote = useCallback(
+    (noteId: string) =>
+      sendEvent({ type: 'DELETE_NOTE', payload: { note_id: noteId } }),
+    [sendEvent]
+  );
+
+  const attachNote = useCallback(
+    (noteId: string) =>
+      sendEvent({ type: 'ATTACH_NOTE', payload: { note_id: noteId } }),
+    [sendEvent]
+  );
 
   const triggerWheelAction = useCallback(
     (filePath: string, action: string, target?: string) => {
@@ -165,6 +231,18 @@ export function useBackendActions(
     newSession,
     switchSession,
     refreshSessions,
+    refreshTasks,
+    loadModel,
+    releaseModel,
+    killApp,
+    createTask,
+    updateTask,
+    deleteTask,
+    refreshNotes,
+    readNote,
+    saveNote,
+    deleteNote,
+    attachNote,
     triggerWheelAction,
     attachFile,
     detachFile,

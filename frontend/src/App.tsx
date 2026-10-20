@@ -10,6 +10,7 @@ import { AddBgModal } from './components/MicroModals/AddBgModal';
 import { SettingsModal } from './components/SettingsModal/SettingsModal';
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { Notifications } from './components/Notifications';
+import type { NotesApi } from './types/notes';
 
 export function App() {
   const {
@@ -21,6 +22,11 @@ export function App() {
     chatHistory,
     chatPending,
     sessions,
+    tasks,
+    notes,
+    activeNote,
+    notesDirectory,
+    modelStatus,
     systemStats,
     thinkingMode,
     config,
@@ -38,6 +44,18 @@ export function App() {
     newSession,
     switchSession,
     refreshSessions,
+    refreshTasks,
+    loadModel,
+    releaseModel,
+    killApp,
+    createTask,
+    updateTask,
+    deleteTask,
+    refreshNotes,
+    readNote,
+    saveNote,
+    deleteNote,
+    attachNote,
     triggerWheelAction,
     attachFile,
     detachFile,
@@ -94,6 +112,18 @@ export function App() {
         ? `${ai.cloud_provider || 'Cloud'} · ${ai.cloud_model || 'no model'}`
         : 'Local GGUF';
 
+  const notesApi: NotesApi = {
+    items: notes,
+    current: activeNote,
+    directory: notesDirectory,
+    defaultTheme: config?.storage?.notes_theme || 'default',
+    onList: refreshNotes,
+    onRead: readNote,
+    onSave: saveNote,
+    onDelete: deleteNote,
+    onAttach: attachNote,
+  };
+
   return (
     <main className="relative h-screen w-screen select-none overflow-hidden bg-transparent font-sans">
       <DesktopIsland
@@ -106,14 +136,26 @@ export function App() {
         chatPending={chatPending}
         attachments={attachments}
         askRequest={askRequest}
-        onOpenDrawer={() => {
+        tasks={tasks}
+        notes={notesApi}
+        model={{ status: modelStatus, onLoad: loadModel, onRelease: releaseModel }}
+        onToggleDrawer={() => {
+          if (isDrawerOpen) {
+            setIsDrawerOpen(false);
+            return;
+          }
           refreshSessions();
           setIsDrawerOpen(true);
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onKillApp={killApp}
         onSendMessage={sendChatMessage}
         onAskFile={handleAskFile}
         onDetachFile={detachFile}
+        onRefreshTasks={refreshTasks}
+        onCreateTask={createTask}
+        onUpdateTask={updateTask}
+        onDeleteTask={deleteTask}
         onSetVolume={setVolume}
         onSetMuted={setMuted}
         onSetBrightness={setBrightness}
@@ -186,6 +228,7 @@ export function App() {
         onClose={() => {
           setIsSettingsOpen(false);
           clearConfigError();
+          refreshNotes();
         }}
       />
 

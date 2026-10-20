@@ -9,20 +9,22 @@ import type {
   AttachmentItem,
   ChatTurn,
   IncomingEnvelope,
+  ModelStatus,
+  OutgoingEvent,
   RadialWheelCursor,
   RadialWheelDropPayload,
   RadialWheelPayload,
   SessionItem,
+  ScheduledTask,
   SystemStats,
   VoiceState,
 } from '../types/ipc';
+import type { Note, NoteMeta } from '../types/notes';
 import { useBackendActions } from './useBackendActions';
 import { useSocketConnection } from './useSocketConnection';
 
 type MouseSubscriber = (x: number, y: number) => void;
-
 const EMPTY_STATS: SystemStats = { cpu_percent: 0, ram_percent: 0, disk_percent: 0 };
-
 export function useBackendSocket() {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -31,6 +33,11 @@ export function useBackendSocket() {
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [chatPending, setChatPending] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+  const [notes, setNotes] = useState<NoteMeta[]>([]);
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [notesDirectory, setNotesDirectory] = useState('');
+  const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [thinkingMode, setThinkingMode] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
@@ -43,7 +50,6 @@ export function useBackendSocket() {
   const [isCircleOpen, setIsCircleOpen] = useState(false);
   const [clockEvent, setClockEvent] = useState<string | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
-
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
   const subscribeMouse = useCallback((cb: MouseSubscriber) => {
@@ -132,11 +138,49 @@ export function useBackendSocket() {
         case 'SESSION_LIST':
           setSessions(payload.sessions || []);
           break;
-        case 'SYSTEM_STATS':
-          setSystemStats((prev) => ({ ...(prev ?? EMPTY_STATS), ...payload }));
+        case 'TASKS_LIST':
+          setTasks((payload.tasks as ScheduledTask[] | undefined) || []);
           break;
+        case 'NOTES_LIST': {
+          const noteList = (payload.notes as NoteMeta[] | undefined) || [];
+          setNotes(noteList);
+          setNotesDirectory(payload.directory || '');
+          setActiveNote((prev) =>
+            prev && !noteList.some((note) => note.id === prev.id) ? null : prev
+          );
+          break;
+        }
+        case 'NOTE_CONTENT':
+          setActiveNote((payload.note as Note | undefined) ?? null);
+          break;
+        case 'NOTE_SAVED': {
+          const saved = payload.note as Note | undefined;
+          if (saved) {
+            setActiveNote((prev) => {
+              if (!prev || prev.id !== saved.id) return saved;
+              return {
+                ...prev,
+                title: saved.title,
+                theme: saved.theme,
+                updated: saved.updated,
+                pinned: saved.pinned,
+                file_name: saved.file_name,
+              };
+            });
+          }
+          break;
+        }
+        case 'NOTE_DELETED':
+          setActiveNote((prev) =>
+            prev && prev.id === payload.note_id ? null : prev
+          );
+          break;
+        case 'SYSTEM_STATS':
         case 'SYSTEM_CONTROL_CHANGED':
           setSystemStats((prev) => ({ ...(prev ?? EMPTY_STATS), ...payload }));
+          break;
+        case 'MODEL_STATUS':
+          setModelStatus(payload as ModelStatus);
           break;
         case 'THINKING_MODE_CHANGED':
           setThinkingMode(Boolean(payload.enabled));
@@ -181,12 +225,10 @@ export function useBackendSocket() {
       console.error('WS parse error:', e);
     }
   });
-
   useEffect(() => {
     if (!connected) return;
-    sendEvent({ type: 'LIST_SESSIONS', payload: {} });
-    sendEvent({ type: 'GET_CONFIG', payload: {} });
-    sendEvent({ type: 'GET_SYSTEM_STATE', payload: {} });
+    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS'];
+    bootTypes.forEach((type) => sendEvent({ type, payload: {} } as OutgoingEvent));
   }, [connected, sendEvent]);
 
   const actions = useBackendActions(sendEvent, {
@@ -219,6 +261,11 @@ export function useBackendSocket() {
     chatHistory,
     chatPending,
     sessions,
+    tasks,
+    notes,
+    activeNote,
+    notesDirectory,
+    modelStatus,
     systemStats,
     thinkingMode,
     config,

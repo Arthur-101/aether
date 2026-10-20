@@ -1,0 +1,329 @@
+/* Aether Notes — theme-scoped editor surface (the island itself stays Fluent). */
+
+.note-surface {
+  --note-bg: rgba(255, 255, 255, 0.045);
+  --note-text: #f3f3f3;
+  --note-muted: #9a9a9a;
+  --note-accent: #60cdff;
+  --note-border: rgba(255, 255, 255, 0.12);
+  --note-hover: rgba(255, 255, 255, 0.08);
+  --note-active: rgba(96, 205, 255, 0.22);
+  --note-code-bg: rgba(0, 0, 0, 0.28);
+  --note-quote: rgba(255, 255, 255, 0.72);
+  background: var(--note-bg);
+  border-color: var(--note-border);
+  color: var(--note-text);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.note-surface[data-note-theme='paper'] {
+  --note-bg: #f6eedb;
+  --note-text: #352e24;
+  --note-muted: #8a7a61;
+  --note-accent: #a9702f;
+  --note-border: rgba(92, 70, 40, 0.22);
+  --note-hover: rgba(92, 70, 40, 0.08);
+  --note-active: rgba(169, 112, 47, 0.2);
+  --note-code-bg: rgba(92, 70, 40, 0.1);
+  --note-quote: rgba(53, 46, 36, 0.75);
+}
+
+.note-surface[data-note-theme='mint'] {
+  --note-bg: #e2f5ea;
+  --note-text: #17352a;
+  --note-muted: #5f8574;
+  --note-accent: #2f9e6b;
+  --note-border: rgba(47, 158, 107, 0.25);
+  --note-hover: rgba(47, 158, 107, 0.1);
+  --note-active: rgba(47, 158, 107, 0.2);
+  --note-code-bg: rgba(47, 158, 107, 0.12);
+  --note-quote: rgba(23, 53, 42, 0.72);
+}
+
+.note-surface[data-note-theme='sakura'] {
+  --note-bg: #fbe7ee;
+  --note-text: #3d2230;
+  --note-muted: #9a6b7d;
+  --note-accent: #c95d8c;
+  --note-border: rgba(201, 93, 140, 0.25);
+  --note-hover: rgba(201, 93, 140, 0.1);
+  --note-active: rgba(201, 93, 140, 0.2);
+  --note-code-bg: rgba(201, 93, 140, 0.12);
+  --note-quote: rgba(61, 34, 48, 0.72);
+}
+
+.note-surface[data-note-theme='sunset'] {
+  --note-bg: #ffe8d4;
+  --note-text: #45281a;
+  --note-muted: #a4795e;
+  --note-accent: #e0703c;
+  --note-border: rgba(224, 112, 60, 0.25);
+  --note-hover: rgba(224, 112, 60, 0.1);
+  --note-active: rgba(224, 112, 60, 0.2);
+  --note-code-bg: rgba(224, 112, 60, 0.12);
+  --note-quote: rgba(69, 40, 26, 0.72);
+}
+
+.note-surface[data-note-theme='midnight'] {
+  --note-bg: #16213a;
+  --note-text: #e8eeff;
+  --note-muted: #93a2c4;
+  --note-accent: #8bb4ff;
+  --note-border: rgba(139, 180, 255, 0.22);
+  --note-hover: rgba(139, 180, 255, 0.1);
+  --note-active: rgba(139, 180, 255, 0.22);
+  --note-code-bg: rgba(0, 0, 0, 0.3);
+  --note-quote: rgba(232, 238, 255, 0.7);
+}
+
+.note-surface[data-note-theme='doodle'] {
+  --note-bg: #f1e9ff;
+  --note-text: #2d2145;
+  --note-muted: #7a6a99;
+  --note-accent: #7c4dff;
+  --note-border: rgba(124, 77, 255, 0.25);
+  --note-hover: rgba(124, 77, 255, 0.1);
+  --note-active: rgba(124, 77, 255, 0.2);
+  --note-code-bg: rgba(124, 77, 255, 0.12);
+  --note-quote: rgba(45, 33, 69, 0.72);
+  background-image: radial-gradient(rgba(124, 77, 255, 0.16) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.note-surface .note-title-input {
+  color: var(--note-text);
+}
+
+.note-surface .note-title-input::placeholder {
+  color: var(--note-muted);
+  opacity: 0.65;
+}
+
+.note-surface .note-toolbar {
+  border-color: var(--note-border);
+  background: var(--note-hover);
+}
+
+.note-surface .note-tool-divider {
+  background: var(--note-border);
+}
+
+.note-surface .note-tool-btn {
+  color: var(--note-muted);
+}
+
+.note-surface .note-tool-btn:hover:not(:disabled) {
+  background: var(--note-hover);
+  color: var(--note-text);
+}
+
+.note-surface .note-tool-btn[data-active='true'] {
+  background: var(--note-active);
+  color: var(--note-text);
+}
+
+.note-body-scroll {
+  position: relative;
+  min-height: 190px;
+  max-height: 270px;
+  overflow-y: auto;
+}
+
+.note-body-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.note-body-scroll::-webkit-scrollbar-thumb {
+  background: var(--note-border);
+  border-radius: 3px;
+}
+
+.note-body-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.note-upload-hint {
+  position: sticky;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 0 10px 4px;
+  font-size: 9px;
+  color: var(--note-muted);
+}
+
+.note-surface .ProseMirror {
+  min-height: 180px;
+  padding: 6px 12px 16px;
+  outline: none;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--note-text);
+}
+
+.note-surface .ProseMirror > * + * {
+  margin-top: 0.45em;
+}
+
+.note-surface .ProseMirror h1,
+.note-surface .ProseMirror h2,
+.note-surface .ProseMirror h3 {
+  font-weight: 650;
+  line-height: 1.3;
+  margin-top: 0.7em;
+}
+
+.note-surface .ProseMirror h1 {
+  font-size: 1.25rem;
+}
+
+.note-surface .ProseMirror h2 {
+  font-size: 1.1rem;
+}
+
+.note-surface .ProseMirror h3 {
+  font-size: 1rem;
+}
+
+.note-surface .ProseMirror ul,
+.note-surface .ProseMirror ol {
+  padding-left: 1.2rem;
+}
+
+.note-surface .ProseMirror ul {
+  list-style: disc;
+}
+
+.note-surface .ProseMirror ol {
+  list-style: decimal;
+}
+
+.note-surface .ProseMirror li > p {
+  margin: 0;
+}
+
+.note-surface .ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.note-surface .ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.note-surface .ProseMirror ul[data-type='taskList'] li > label {
+  margin-top: 0.22rem;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.note-surface .ProseMirror ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.note-surface .ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.note-surface .ProseMirror input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  border: 1.5px solid var(--note-muted);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  accent-color: var(--note-accent);
+}
+
+.note-surface .ProseMirror input[type='checkbox']:checked {
+  background: var(--note-accent);
+  border-color: var(--note-accent);
+}
+
+.note-surface .ProseMirror input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 3.5px;
+  top: 1px;
+  width: 3.5px;
+  height: 6.5px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.note-surface .ProseMirror blockquote {
+  border-left: 3px solid var(--note-accent);
+  padding-left: 0.6rem;
+  color: var(--note-quote);
+}
+
+.note-surface .ProseMirror code {
+  background: var(--note-code-bg);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.note-surface .ProseMirror pre {
+  background: var(--note-code-bg);
+  border-radius: 6px;
+  padding: 0.6rem 0.7rem;
+  overflow-x: auto;
+}
+
+.note-surface .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.note-surface .ProseMirror a {
+  color: var(--note-accent);
+  text-decoration: underline;
+}
+
+.note-surface .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--note-border);
+  margin: 0.8em 0;
+}
+
+.note-surface .ProseMirror img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.4rem 0;
+  border-radius: 8px;
+}
+
+.note-surface .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--note-accent);
+  outline-offset: 2px;
+}
+
+.note-surface .ProseMirror ::selection,
+.note-surface .ProseMirror::selection {
+  background: var(--note-active);
+}
+
+.note-surface .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--note-muted);
+  opacity: 0.8;
+  pointer-events: none;
+}

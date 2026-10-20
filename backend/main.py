@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config_manager import config_manager
 from .config_api import router as config_router
 from .event_router import route_event
+from .notes.note_api import router as notes_router
 from .system_api import router as system_router
 from .ws_manager import ws_manager
 
@@ -53,6 +54,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Aether", version="0.1.0", lifespan=lifespan)
 app.include_router(config_router)
 app.include_router(system_router)
+app.include_router(notes_router)
 
 app.add_middleware(
     CORSMiddleware,

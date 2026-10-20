@@ -54,8 +54,9 @@ def run_tests():
         import backend.db.sessions as sess_mod
         import backend.mcp_tools.doc_tools as dt_mod
         import backend.mcp_tools.clock_scheduler as cs_mod
+        import backend.mcp_tools.clock_task_repository as ctr_mod
 
-        for mod in (sess_mod, dt_mod, cs_mod):
+        for mod in (sess_mod, dt_mod, cs_mod, ctr_mod):
             mod.get_db = lambda: get_db(test_db)
 
         # ----------------------------------------------------

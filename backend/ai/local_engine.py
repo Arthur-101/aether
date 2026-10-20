@@ -7,9 +7,12 @@ chat completions against the local Ternary-Bonsai model.
 import atexit
 import json
 import subprocess
+import threading
 import time
 import urllib.error
 import urllib.request
+
+import psutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -28,6 +31,7 @@ class LocalGGUFEngine:
         self.port = port
         self.base_url = f"http://{SERVER_HOST}:{self.port}"
         self.process: Optional[subprocess.Popen] = None
+        self._lifecycle_lock = threading.Lock()
         atexit.register(self.stop_server)
 
     def resolve_model_path(self) -> str:
@@ -49,6 +53,10 @@ class LocalGGUFEngine:
 
     def start_server(self, model_path: Optional[str] = None) -> bool:
         """Spawns bin/llama-server.exe as a managed background subprocess."""
+        with self._lifecycle_lock:
+            return self._start_locked(model_path)
+
+    def _start_locked(self, model_path: Optional[str] = None) -> bool:
         if self.is_healthy():
             return True
 
@@ -92,8 +100,31 @@ class LocalGGUFEngine:
             time.sleep(0.5)
         return False
 
+    def _kill_port_listener(self) -> None:
+        """Terminates a leftover llama-server still listening on our port."""
+        try:
+            for conn in psutil.net_connections(kind="inet"):
+                if not conn.laddr or conn.laddr.port != self.port:
+                    continue
+                if conn.status != psutil.CONN_LISTEN or not conn.pid:
+                    continue
+                proc = psutil.Process(conn.pid)
+                if "llama-server" not in proc.name().lower():
+                    continue
+                proc.terminate()
+                try:
+                    proc.wait(timeout=2.0)
+                except psutil.TimeoutExpired:
+                    proc.kill()
+        except Exception:
+            pass
+
     def stop_server(self) -> None:
         """Terminates llama-server cleanly to release VRAM."""
+        with self._lifecycle_lock:
+            self._stop_locked()
+
+    def _stop_locked(self) -> None:
         if self.process is not None:
             try:
                 self.process.terminate()
@@ -105,6 +136,9 @@ class LocalGGUFEngine:
                     pass
             finally:
                 self.process = None
+        # A previous backend process may have left llama-server orphaned.
+        if self.is_healthy():
+            self._kill_port_listener()
 
     def complete(
         self,

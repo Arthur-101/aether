@@ -3,6 +3,7 @@ Aether Configuration WebSocket Handlers
 Owns config read/save/update, Thinking Mode persistence, and hotkey hot-swap.
 """
 
+import asyncio
 import logging
 from typing import Any, Dict
 
@@ -40,7 +41,8 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
         "gpu_layers",
     )
     if any(old.get(key) != new.get(key) for key in backend_keys):
-        llm_router.stop_server()
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, llm_router.stop_server)
     try:
         from .db.sessions import session_manager
 
@@ -51,6 +53,9 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
     _reload_hotkeys()
     current = config_manager.load()
     await ws_manager.broadcast("CONFIG_STATE", current)
+    from .model_events import broadcast_model_status
+
+    await broadcast_model_status()
     return current
 
 

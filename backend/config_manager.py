@@ -102,6 +102,8 @@ def get_default_config() -> Dict[str, Any]:
         "storage": {
             "export_directory": "SAME_AS_SOURCE",
             "auto_session_timeout_minutes": 15,
+            "notes_directory": "",
+            "notes_theme": "default",
         },
     }
 

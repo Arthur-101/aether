@@ -99,7 +99,7 @@ async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
     )
 
 
-async def _attach_file(file_path: str) -> None:
+async def attach_file(file_path: str) -> None:
     """Attaches a file to the active session and reports indexing status."""
     import asyncio
 
@@ -140,13 +140,13 @@ async def _attach_file(file_path: str) -> None:
 
 
 async def _handle_attach_file(payload: Dict[str, Any]) -> None:
-    await _attach_file(str(payload.get("file_path", "")))
+    await attach_file(str(payload.get("file_path", "")))
 
 
 async def _handle_file_drop(payload: Dict[str, Any]) -> None:
     """Attaches a dropped file for ASK in the current session."""
     if payload.get("ask", True):
-        await _attach_file(str(payload.get("file_path", "")))
+        await attach_file(str(payload.get("file_path", "")))
         return
     await _handle_attach_file(payload)
 

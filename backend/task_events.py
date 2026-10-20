@@ -10,6 +10,7 @@ from .db.sessions import session_manager
 from .event_router import register_handler
 from .mcp_tools.clock_scheduler import (
     cancel_scheduled_task,
+    create_custom_task,
     create_daily_task,
     create_one_time_task,
     list_scheduled_tasks,
@@ -51,9 +52,23 @@ async def _handle_list_tasks(payload: Dict[str, Any]) -> None:
 async def _handle_create_task(payload: Dict[str, Any]) -> None:
     prompt = str(payload.get("prompt") or "").strip()
     session_id = await _ensure_active_session(prompt or "Scheduled task")
+    schedule_type = str(
+        payload.get("schedule_type")
+        or ("daily" if payload.get("is_recurring") else "once")
+    )
     loop = asyncio.get_running_loop()
     try:
-        if payload.get("is_recurring"):
+        if schedule_type == "custom":
+            await loop.run_in_executor(
+                None,
+                lambda: create_custom_task(
+                    session_id,
+                    str(payload.get("start_at_iso") or ""),
+                    str(payload.get("end_at_iso") or ""),
+                    prompt,
+                ),
+            )
+        elif schedule_type == "daily":
             await loop.run_in_executor(
                 None,
                 lambda: create_daily_task(
@@ -89,10 +104,13 @@ async def _handle_update_task(payload: Dict[str, Any]) -> None:
             lambda: update_scheduled_task(
                 task_id,
                 task_prompt=prompt,
-                is_recurring=bool(payload.get("is_recurring")),
+                schedule_type=payload.get("schedule_type"),
+                is_recurring=payload.get("is_recurring"),
                 run_at_iso=payload.get("run_at_iso"),
                 hour=payload.get("hour"),
                 minute=payload.get("minute"),
+                start_at_iso=payload.get("start_at_iso"),
+                end_at_iso=payload.get("end_at_iso"),
             ),
         )
     except (ValueError, TypeError) as exc:

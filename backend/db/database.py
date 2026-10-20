@@ -120,8 +120,28 @@ def init_db(db_path: Optional[Path] = None) -> None:
         cron_or_iso TEXT NOT NULL,
         prompt_to_execute TEXT NOT NULL,
         is_recurring INTEGER DEFAULT 0,
+        schedule_type TEXT DEFAULT 'once',
+        start_at_iso TEXT,
+        end_at_iso TEXT,
         status TEXT DEFAULT 'active'
     );
+    """)
+
+    # Migrate older task tables to the typed schedule columns.
+    cur.execute("PRAGMA table_info(scheduled_tasks)")
+    columns = {row["name"] for row in cur.fetchall()}
+    migrations = {
+        "schedule_type": "TEXT DEFAULT 'once'",
+        "start_at_iso": "TEXT",
+        "end_at_iso": "TEXT",
+    }
+    for name, ddl in migrations.items():
+        if name not in columns:
+            cur.execute(f"ALTER TABLE scheduled_tasks ADD COLUMN {name} {ddl}")
+    cur.execute("""
+        UPDATE scheduled_tasks
+        SET schedule_type = CASE WHEN is_recurring = 1 THEN 'daily' ELSE 'once' END
+        WHERE schedule_type IS NULL OR schedule_type = ''
     """)
 
     conn.commit()

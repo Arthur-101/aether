@@ -84,15 +84,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div
-        data-aether-interactive
-        className="aether-interactive fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm"
-      >
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
         <motion.div
+          data-aether-interactive
           initial={{ scale: 0.97, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.97, opacity: 0 }}
-          className="glass-panel flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
+          className="aether-interactive glass-panel flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
         >
           <div className="flex w-44 flex-col justify-between border-r border-white/10 bg-[#202020] p-4">
             <div>

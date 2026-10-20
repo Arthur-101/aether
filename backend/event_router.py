@@ -134,6 +134,9 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
     from .task_events import broadcast_tasks
 
     await broadcast_tasks()
+    from .model_events import broadcast_model_status
+
+    await broadcast_model_status()
 
 
 @_handler("NEW_SESSION")
@@ -213,13 +216,19 @@ def _register_builtin_handlers() -> None:
     entered (e.g. Starlette TestClient without a context manager). Heavy OS
     handlers are still registered lazily by runtime_wiring.start_runtime().
     """
+    from .app_events import register_app_events
     from .config_events import register_config_events
+    from .model_events import register_model_events
+    from .note_events import register_note_events
     from .task_events import register_task_events
     from .tool_events import register_tool_events
 
     register_config_events()
     register_tool_events()
     register_task_events()
+    register_model_events()
+    register_note_events()
+    register_app_events()
 
 
 _register_builtin_handlers()

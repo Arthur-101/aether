@@ -15,7 +15,11 @@ from .media_tools import (
     strip_image_metadata,
 )
 from .doc_tools import convert_document, search_dropped_file
-from .clock_scheduler import schedule_one_time_task, schedule_recurring_routine
+from .clock_scheduler import (
+    schedule_custom_task,
+    schedule_one_time_task,
+    schedule_recurring_routine,
+)
 
 # FastMCP Server Instance
 mcp = FastMCP("AetherTools")
@@ -29,6 +33,7 @@ mcp.tool()(convert_document)
 mcp.tool()(search_dropped_file)
 mcp.tool()(schedule_one_time_task)
 mcp.tool()(schedule_recurring_routine)
+mcp.tool()(schedule_custom_task)
 
 # Tool Dispatch Table
 TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
@@ -40,6 +45,7 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "search_dropped_file": search_dropped_file,
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
+    "schedule_custom_task": schedule_custom_task,
     "crop_image": crop_image,
     "add_background": add_background,
 }
@@ -49,6 +55,7 @@ SESSION_SCOPED_TOOLS = {
     "search_dropped_file",
     "schedule_one_time_task",
     "schedule_recurring_routine",
+    "schedule_custom_task",
 }
 
 
@@ -174,6 +181,23 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
                         "routine_prompt": {"type": "string", "description": "Routine instruction to execute."}
                     },
                     "required": ["session_id", "hour", "minute", "routine_prompt"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "schedule_custom_task",
+                "description": "Schedule a daily task that stops after an exact end date/time.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "session_id": {"type": "string", "description": "Current session ID."},
+                        "start_at_iso": {"type": "string", "description": "First run ISO 8601 date/time."},
+                        "end_at_iso": {"type": "string", "description": "Last boundary ISO 8601 date/time."},
+                        "task_prompt": {"type": "string", "description": "Task instruction to execute."}
+                    },
+                    "required": ["session_id", "start_at_iso", "end_at_iso", "task_prompt"]
                 }
             }
         }

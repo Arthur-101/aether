@@ -1,7 +1,9 @@
 import React from 'react';
-import { FolderOpen, Image, Monitor, HardDrive } from 'lucide-react';
+import { ExternalLink, FolderOpen, Image, Monitor, HardDrive } from 'lucide-react';
 import type { AppConfig } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
+import { openNotesFolder } from '../../../lib/notesApi';
+import { NOTE_THEMES } from '../../Island/noteThemes';
 
 interface StorageSettingsProps {
   storage: NonNullable<AppConfig['storage']>;
@@ -20,6 +22,11 @@ export const StorageSettings: React.FC<StorageSettingsProps> = ({ storage, onCha
   const chooseFolder = async () => {
     const folder = await pickNativePath('directory', 'all');
     if (folder) onChange({ ...storage, export_directory: folder });
+  };
+
+  const chooseNotesFolder = async () => {
+    const folder = await pickNativePath('directory', 'all');
+    if (folder) onChange({ ...storage, notes_directory: folder });
   };
 
   const optionClass = (active: boolean) =>
@@ -86,6 +93,64 @@ export const StorageSettings: React.FC<StorageSettingsProps> = ({ storage, onCha
         </div>
         <p className="mt-1.5 text-[10px] text-[#8b8b8b]">
           If the custom folder is unavailable, Aether falls back to the source file's folder.
+        </p>
+      </div>
+
+      <div className="border-t border-white/10 pt-3">
+        <label className="mb-1 block text-[11px] font-medium text-[#c7c7c7]">
+          Notes Vault Folder
+        </label>
+        <p className="mb-2 text-[10px] text-[#8b8b8b]">
+          Notes are plain Markdown files with their images kept in an `assets` subfolder.
+          Leave blank to use the default Aether notes folder.
+        </p>
+        <div className="flex gap-2">
+          <input
+            readOnly
+            value={storage.notes_directory || ''}
+            placeholder="Default: %APPDATA%\Aether\notes"
+            className="w-full rounded-md border border-white/10 bg-[#2b2b2b] px-3 py-2 font-mono text-[11px] text-[#f3f3f3] outline-none"
+          />
+          <button
+            onClick={chooseNotesFolder}
+            className="flex shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-[#383838] px-3 py-2 text-[11px] font-medium text-white transition hover:bg-[#444]"
+          >
+            <FolderOpen size={13} />
+            Browse
+          </button>
+          <button
+            onClick={() => void openNotesFolder()}
+            title="Open notes folder in Explorer"
+            className="flex shrink-0 items-center justify-center rounded-md border border-white/10 bg-[#383838] px-2.5 py-2 text-white transition hover:bg-[#444]"
+          >
+            <ExternalLink size={13} />
+          </button>
+        </div>
+        {storage.notes_directory ? (
+          <button
+            onClick={() => onChange({ ...storage, notes_directory: '' })}
+            className="mt-1 text-[10px] text-[#60cdff] transition hover:text-[#9dd5ff]"
+          >
+            Reset to default folder
+          </button>
+        ) : null}
+
+        <label className="mb-1 mt-3 block text-[11px] font-medium text-[#c7c7c7]">
+          Default Note Theme
+        </label>
+        <select
+          value={storage.notes_theme || 'default'}
+          onChange={(event) => onChange({ ...storage, notes_theme: event.target.value })}
+          className="w-48 rounded-md border border-white/10 bg-[#2b2b2b] px-3 py-2 text-[11px] text-[#f3f3f3] outline-none focus:border-[#0067c0]"
+        >
+          {NOTE_THEMES.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1.5 text-[10px] text-[#8b8b8b]">
+          Used for new notes. Every note can switch its own theme from the palette button.
         </p>
       </div>
 

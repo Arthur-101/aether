@@ -1,12 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, Loader2, Wrench, FileText, X, Image as ImageIcon } from 'lucide-react';
-import type { AttachmentItem, ChatTurn } from '../../types/ipc';
+import {
+  Send,
+  Loader2,
+  Wrench,
+  FileText,
+  X,
+  Image as ImageIcon,
+  Paperclip,
+  FolderOpen,
+  StickyNote,
+  ChevronLeft,
+  ChevronRight,
+  Pin,
+} from 'lucide-react';
+import type { AttachmentItem, ChatTurn, ModelStatus } from '../../types/ipc';
+import type { NotesApi } from '../../types/notes';
 
 interface QuickChatProps {
   history: ChatTurn[];
   pending: string | null;
   attachments?: AttachmentItem[];
   focusToken?: number;
+  model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
+  notes: NotesApi;
+  onBrowseFiles: () => void;
   onSend: (message: string) => void;
   onDetach?: (filePath: string) => void;
 }
@@ -23,12 +40,18 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   pending,
   attachments = [],
   focusToken = 0,
+  model,
+  notes,
+  onBrowseFiles,
   onSend,
   onDetach,
 }) => {
   const [input, setInput] = useState('');
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [notePickerOpen, setNotePickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -41,11 +64,25 @@ export const QuickChat: React.FC<QuickChatProps> = ({
     return () => window.clearTimeout(timer);
   }, [focusToken]);
 
+  useEffect(() => {
+    if (!attachOpen) return;
+    const handlePointer = (event: MouseEvent) => {
+      if (attachRef.current?.contains(event.target as Node)) return;
+      setAttachOpen(false);
+      setNotePickerOpen(false);
+    };
+    document.addEventListener('mousedown', handlePointer);
+    return () => document.removeEventListener('mousedown', handlePointer);
+  }, [attachOpen]);
+
   const handleSend = () => {
     if (!input.trim()) return;
     onSend(input);
     setInput('');
   };
+
+  const menuItemClass =
+    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[#d7d7d7] transition hover:bg-white/10 hover:text-white';
 
   return (
     <div className="flex flex-col gap-2 pt-1">
@@ -136,6 +173,97 @@ export const QuickChat: React.FC<QuickChatProps> = ({
       )}
 
       <div className="flex gap-2">
+        <div ref={attachRef} className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !attachOpen;
+              setAttachOpen(next);
+              setNotePickerOpen(false);
+              if (next) notes.onList();
+            }}
+            title="Attach a file or note"
+            className={`flex h-full items-center justify-center rounded-lg border px-2.5 transition ${
+              attachOpen
+                ? 'border-[#0067c0] bg-[#0067c0]/25 text-white'
+                : 'border-white/10 bg-[#2b2b2b] text-[#c7c7c7] hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <Paperclip size={14} />
+          </button>
+          {attachOpen ? (
+            <div className="absolute bottom-full left-0 z-30 mb-1 w-60 overflow-hidden rounded-lg border border-white/15 bg-[#232323]/98 shadow-2xl backdrop-blur-xl">
+              {notePickerOpen ? (
+                <>
+                  <div className="flex items-center gap-1.5 border-b border-white/10 px-2 py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setNotePickerOpen(false)}
+                      className="rounded p-0.5 text-[#8b8b8b] transition hover:bg-white/10 hover:text-white"
+                      title="Back"
+                    >
+                      <ChevronLeft size={12} />
+                    </button>
+                    <span className="text-[10px] font-medium text-[#c7c7c7]">Attach a note</span>
+                  </div>
+                  <div className="max-h-44 overflow-y-auto p-1">
+                    {notes.items.length === 0 ? (
+                      <p className="px-2 py-3 text-center text-[10px] text-[#8b8b8b]">
+                        No notes yet. Create one in the Notes tab.
+                      </p>
+                    ) : (
+                      notes.items.map((note) => (
+                        <button
+                          key={note.id}
+                          type="button"
+                          onClick={() => {
+                            setAttachOpen(false);
+                            setNotePickerOpen(false);
+                            notes.onAttach(note.id);
+                            inputRef.current?.focus();
+                          }}
+                          className={menuItemClass}
+                        >
+                          <StickyNote size={12} className="shrink-0 text-[#60cdff]" />
+                          <span className="min-w-0 flex-1 truncate">{note.title}</span>
+                          {note.pinned ? (
+                            <Pin size={10} className="shrink-0 text-[#60cdff]" />
+                          ) : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttachOpen(false);
+                      onBrowseFiles();
+                    }}
+                    className={menuItemClass}
+                  >
+                    <FolderOpen size={12} className="shrink-0" />
+                    Browse files…
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      notes.onList();
+                      setNotePickerOpen(true);
+                    }}
+                    className={menuItemClass}
+                  >
+                    <StickyNote size={12} className="shrink-0" />
+                    Attach note…
+                    <ChevronRight size={11} className="ml-auto shrink-0 text-[#8b8b8b]" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
         <input
           ref={inputRef}
           type="text"
@@ -158,9 +286,40 @@ export const QuickChat: React.FC<QuickChatProps> = ({
         </button>
       </div>
 
-      <div className="text-center text-[10px] text-[#8b8b8b]">
-        <kbd className="rounded bg-white/10 px-1.5 py-0.5">Ctrl+Win</kbd> Dictation ·{' '}
-        <kbd className="rounded bg-white/10 px-1.5 py-0.5">Alt+Space</kbd> Voice
+      <div className="relative flex items-center justify-center text-[10px] text-[#8b8b8b]">
+        <div>
+          <kbd className="rounded bg-white/10 px-1.5 py-0.5">Ctrl+Win</kbd> Dictation ·{' '}
+          <kbd className="rounded bg-white/10 px-1.5 py-0.5">Alt+Space</kbd> Voice
+        </div>
+
+        {model.status?.local && (
+          <button
+            type="button"
+            onClick={model.status.loaded ? model.onRelease : model.onLoad}
+            disabled={model.status.starting || pending !== null}
+            title={
+              model.status.loaded
+                ? 'Stop llama-server and free the model from VRAM'
+                : 'Preload the local model into VRAM'
+            }
+            className="absolute right-0 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] text-[#c7c7c7] transition hover:bg-white/10 hover:text-white disabled:cursor-wait disabled:opacity-60"
+          >
+            {model.status.starting ? (
+              <Loader2 size={9} className="animate-spin text-[#60cdff]" />
+            ) : (
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  model.status.loaded ? 'bg-[#6ccb5f]' : 'bg-[#8b8b8b]'
+                }`}
+              />
+            )}
+            {model.status.starting
+              ? 'Loading model…'
+              : model.status.loaded
+                ? 'Release VRAM'
+                : 'Load model'}
+          </button>
+        )}
       </div>
     </div>
   );
