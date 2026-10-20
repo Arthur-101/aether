@@ -28,7 +28,6 @@ export function useClickThrough(
     const tauriWindow = getCurrentWindow();
     let disposed = false;
     let lastCheck = 0;
-    let receivedAny = false;
 
     const applyIgnore = async (ignore: boolean) => {
       if (disposed || ignoreRef.current === ignore) return;
@@ -61,7 +60,6 @@ export function useClickThrough(
     void applyIgnore(true);
 
     const unsubscribe = subscribeMouse((physicalX, physicalY) => {
-      receivedAny = true;
       const now = performance.now();
       if (now - lastCheck < 16) return;
       lastCheck = now;
@@ -80,25 +78,20 @@ export function useClickThrough(
       void applyIgnore(!interactive);
     });
 
-    // Safety fallback: if the backend never streams cursor positions, keep the
-    // island usable instead of leaving the entire screen unclickable.
-    const fallback = window.setTimeout(() => {
-      if (!receivedAny) void applyIgnore(false);
-    }, 3000);
-
     return () => {
       disposed = true;
       unsubscribe();
-      clearTimeout(fallback);
     };
   }, [subscribeMouse]);
 
   useEffect(() => {
     if (connected || !isTauriRuntime()) return;
-    // Backend offline: let the user click the overlay (cannot hit-test anyway).
-    ignoreRef.current = false;
+    // Offline: the Python cursor stream is gone, so per-region hit-testing cannot
+    // run. Keep the overlay click-through — making the fullscreen window
+    // interactive would trap the user's entire desktop.
+    ignoreRef.current = true;
     getCurrentWindow()
-      .setIgnoreCursorEvents(false)
+      .setIgnoreCursorEvents(true)
       .catch(() => undefined);
   }, [connected]);
 }

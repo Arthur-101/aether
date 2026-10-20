@@ -1,23 +1,33 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Wifi,
-  WifiOff,
   Bluetooth,
   BluetoothOff,
   Moon,
+  Plane,
+  RadioTower,
+  Settings2,
   Sun,
   Volume2,
   VolumeX,
-  Cpu,
-  HardDrive,
-  Sparkles,
-  Plane,
-  RadioTower,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
-import type { SystemStats } from '../../types/ipc';
+import type {
+  BluetoothDeviceInfo,
+  SystemStats,
+  WifiProfile,
+} from '../../types/ipc';
+import { ControlSlider } from './ControlSlider';
+import { ControlsTile } from './ControlsTile';
+import { BluetoothMenu } from './BluetoothMenu';
+import { WifiMenu } from './WifiMenu';
+
+type ControlMenu = 'wifi' | 'bluetooth' | null;
 
 interface IslandControlsProps {
   stats: SystemStats | null;
+  wifiProfiles: WifiProfile[];
+  bluetoothDevices: BluetoothDeviceInfo[];
   onSetVolume: (level: number) => void;
   onSetMuted: (muted: boolean) => void;
   onSetBrightness: (level: number) => void;
@@ -26,72 +36,17 @@ interface IslandControlsProps {
   onToggleAirplaneMode: (enabled?: boolean) => void;
   onToggleHotspot: (enabled?: boolean) => void;
   onToggleDarkMode: (enabled?: boolean) => void;
+  onRefreshWifiProfiles: () => void;
+  onConnectWifi: (profile: string) => void;
+  onDisconnectWifi: () => void;
+  onRefreshBluetoothDevices: () => void;
+  onOpenSettingsPage: (page: string) => void;
 }
-
-const Tile: React.FC<{
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  active: boolean | null;
-}> = ({ onClick, icon, title, subtitle, active }) => (
-  <button
-    onClick={onClick}
-    className="flex min-w-0 flex-col justify-between rounded-lg border border-white/10 bg-[#2b2b2b]/80 p-3 text-left transition hover:border-white/20 hover:bg-[#323232]"
-  >
-    <div className="flex w-full items-center justify-between">
-      <span className={active === false ? 'text-[#8b8b8b]' : 'text-[#60cdff]'}>{icon}</span>
-      <span
-        className={`rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-          active === null
-            ? 'bg-white/8 text-[#8b8b8b]'
-            : active
-              ? 'bg-[#6ccb5f]/15 text-[#9be58f]'
-              : 'bg-white/8 text-[#8b8b8b]'
-        }`}
-      >
-        {active === null ? 'N/A' : active ? 'On' : 'Off'}
-      </span>
-    </div>
-    <div className="mt-2 min-w-0">
-      <div className="text-xs font-semibold text-white">{title}</div>
-      <div className="truncate text-[10px] text-[#8b8b8b]">{subtitle}</div>
-    </div>
-  </button>
-);
-
-const SliderCard: React.FC<{
-  icon: React.ReactNode;
-  label: string;
-  display: string;
-  value: number;
-  min?: number;
-  max?: number;
-  step?: number;
-  onChange: (value: number) => void;
-}> = ({ icon, label, display, value, min = 0, max = 100, step = 1, onChange }) => (
-  <div className="flex min-w-0 flex-col justify-between rounded-lg border border-white/10 bg-[#2b2b2b]/80 p-3">
-    <div className="flex items-center justify-between">
-      <span className="text-[#60cdff]">{icon}</span>
-      <span className="font-mono text-[10px] text-[#c7c7c7]">{display}</span>
-    </div>
-    <div className="mt-3">
-      <div className="mb-1 text-xs font-semibold text-white">{label}</div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/10 accent-[#0067c0]"
-      />
-    </div>
-  </div>
-);
 
 export const IslandControls: React.FC<IslandControlsProps> = ({
   stats,
+  wifiProfiles,
+  bluetoothDevices,
   onSetVolume,
   onSetMuted,
   onSetBrightness,
@@ -100,7 +55,17 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   onToggleAirplaneMode,
   onToggleHotspot,
   onToggleDarkMode,
+  onRefreshWifiProfiles,
+  onConnectWifi,
+  onDisconnectWifi,
+  onRefreshBluetoothDevices,
+  onOpenSettingsPage,
 }) => {
+  const [menu, setMenu] = useState<ControlMenu>(null);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [wifiLoading, setWifiLoading] = useState(false);
+  const [bluetoothLoading, setBluetoothLoading] = useState(false);
+
   const wifi = stats?.wifi ?? null;
   const bluetooth = stats?.bluetooth ?? null;
   const airplane = stats?.airplane_mode ?? null;
@@ -109,77 +74,145 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   const muted = stats?.muted ?? false;
   const volume = stats?.volume ?? 0.5;
   const brightness = stats?.brightness ?? 50;
-  const wifiName = stats?.wifi_ssid;
-  const bluetoothName = stats?.bluetooth_device;
+  const currentSsid =
+    stats?.wifi_ssid || wifiProfiles.find((profile) => profile.connected)?.name || '';
+  const bluetoothName =
+    bluetoothDevices.find((device) => device.connected)?.name ||
+    stats?.bluetooth_device;
+
+  const refreshWifi = useCallback(() => {
+    setWifiLoading(true);
+    onRefreshWifiProfiles();
+  }, [onRefreshWifiProfiles]);
+
+  const refreshBluetooth = useCallback(() => {
+    setBluetoothLoading(true);
+    onRefreshBluetoothDevices();
+  }, [onRefreshBluetoothDevices]);
+
+  useEffect(() => {
+    setConnecting(null);
+    setWifiLoading(false);
+  }, [wifiProfiles]);
+
+  useEffect(() => {
+    setBluetoothLoading(false);
+  }, [bluetoothDevices]);
+
+  useEffect(() => {
+    if (menu === 'wifi') refreshWifi();
+    if (menu === 'bluetooth') refreshBluetooth();
+  }, [menu, refreshWifi, refreshBluetooth]);
+
+  const toggleMenu = (next: Exclude<ControlMenu, null>) => {
+    setMenu((current) => (current === next ? null : next));
+  };
+
+  const connect = (profile: string) => {
+    setConnecting(profile);
+    onConnectWifi(profile);
+  };
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 pt-1">
-      <Tile
-        onClick={() => onToggleWifi()}
-        icon={wifi === false ? <WifiOff size={18} /> : <Wifi size={18} />}
-        title="Wi-Fi"
-        subtitle={wifi ? (wifiName || 'Connected') : wifi === null ? 'Radio unavailable' : 'Disconnected'}
-        active={wifi}
-      />
-      <Tile
-        onClick={() => onToggleBluetooth()}
-        icon={bluetooth === false ? <BluetoothOff size={18} /> : <Bluetooth size={18} />}
-        title="Bluetooth"
-        subtitle={
-          bluetooth
-            ? bluetoothName || 'Enabled · No device'
-            : bluetooth === null
-              ? 'Radio unavailable'
-              : 'Disabled'
-        }
-        active={bluetooth}
-      />
-      <Tile
-        onClick={() => onToggleAirplaneMode(!airplane)}
-        icon={<Plane size={18} />}
-        title="Airplane Mode"
-        subtitle={airplane ? 'Radios disabled' : 'Radios enabled'}
-        active={airplane}
-      />
-      <Tile
-        onClick={() => onToggleHotspot(!hotspot)}
-        icon={<RadioTower size={18} />}
-        title="Mobile Hotspot"
-        subtitle={hotspot === null ? 'Status unavailable' : hotspot ? 'Broadcasting' : 'Off'}
-        active={hotspot}
-      />
-      <Tile
-        onClick={() => onToggleDarkMode(!darkMode)}
-        icon={darkMode ? <Moon size={18} /> : <Sun size={18} />}
-        title="Windows Theme"
-        subtitle={darkMode ? 'Dark mode' : 'Light mode'}
-        active={darkMode}
-      />
-
-      <div className="flex items-center justify-around rounded-lg border border-white/10 bg-[#2b2b2b]/80 p-3 font-mono text-[10px]">
-        <div className="flex items-center gap-1 text-[#c7c7c7]">
-          <Cpu size={12} className="text-[#60cdff]" />
-          <span>{stats?.cpu_percent ?? 0}%</span>
-        </div>
-        <div className="h-3 w-px bg-white/10" />
-        <div className="flex items-center gap-1 text-[#c7c7c7]">
-          <HardDrive size={12} className="text-[#60cdff]" />
-          <span>{stats?.ram_percent ?? 0}%</span>
-        </div>
-        <div className="h-3 w-px bg-white/10" />
-        <div className="flex items-center gap-1 text-[#c7c7c7]">
-          <Sparkles size={12} />
-          <span>{stats?.gpu_vram_gb != null ? `${stats.gpu_vram_gb}G` : 'CPU'}</span>
-        </div>
+    <div className="flex flex-col gap-2 pt-1">
+      <div className="grid grid-cols-3 gap-2">
+        <ControlsTile
+          onClick={() => onToggleWifi()}
+          icon={wifi === false ? <WifiOff size={17} /> : <Wifi size={17} />}
+          title="Wi-Fi"
+          subtitle={
+            wifi
+              ? currentSsid || 'Connected'
+              : wifi === null
+                ? 'Radio unavailable'
+                : 'Disconnected'
+          }
+          active={wifi}
+          menuOpen={menu === 'wifi'}
+          onMenu={() => toggleMenu('wifi')}
+        />
+        <ControlsTile
+          onClick={() => onToggleBluetooth()}
+          icon={bluetooth === false ? <BluetoothOff size={17} /> : <Bluetooth size={17} />}
+          title="Bluetooth"
+          subtitle={
+            bluetooth
+              ? bluetoothName || 'Enabled · No device'
+              : bluetooth === null
+                ? 'Radio unavailable'
+                : 'Disabled'
+          }
+          active={bluetooth}
+          menuOpen={menu === 'bluetooth'}
+          onMenu={() => toggleMenu('bluetooth')}
+        />
+        <ControlsTile
+          onClick={() => onToggleAirplaneMode(!airplane)}
+          icon={<Plane size={17} />}
+          title="Airplane Mode"
+          subtitle={airplane ? 'Radios disabled' : 'Radios enabled'}
+          active={airplane}
+        />
+        <ControlsTile
+          onClick={() => onToggleHotspot(!hotspot)}
+          icon={<RadioTower size={17} />}
+          title="Mobile Hotspot"
+          subtitle={hotspot === null ? 'Status unavailable' : hotspot ? 'Broadcasting' : 'Off'}
+          active={hotspot}
+        />
+        <ControlsTile
+          onClick={() => onToggleDarkMode(!darkMode)}
+          icon={darkMode ? <Moon size={17} /> : <Sun size={17} />}
+          title="Windows Theme"
+          subtitle={darkMode ? 'Dark mode' : 'Light mode'}
+          active={darkMode}
+        />
+        <ControlsTile
+          onClick={() => onOpenSettingsPage('settings')}
+          icon={<Settings2 size={17} />}
+          title="Windows Settings"
+          subtitle="All system settings"
+          active={null}
+          showStatus={false}
+        />
       </div>
 
-      <div className="col-span-2 grid grid-cols-2 gap-2.5">
-        <SliderCard
+      {menu === 'wifi' ? (
+        <WifiMenu
+          profiles={wifiProfiles}
+          currentSsid={currentSsid}
+          wifiEnabled={wifi}
+          connecting={connecting}
+          loading={wifiLoading}
+          onRefresh={refreshWifi}
+          onConnect={connect}
+          onDisconnect={onDisconnectWifi}
+          onToggle={(enabled) => onToggleWifi(enabled)}
+          onOpenSettings={() => onOpenSettingsPage('wifi')}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
+
+      {menu === 'bluetooth' ? (
+        <BluetoothMenu
+          devices={bluetoothDevices}
+          bluetoothEnabled={bluetooth}
+          currentDevice={bluetoothName}
+          loading={bluetoothLoading}
+          onRefresh={refreshBluetooth}
+          onOpenSettings={() => onOpenSettingsPage('bluetooth')}
+          onToggle={(enabled) => onToggleBluetooth(enabled)}
+          onClose={() => setMenu(null)}
+        />
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-2">
+        <ControlSlider
           icon={
             muted ? (
-              <VolumeX size={18} className="text-[#ff99a4]" />
+              <VolumeX size={16} className="text-[#ff99a4]" />
             ) : (
-              <Volume2 size={18} />
+              <Volume2 size={16} className="text-[#60cdff]" />
             )
           }
           label="Volume"
@@ -189,13 +222,19 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
             onSetMuted(false);
             onSetVolume(value / 100);
           }}
+          onIconClick={() => onSetMuted(!muted)}
+          iconTitle={muted ? 'Unmute' : 'Mute'}
+          onSettings={() => onOpenSettingsPage('sound')}
+          settingsTitle="Open sound settings"
         />
-        <SliderCard
-          icon={<Sun size={18} />}
+        <ControlSlider
+          icon={<Sun size={16} className="text-[#60cdff]" />}
           label="Brightness"
           display={stats?.brightness == null ? '--' : `${brightness}%`}
           value={brightness}
           onChange={onSetBrightness}
+          onSettings={() => onOpenSettingsPage('display')}
+          settingsTitle="Open display settings"
         />
       </div>
     </div>

@@ -7,7 +7,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AppConfig,
   AttachmentItem,
+  BluetoothDeviceInfo,
   ChatTurn,
+  ClockAlert,
   IncomingEnvelope,
   ModelStatus,
   OutgoingEvent,
@@ -18,6 +20,7 @@ import type {
   ScheduledTask,
   SystemStats,
   VoiceState,
+  WifiProfile,
 } from '../types/ipc';
 import type { Note, NoteMeta } from '../types/notes';
 import { useBackendActions } from './useBackendActions';
@@ -37,6 +40,7 @@ export function useBackendSocket() {
   const [notes, setNotes] = useState<NoteMeta[]>([]);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [notesDirectory, setNotesDirectory] = useState('');
+  const [noteContentSeq, setNoteContentSeq] = useState(0);
   const [modelStatus, setModelStatus] = useState<ModelStatus | null>(null);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [thinkingMode, setThinkingMode] = useState(false);
@@ -48,7 +52,9 @@ export function useBackendSocket() {
   const [wheelDrop, setWheelDrop] = useState<RadialWheelDropPayload | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [isCircleOpen, setIsCircleOpen] = useState(false);
-  const [clockEvent, setClockEvent] = useState<string | null>(null);
+  const [wifiProfiles, setWifiProfiles] = useState<WifiProfile[]>([]);
+  const [bluetoothDevices, setBluetoothDevices] = useState<BluetoothDeviceInfo[]>([]);
+  const [clockAlert, setClockAlert] = useState<ClockAlert | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
@@ -152,6 +158,7 @@ export function useBackendSocket() {
         }
         case 'NOTE_CONTENT':
           setActiveNote((payload.note as Note | undefined) ?? null);
+          setNoteContentSeq((seq) => seq + 1);
           break;
         case 'NOTE_SAVED': {
           const saved = payload.note as Note | undefined;
@@ -178,6 +185,14 @@ export function useBackendSocket() {
         case 'SYSTEM_STATS':
         case 'SYSTEM_CONTROL_CHANGED':
           setSystemStats((prev) => ({ ...(prev ?? EMPTY_STATS), ...payload }));
+          break;
+        case 'WIFI_PROFILES':
+          setWifiProfiles((payload.profiles as WifiProfile[] | undefined) || []);
+          break;
+        case 'BLUETOOTH_DEVICES':
+          setBluetoothDevices(
+            (payload.devices as BluetoothDeviceInfo[] | undefined) || []
+          );
           break;
         case 'MODEL_STATUS':
           setModelStatus(payload as ModelStatus);
@@ -212,7 +227,12 @@ export function useBackendSocket() {
           setErrorMessage(payload.message || 'An error occurred.');
           break;
         case 'CLOCK_TRIGGER':
-          setClockEvent(payload.event);
+          setClockAlert({
+            event: payload.event || '',
+            title: payload.title || payload.event || 'Clock alarm',
+            kind: payload.kind === 'alarm' ? 'alarm' : 'task',
+            taskId: payload.task_id || '',
+          });
           break;
         case 'CIRCLE_TO_ASK':
           setIsCircleOpen(true);
@@ -247,7 +267,7 @@ export function useBackendSocket() {
   }, []);
 
   const closeCircle = useCallback(() => setIsCircleOpen(false), []);
-  const clearClockEvent = useCallback(() => setClockEvent(null), []);
+  const clearClockEvent = useCallback(() => setClockAlert(null), []);
   const clearError = useCallback(() => setErrorMessage(null), []);
   const clearConfigError = useCallback(() => setConfigError(null), []);
   const clearWheelResult = useCallback(() => setLastWheelResult(null), []);
@@ -265,6 +285,7 @@ export function useBackendSocket() {
     notes,
     activeNote,
     notesDirectory,
+    noteContentSeq,
     modelStatus,
     systemStats,
     thinkingMode,
@@ -276,7 +297,9 @@ export function useBackendSocket() {
     wheelDrop,
     attachments,
     isCircleOpen,
-    clockEvent,
+    wifiProfiles,
+    bluetoothDevices,
+    clockAlert,
     lastWheelResult,
     subscribeMouse,
     ...actions,

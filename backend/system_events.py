@@ -9,6 +9,14 @@ from typing import Any, Dict
 
 from .event_router import register_handler
 from .os_hooks import system_controls as controls
+from .os_hooks.network_controls import get_wifi_details
+from .os_hooks.network_devices import (
+    connect_wifi_profile,
+    disconnect_wifi,
+    list_bluetooth_devices,
+    list_wifi_profiles,
+    open_settings_page,
+)
 from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether.system")
@@ -120,6 +128,54 @@ async def _handle_toggle_hotspot(payload: Dict[str, Any]) -> None:
     )
 
 
+async def _broadcast_wifi_profiles() -> None:
+    profiles = await _run(list_wifi_profiles)
+    await ws_manager.broadcast("WIFI_PROFILES", {"profiles": profiles})
+
+
+async def _handle_list_wifi_profiles(payload: Dict[str, Any]) -> None:
+    await _broadcast_wifi_profiles()
+
+
+async def _handle_connect_wifi(payload: Dict[str, Any]) -> None:
+    profile = str(payload.get("profile") or "").strip()
+    ok = await _run(connect_wifi_profile, profile)
+    if not ok:
+        await ws_manager.broadcast(
+            "ERROR",
+            {"message": f"Windows could not connect to Wi-Fi profile '{profile}'."},
+        )
+    else:
+        details = await _run(get_wifi_details)
+        await ws_manager.broadcast(
+            "SYSTEM_CONTROL_CHANGED",
+            {"wifi": True, "wifi_ssid": details.get("ssid", "")},
+        )
+    await _broadcast_wifi_profiles()
+
+
+async def _handle_disconnect_wifi(payload: Dict[str, Any]) -> None:
+    await _run(disconnect_wifi)
+    await ws_manager.broadcast(
+        "SYSTEM_CONTROL_CHANGED", {"wifi": True, "wifi_ssid": ""}
+    )
+    await _broadcast_wifi_profiles()
+
+
+async def _handle_list_bluetooth_devices(payload: Dict[str, Any]) -> None:
+    devices = await _run(list_bluetooth_devices)
+    await ws_manager.broadcast("BLUETOOTH_DEVICES", {"devices": devices})
+
+
+async def _handle_open_settings_page(payload: Dict[str, Any]) -> None:
+    page = str(payload.get("page") or "").strip().lower()
+    ok = await _run(open_settings_page, page)
+    if not ok:
+        await ws_manager.broadcast(
+            "ERROR", {"message": f"Unknown Windows Settings page: {page or 'empty'}."}
+        )
+
+
 async def _handle_get_system_state(payload: Dict[str, Any]) -> None:
     stats = await _run(controls.get_system_telemetry)
     await ws_manager.broadcast("SYSTEM_STATS", stats)
@@ -136,3 +192,8 @@ def register_system_events() -> None:
     register_handler("TOGGLE_HOTSPOT", _handle_toggle_hotspot)
     register_handler("TOGGLE_DARK_MODE", _handle_toggle_dark_mode)
     register_handler("GET_SYSTEM_STATE", _handle_get_system_state)
+    register_handler("LIST_WIFI_PROFILES", _handle_list_wifi_profiles)
+    register_handler("CONNECT_WIFI", _handle_connect_wifi)
+    register_handler("DISCONNECT_WIFI", _handle_disconnect_wifi)
+    register_handler("LIST_BLUETOOTH_DEVICES", _handle_list_bluetooth_devices)
+    register_handler("OPEN_SETTINGS_PAGE", _handle_open_settings_page)

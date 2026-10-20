@@ -6,6 +6,7 @@ Imported from main.py's lifespan so startup remains fast and lazy.
 
 import asyncio
 import logging
+import threading
 from typing import Any, Dict
 
 from .ws_manager import ws_manager
@@ -109,11 +110,38 @@ def wire_clock_scheduler() -> None:
 
     loop = asyncio.get_running_loop()
 
-    def on_clock_trigger(session_id: str, system_event: str, task_id: str) -> None:
+    def play_alarm_chime() -> None:
+        try:
+            import time
+            import winsound
+
+            for _ in range(3):
+                winsound.Beep(880, 180)
+                winsound.Beep(1180, 180)
+                time.sleep(0.18)
+        except Exception:
+            pass
+
+    def on_clock_trigger(
+        session_id: str,
+        system_event: str,
+        task_id: str,
+        kind: str = "task",
+        prompt: str = "",
+    ) -> None:
+        if kind == "alarm":
+            threading.Thread(target=play_alarm_chime, daemon=True).start()
+
         async def _notify() -> None:
             await ws_manager.broadcast(
                 "CLOCK_TRIGGER",
-                {"session_id": session_id, "event": system_event, "task_id": task_id},
+                {
+                    "session_id": session_id,
+                    "event": system_event,
+                    "task_id": task_id,
+                    "kind": kind,
+                    "title": prompt,
+                },
             )
             from .task_events import broadcast_tasks
 

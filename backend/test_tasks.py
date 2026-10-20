@@ -64,6 +64,20 @@ def test_create_update_list_and_cancel(task_db):
     assert all(item["id"] != task["id"] for item in list_scheduled_tasks())
 
 
+def test_alarm_kind_round_trip(task_db):
+    task = create_one_time_task(
+        "session-1", _future_iso(), "Wake up", kind="alarm"
+    )
+    try:
+        assert task["kind"] == "alarm"
+        assert any(
+            item["id"] == task["id"] and item["kind"] == "alarm"
+            for item in list_scheduled_tasks()
+        )
+    finally:
+        cancel_scheduled_task(task["id"])
+
+
 def test_past_time_is_rejected(task_db):
     with pytest.raises(ValueError, match="in the past"):
         create_one_time_task("session-1", "2024-11-19T22:00:00", "Too late")

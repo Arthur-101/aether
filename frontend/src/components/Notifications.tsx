@@ -1,16 +1,25 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, CheckCircle2, Mic, WifiOff, AlertTriangle, X } from 'lucide-react';
-import type { VoiceState } from '../types/ipc';
+import {
+  AlarmClock,
+  Bell,
+  CheckCircle2,
+  Mic,
+  WifiOff,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
+import type { ClockAlert, VoiceState } from '../types/ipc';
 
 interface NotificationsProps {
   connected: boolean;
   voiceState: VoiceState;
   voiceTranscript: string;
-  clockEvent: string | null;
+  clockAlert: ClockAlert | null;
   wheelResult: string | null;
   errorMessage: string | null;
   onClearClock: () => void;
+  onSnoozeAlarm: () => void;
   onClearWheelResult: () => void;
   onClearError: () => void;
 }
@@ -19,18 +28,19 @@ export const Notifications: React.FC<NotificationsProps> = ({
   connected,
   voiceState,
   voiceTranscript,
-  clockEvent,
+  clockAlert,
   wheelResult,
   errorMessage,
   onClearClock,
+  onSnoozeAlarm,
   onClearWheelResult,
   onClearError,
 }) => {
   useEffect(() => {
-    if (!clockEvent) return;
+    if (!clockAlert || clockAlert.kind === 'alarm') return;
     const timer = window.setTimeout(onClearClock, 1800);
     return () => window.clearTimeout(timer);
-  }, [clockEvent, onClearClock]);
+  }, [clockAlert, onClearClock]);
 
   useEffect(() => {
     if (!wheelResult) return;
@@ -43,6 +53,8 @@ export const Notifications: React.FC<NotificationsProps> = ({
     const timer = window.setTimeout(onClearError, 1800);
     return () => window.clearTimeout(timer);
   }, [errorMessage, onClearError]);
+
+  const isAlarm = clockAlert?.kind === 'alarm';
 
   return (
   <>
@@ -81,22 +93,63 @@ export const Notifications: React.FC<NotificationsProps> = ({
 
     <div className="pointer-events-none fixed bottom-6 right-6 z-50 flex w-[320px] flex-col items-end gap-2">
       <AnimatePresence>
-        {clockEvent && (
+        {clockAlert && (
           <motion.div
             data-aether-interactive
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="glass-panel pointer-events-auto flex w-full items-center gap-3 rounded-lg border border-[#0067c0]/40 px-4 py-3 text-xs text-white"
+            className={`glass-panel pointer-events-auto flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-xs text-white ${
+              isAlarm
+                ? 'border-[#fce100]/45 shadow-[0_0_32px_rgba(252,225,0,0.12)]'
+                : 'border-[#0067c0]/40'
+            }`}
           >
-            <Bell size={18} className="text-[#60cdff]" />
-            <div className="flex min-w-0 flex-col">
-              <span className="font-semibold text-[#9dd5ff]">Clock alarm</span>
-              <span className="truncate text-[#c7c7c7]">{clockEvent}</span>
+            {isAlarm ? (
+              <AlarmClock size={18} className="shrink-0 animate-pulse text-[#fce100]" />
+            ) : (
+              <Bell size={18} className="shrink-0 text-[#60cdff]" />
+            )}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span
+                className={`font-semibold ${
+                  isAlarm ? 'text-[#fce100]' : 'text-[#9dd5ff]'
+                }`}
+              >
+                {isAlarm ? 'Alarm' : 'Clock alarm'}
+              </span>
+              <span className="truncate text-[#e5e5e5]">
+                {isAlarm ? clockAlert.title : clockAlert.event}
+              </span>
+              {isAlarm ? (
+                <span className="mt-0.5 text-[9px] text-[#8b8b8b]">
+                  Tap Snooze or Dismiss to stop the ring.
+                </span>
+              ) : null}
             </div>
-            <button onClick={onClearClock} className="ml-auto text-[#8b8b8b] hover:text-white">
-              <X size={13} />
-            </button>
+            {isAlarm ? (
+              <div className="flex shrink-0 flex-col gap-1">
+                <button
+                  onClick={onSnoozeAlarm}
+                  className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-medium text-white transition hover:bg-white/20"
+                >
+                  Snooze 5m
+                </button>
+                <button
+                  onClick={onClearClock}
+                  className="rounded-md px-2 py-1 text-[9px] text-[#c7c7c7] transition hover:bg-white/10 hover:text-white"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onClearClock}
+                className="ml-auto shrink-0 text-[#8b8b8b] hover:text-white"
+              >
+                <X size={13} />
+              </button>
+            )}
           </motion.div>
         )}
 

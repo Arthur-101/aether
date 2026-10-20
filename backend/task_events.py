@@ -18,6 +18,8 @@ from .mcp_tools.clock_scheduler import (
 )
 from .ws_manager import ws_manager
 
+ALARM_SESSION_ID = "__aether_alarms__"
+
 
 async def broadcast_tasks() -> None:
     """Broadcasts the active task list with session titles."""
@@ -51,7 +53,11 @@ async def _handle_list_tasks(payload: Dict[str, Any]) -> None:
 
 async def _handle_create_task(payload: Dict[str, Any]) -> None:
     prompt = str(payload.get("prompt") or "").strip()
-    session_id = await _ensure_active_session(prompt or "Scheduled task")
+    kind = "alarm" if payload.get("kind") == "alarm" else "task"
+    if kind == "alarm":
+        session_id = ALARM_SESSION_ID
+    else:
+        session_id = await _ensure_active_session(prompt or "Scheduled task")
     schedule_type = str(
         payload.get("schedule_type")
         or ("daily" if payload.get("is_recurring") else "once")
@@ -66,6 +72,7 @@ async def _handle_create_task(payload: Dict[str, Any]) -> None:
                     str(payload.get("start_at_iso") or ""),
                     str(payload.get("end_at_iso") or ""),
                     prompt,
+                    kind,
                 ),
             )
         elif schedule_type == "daily":
@@ -76,6 +83,7 @@ async def _handle_create_task(payload: Dict[str, Any]) -> None:
                     int(payload.get("hour", 0)),
                     int(payload.get("minute", 0)),
                     prompt,
+                    kind,
                 ),
             )
         else:
@@ -85,6 +93,7 @@ async def _handle_create_task(payload: Dict[str, Any]) -> None:
                     session_id,
                     str(payload.get("run_at_iso") or ""),
                     prompt,
+                    kind,
                 ),
             )
     except (ValueError, TypeError) as exc:

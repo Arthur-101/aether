@@ -12,6 +12,11 @@ import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { Notifications } from './components/Notifications';
 import type { NotesApi } from './types/notes';
 
+function localIso(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+}
+
 export function App() {
   const {
     connected,
@@ -26,6 +31,7 @@ export function App() {
     notes,
     activeNote,
     notesDirectory,
+    noteContentSeq,
     modelStatus,
     systemStats,
     thinkingMode,
@@ -37,7 +43,9 @@ export function App() {
     wheelDrop,
     attachments,
     isCircleOpen,
-    clockEvent,
+    wifiProfiles,
+    bluetoothDevices,
+    clockAlert,
     lastWheelResult,
     subscribeMouse,
     sendChatMessage,
@@ -71,6 +79,11 @@ export function App() {
     toggleAirplaneMode,
     toggleHotspot,
     toggleDarkMode,
+    refreshWifiProfiles,
+    connectWifi,
+    disconnectWifi,
+    refreshBluetoothDevices,
+    openSettingsPage,
     closeRadialWheel,
     closeCircle,
     clearClockEvent,
@@ -97,6 +110,18 @@ export function App() {
     [attachFile, closeRadialWheel]
   );
 
+  const snoozeAlarm = useCallback(() => {
+    if (!clockAlert) return;
+    createTask({
+      prompt: clockAlert.title,
+      schedule_type: 'once',
+      is_recurring: false,
+      kind: 'alarm',
+      run_at_iso: localIso(new Date(Date.now() + 5 * 60 * 1000)),
+    });
+    clearClockEvent();
+  }, [clockAlert, createTask, clearClockEvent]);
+
   useTauriFileDrop(handleAskFile, radialWheel?.file_path ?? null);
 
   useEffect(() => {
@@ -117,6 +142,7 @@ export function App() {
     current: activeNote,
     directory: notesDirectory,
     defaultTheme: config?.storage?.notes_theme || 'default',
+    contentSeq: noteContentSeq,
     onList: refreshNotes,
     onRead: readNote,
     onSave: saveNote,
@@ -137,6 +163,8 @@ export function App() {
         attachments={attachments}
         askRequest={askRequest}
         tasks={tasks}
+        wifiProfiles={wifiProfiles}
+        bluetoothDevices={bluetoothDevices}
         notes={notesApi}
         model={{ status: modelStatus, onLoad: loadModel, onRelease: releaseModel }}
         onToggleDrawer={() => {
@@ -164,6 +192,11 @@ export function App() {
         onToggleAirplaneMode={toggleAirplaneMode}
         onToggleHotspot={toggleHotspot}
         onToggleDarkMode={toggleDarkMode}
+        onRefreshWifiProfiles={refreshWifiProfiles}
+        onConnectWifi={connectWifi}
+        onDisconnectWifi={disconnectWifi}
+        onRefreshBluetoothDevices={refreshBluetoothDevices}
+        onOpenSettingsPage={openSettingsPage}
       />
 
       {radialWheel && (
@@ -246,10 +279,11 @@ export function App() {
         connected={connected}
         voiceState={voiceState}
         voiceTranscript={voiceTranscript}
-        clockEvent={clockEvent}
+        clockAlert={clockAlert}
         wheelResult={lastWheelResult}
         errorMessage={errorMessage}
         onClearClock={clearClockEvent}
+        onSnoozeAlarm={snoozeAlarm}
         onClearWheelResult={clearWheelResult}
         onClearError={clearError}
       />

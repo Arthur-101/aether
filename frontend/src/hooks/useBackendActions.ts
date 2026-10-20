@@ -226,6 +226,33 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshWifiProfiles = useCallback(
+    () => sendEvent({ type: 'LIST_WIFI_PROFILES', payload: {} }),
+    [sendEvent]
+  );
+
+  const connectWifi = useCallback(
+    (profile: string) =>
+      sendEvent({ type: 'CONNECT_WIFI', payload: { profile } }),
+    [sendEvent]
+  );
+
+  const disconnectWifi = useCallback(
+    () => sendEvent({ type: 'DISCONNECT_WIFI', payload: {} }),
+    [sendEvent]
+  );
+
+  const refreshBluetoothDevices = useCallback(
+    () => sendEvent({ type: 'LIST_BLUETOOTH_DEVICES', payload: {} }),
+    [sendEvent]
+  );
+
+  const openSettingsPage = useCallback(
+    (page: string) =>
+      sendEvent({ type: 'OPEN_SETTINGS_PAGE', payload: { page } }),
+    [sendEvent]
+  );
+
   return {
     sendChatMessage,
     newSession,
@@ -258,5 +285,10 @@ export function useBackendActions(
     toggleAirplaneMode,
     toggleHotspot,
     toggleDarkMode,
+    refreshWifiProfiles,
+    connectWifi,
+    disconnectWifi,
+    refreshBluetoothDevices,
+    openSettingsPage,
   };
 }

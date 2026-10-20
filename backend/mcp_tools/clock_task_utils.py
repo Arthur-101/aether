@@ -92,6 +92,7 @@ def serialize_task(
 ) -> Dict[str, Any]:
     item = dict(row)
     item["is_recurring"] = bool(item.get("is_recurring"))
+    item["kind"] = "alarm" if item.get("kind") == "alarm" else "task"
     schedule_type = item.get("schedule_type") or (
         "daily" if item["is_recurring"] else "once"
     )

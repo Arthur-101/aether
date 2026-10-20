@@ -90,6 +90,54 @@
   background-size: 12px 12px;
 }
 
+.note-surface[data-note-theme='starlight'] {
+  --note-bg: #10131c;
+  --note-text: #e8eeff;
+  --note-muted: #8a93a8;
+  --note-accent: #9db4ff;
+  --note-border: rgba(157, 180, 255, 0.22);
+  --note-hover: rgba(157, 180, 255, 0.09);
+  --note-active: rgba(157, 180, 255, 0.2);
+  --note-code-bg: rgba(0, 0, 0, 0.35);
+  --note-quote: rgba(232, 238, 255, 0.7);
+  background-image: radial-gradient(rgba(157, 180, 255, 0.2) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.note-surface[data-note-theme='blueprint'] {
+  --note-bg: #eaf4fb;
+  --note-text: #17364a;
+  --note-muted: #5d7f93;
+  --note-accent: #1976a8;
+  --note-border: rgba(25, 118, 168, 0.22);
+  --note-hover: rgba(25, 118, 168, 0.08);
+  --note-active: rgba(25, 118, 168, 0.18);
+  --note-code-bg: rgba(25, 118, 168, 0.1);
+  --note-quote: rgba(23, 54, 74, 0.72);
+  background-image:
+    linear-gradient(rgba(25, 118, 168, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(25, 118, 168, 0.12) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.note-surface[data-note-theme='forest'] {
+  --note-bg: #12211b;
+  --note-text: #e4f4ea;
+  --note-muted: #8eaa9c;
+  --note-accent: #71d6a3;
+  --note-border: rgba(113, 214, 163, 0.22);
+  --note-hover: rgba(113, 214, 163, 0.08);
+  --note-active: rgba(113, 214, 163, 0.18);
+  --note-code-bg: rgba(0, 0, 0, 0.3);
+  --note-quote: rgba(228, 244, 234, 0.7);
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(113, 214, 163, 0.07) 0 1px,
+    transparent 1px 12px
+  );
+  background-size: 12px 12px;
+}
+
 .note-surface .note-title-input {
   color: var(--note-text);
 }

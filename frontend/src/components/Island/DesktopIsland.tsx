@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, Settings, Brain } from 'lucide-react';
 import type {
   AttachmentItem,
+  BluetoothDeviceInfo,
   ChatTurn,
   ModelStatus,
   ScheduledTask,
   SystemStats,
   TaskInput,
   VoiceState,
+  WifiProfile,
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
 import { pickNativePath } from '../../lib/system';
 import { IslandControls } from './IslandControls';
-import { KillAppButton } from './KillAppButton';
+import { IslandHeader } from './IslandHeader';
+import { IslandPill } from './IslandPill';
+import { IslandStatusBar } from './IslandStatusBar';
 import { QuickChat } from './QuickChat';
 import { TaskPanel } from './TaskPanel';
 
@@ -32,6 +35,8 @@ interface DesktopIslandProps {
   attachments: AttachmentItem[];
   askRequest: { id: number; filePath: string } | null;
   tasks: ScheduledTask[];
+  wifiProfiles: WifiProfile[];
+  bluetoothDevices: BluetoothDeviceInfo[];
   notes: NotesApi;
   model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
   onToggleDrawer: () => void;
@@ -52,6 +57,11 @@ interface DesktopIslandProps {
   onToggleAirplaneMode: (enabled?: boolean) => void;
   onToggleHotspot: (enabled?: boolean) => void;
   onToggleDarkMode: (enabled?: boolean) => void;
+  onRefreshWifiProfiles: () => void;
+  onConnectWifi: (profile: string) => void;
+  onDisconnectWifi: () => void;
+  onRefreshBluetoothDevices: () => void;
+  onOpenSettingsPage: (page: string) => void;
 }
 
 export const DesktopIsland: React.FC<DesktopIslandProps> = ({
@@ -65,6 +75,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   attachments,
   askRequest,
   tasks,
+  wifiProfiles,
+  bluetoothDevices,
   notes,
   model,
   onToggleDrawer,
@@ -85,9 +97,20 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onToggleAirplaneMode,
   onToggleHotspot,
   onToggleDarkMode,
+  onRefreshWifiProfiles,
+  onConnectWifi,
+  onDisconnectWifi,
+  onRefreshBluetoothDevices,
+  onOpenSettingsPage,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<'controls' | 'chat' | 'tasks' | 'notes'>('controls');
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!askRequest) return;
@@ -116,19 +139,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
       className="aether-interactive fixed top-3 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center"
     >
       {!isExpanded && (
-        <motion.div
-          layoutId="island-container"
+        <IslandPill
+          sessionTitle={sessionTitle}
+          dotColor={dotColor}
           onClick={() => setIsExpanded(true)}
-          className="glass-pill flex h-9 cursor-pointer select-none items-center gap-3 rounded-full px-4 transition hover:border-white/25"
-        >
-          <div className={`h-2.5 w-2.5 rounded-full ${dotColor}`} />
-          <span className="max-w-[220px] truncate text-xs font-medium text-[#f3f3f3]">
-            {sessionTitle || 'New Session'}
-          </span>
-          <span className="font-mono text-[10px] text-[#8b8b8b]">
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </motion.div>
+        />
       )}
 
       <AnimatePresence>
@@ -141,46 +156,17 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             className="glass-panel relative flex max-h-[calc(100vh-24px)] w-[540px] flex-col gap-3 overflow-y-auto rounded-xl p-4 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onToggleDrawer}
-                  className="rounded-md bg-white/5 p-1.5 text-[#c7c7c7] transition hover:bg-white/10"
-                  title="Toggle Session Drawer"
-                >
-                  <Menu size={16} />
-                </button>
-                <div>
-                  <h2 className="text-sm font-semibold tracking-wide text-white">Aether</h2>
-                  <p className="max-w-[250px] truncate text-[10px] text-[#8b8b8b]">
-                    {sessionTitle}
-                  </p>
-                </div>
-              </div>
+            <IslandHeader
+              sessionTitle={sessionTitle}
+              engineLabel={engineLabel}
+              thinkingMode={thinkingMode}
+              onToggleDrawer={onToggleDrawer}
+              onOpenSettings={onOpenSettings}
+              onKillApp={onKillApp}
+              onClose={() => setIsExpanded(false)}
+            />
 
-              <div className="flex items-center gap-2">
-                <div className="flex max-w-[190px] items-center gap-1.5 rounded-full border border-[#0067c0]/40 bg-[#0067c0]/15 px-2.5 py-1 text-[10px] text-[#9dd5ff]">
-                  <Brain size={12} className="shrink-0" />
-                  <span className="truncate">
-                    {engineLabel} {thinkingMode ? '· Thinking' : ''}
-                  </span>
-                </div>
-                <KillAppButton onKill={onKillApp} />
-                <button
-                  onClick={onOpenSettings}
-                  className="rounded-md bg-white/5 p-1.5 text-[#c7c7c7] transition hover:bg-white/10"
-                  title="Settings"
-                >
-                  <Settings size={16} />
-                </button>
-                <button
-                  onClick={() => setIsExpanded(false)}
-                  className="rounded px-2 py-0.5 text-xs text-[#8b8b8b] transition hover:bg-white/10 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+            <IslandStatusBar systemStats={systemStats} now={now} />
 
             <div className="grid grid-cols-4 gap-1 rounded-lg bg-black/25 p-1 text-xs font-medium">
               {[
@@ -209,6 +195,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             {activeTab === 'controls' && (
               <IslandControls
                 stats={systemStats}
+                wifiProfiles={wifiProfiles}
+                bluetoothDevices={bluetoothDevices}
                 onSetVolume={onSetVolume}
                 onSetMuted={onSetMuted}
                 onSetBrightness={onSetBrightness}
@@ -217,6 +205,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
                 onToggleAirplaneMode={onToggleAirplaneMode}
                 onToggleHotspot={onToggleHotspot}
                 onToggleDarkMode={onToggleDarkMode}
+                onRefreshWifiProfiles={onRefreshWifiProfiles}
+                onConnectWifi={onConnectWifi}
+                onDisconnectWifi={onDisconnectWifi}
+                onRefreshBluetoothDevices={onRefreshBluetoothDevices}
+                onOpenSettingsPage={onOpenSettingsPage}
               />
             )}
 

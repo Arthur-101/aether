@@ -50,6 +50,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
   const [themeOpen, setThemeOpen] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [status, setStatus] = useState<SaveStatus>('idle');
+  const [awaitingContent, setAwaitingContent] = useState(false);
 
   const draftRef = useRef<Draft>({
     id: '',
@@ -59,6 +60,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
     pinned: false,
   });
   const lastSavedRef = useRef('');
+  const readSeqRef = useRef(0);
   const saveTimerRef = useRef<number | null>(null);
   const statusTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
@@ -96,9 +98,15 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
     }, 700);
   }, [flush]);
 
-  // Load the first note when the vault has notes but nothing is selected.
+  // Load the list, then refresh the active note from disk. The cached body can
+  // be stale after a tab switch because NOTE_SAVED only merges metadata.
   useEffect(() => {
     apiRef.current.onList();
+    const note = apiRef.current.current;
+    if (!note) return;
+    readSeqRef.current = apiRef.current.contentSeq;
+    setAwaitingContent(true);
+    apiRef.current.onRead(note.id);
   }, []);
 
   useEffect(() => {
@@ -106,7 +114,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
     apiRef.current.onRead(notes.items[0].id);
   }, [currentId, notes.items]);
 
-  // Keep the editor draft in sync when the selected note changes.
+  // Keep the editor draft in sync when the selected note (or its full body) changes.
   useEffect(() => {
     const note = apiRef.current.current;
     if (!note) {
@@ -142,7 +150,25 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
     setTheme(noteTheme);
     setStatus('idle');
     setDeleteArmed(false);
-  }, [currentId]);
+  }, [currentId, notes.contentSeq]);
+
+  // Wait for the fresh body before mounting TipTap, so it never initialises
+  // from a stale cached body. Fall back after a short delay if the read is lost.
+  useEffect(() => {
+    if (!currentId) {
+      setAwaitingContent(false);
+      return;
+    }
+    if (awaitingContent && notes.contentSeq !== readSeqRef.current) {
+      setAwaitingContent(false);
+    }
+  }, [awaitingContent, currentId, notes.contentSeq]);
+
+  useEffect(() => {
+    if (!awaitingContent) return;
+    const timer = window.setTimeout(() => setAwaitingContent(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [awaitingContent]);
 
   // Persist on window blur and when the Notes tab unmounts.
   useEffect(() => {
@@ -344,7 +370,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
           />
         ) : null}
         {themeOpen && current ? (
-          <div className="absolute right-0 top-9 z-30 w-44 rounded-lg border border-white/15 bg-[#232323]/98 p-1 shadow-2xl backdrop-blur-xl">
+          <div className="absolute right-0 top-9 z-30 max-h-[330px] w-48 overflow-y-auto rounded-lg border border-white/15 bg-[#232323]/98 p-1 shadow-2xl backdrop-blur-xl">
             <p className="px-2 py-1 text-[9px] uppercase tracking-wider text-[#8b8b8b]">
               Note theme
             </p>
@@ -361,7 +387,11 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
               >
                 <span
                   className="h-3 w-3 shrink-0 rounded-full border border-black/25"
-                  style={{ backgroundColor: option.swatch }}
+                  style={{
+                    backgroundColor: option.swatch,
+                    backgroundImage: option.pattern,
+                    backgroundSize: option.patternSize,
+                  }}
                 />
                 <span className="truncate">{option.label}</span>
                 {option.id === theme ? (
@@ -383,13 +413,21 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
             onChange={(event) => handleTitle(event.target.value)}
             placeholder="Note title"
             spellCheck={false}
+            readOnly={awaitingContent}
             className="note-title-input w-full bg-transparent px-3 pt-2.5 pb-1 text-[13px] font-semibold outline-none"
           />
-          <NoteEditor
-            key={current.id}
-            content={current.content}
-            onChange={handleContent}
-          />
+          {awaitingContent ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-[#8b8b8b]">
+              <Loader2 size={16} className="animate-spin" />
+              <p className="text-[10px]">Opening note…</p>
+            </div>
+          ) : (
+            <NoteEditor
+              key={current.id}
+              content={current.content}
+              onChange={handleContent}
+            />
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 px-4 py-8 text-center">

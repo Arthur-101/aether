@@ -124,7 +124,7 @@ def get_wifi_details() -> Dict[str, Any]:
 
 
 def get_bluetooth_device_name() -> str:
-    """Returns the active Bluetooth audio endpoint name, when one is connected."""
+    """Returns the connected Bluetooth device name using WinRT status."""
     now = time.time()
     if now - _network_cache["bt_ts"] < _NETWORK_CACHE_SECONDS:
         return _network_cache["bt_name"]
@@ -133,20 +133,12 @@ def get_bluetooth_device_name() -> str:
         _network_cache["bt_ts"] = now
         return ""
 
-    script = (
-        "$d = Get-PnpDevice -Class AudioEndpoint -Status OK -ErrorAction SilentlyContinue "
-        "| Where-Object { $_.InstanceId -like '*BTHENUM*' } | Select-Object -First 1; "
-        "if ($d) { $d.FriendlyName } else { "
-        "$b = Get-PnpDevice -Class Bluetooth -Status OK -ErrorAction SilentlyContinue "
-        "| Where-Object { $_.FriendlyName -notmatch 'Enumerator|Protocol|Adapter|Service|Radio' } "
-        "| Select-Object -First 1; if ($b) { $b.FriendlyName } }"
-    )
-    output = _run_hidden(
-        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script], timeout=5.0
-    )
-    _network_cache["bt_name"] = output.strip().splitlines()[0] if output.strip() else ""
+    from .bluetooth_status import connected_bluetooth_name
+
+    name = connected_bluetooth_name()
+    _network_cache["bt_name"] = name
     _network_cache["bt_ts"] = now
-    return _network_cache["bt_name"]
+    return name
 
 
 # ─── Airplane Mode ───────────────────────────────────────────────

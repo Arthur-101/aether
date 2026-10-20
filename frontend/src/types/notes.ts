@@ -31,6 +31,8 @@ export interface NotesApi {
   current: Note | null;
   directory: string;
   defaultTheme: string;
+  /** Increments whenever a full note body arrives, so the tab can wait for a fresh read. */
+  contentSeq: number;
   onList: () => void;
   onRead: (id: string) => void;
   onSave: (input: NoteSaveInput) => void;

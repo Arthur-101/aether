@@ -16,13 +16,14 @@ def insert_task(
     schedule_type: str = "once",
     start_at_iso: Optional[str] = None,
     end_at_iso: Optional[str] = None,
+    kind: str = "task",
 ) -> None:
     conn = get_db()
     conn.execute(
         """INSERT INTO scheduled_tasks
            (id, session_id, cron_or_iso, prompt_to_execute, is_recurring,
-            schedule_type, start_at_iso, end_at_iso, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')""",
+            schedule_type, kind, start_at_iso, end_at_iso, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')""",
         (
             task_id,
             session_id,
@@ -30,6 +31,7 @@ def insert_task(
             prompt,
             int(recurring),
             schedule_type,
+            kind,
             start_at_iso,
             end_at_iso,
         ),

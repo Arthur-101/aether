@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, X, Cpu, Mic, Keyboard, HardDrive, Save, Check } from 'lucide-react';
+import { GripHorizontal, Settings, X, Cpu, Mic, Keyboard, HardDrive, Save, Check } from 'lucide-react';
 import type { AppConfig } from '../../types/ipc';
 import { AiSettings } from './tabs/AiSettings';
 import { VoiceSettings } from './tabs/VoiceSettings';
@@ -40,10 +40,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('ai');
   const [draft, setDraft] = useState<AppConfig | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+  } | null>(null);
 
   useEffect(() => {
     if (isOpen && config) setDraft(structuredClone(config));
   }, [isOpen, config]);
+
+  useEffect(() => {
+    if (isOpen) setOffset({ x: 0, y: 0 });
+  }, [isOpen]);
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('button, input, select, textarea, a')) {
+      return;
+    }
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      baseX: offset.x,
+      baseY: offset.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const maxX = Math.max(0, (window.innerWidth - 620) / 2 - 12);
+    const maxUp = Math.max(0, window.innerHeight - 520 - 24);
+    setOffset({
+      x: Math.min(maxX, Math.max(-maxX, drag.baseX + event.clientX - drag.startX)),
+      y: Math.min(0, Math.max(-maxUp, drag.baseY + event.clientY - drag.startY)),
+    });
+  };
+
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const dragHandleProps = {
+    onPointerDown: startDrag,
+    onPointerMove: moveDrag,
+    onPointerUp: endDrag,
+    onPointerCancel: endDrag,
+    style: { touchAction: 'none' as const },
+  };
 
   const updateAi = (patch: Partial<AppConfig['ai_provider']>) => {
     setDraft((prev) =>
@@ -84,17 +134,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
-        <motion.div
-          data-aether-interactive
-          initial={{ scale: 0.97, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.97, opacity: 0 }}
-          className="aether-interactive glass-panel flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
+      <div className="pointer-events-none fixed inset-0 z-[60] flex items-end justify-center pb-6">
+        <div
+          style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
         >
+          <motion.div
+            data-aether-interactive
+            initial={{ scale: 0.97, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.97, opacity: 0 }}
+            className="aether-interactive glass-panel flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
+          >
           <div className="flex w-44 flex-col justify-between border-r border-white/10 bg-[#202020] p-4">
             <div>
-              <div className="mb-6 flex items-center gap-2">
+              <div
+                {...dragHandleProps}
+                className="mb-6 flex cursor-grab items-center gap-2 active:cursor-grabbing"
+                title="Drag to move Settings"
+              >
                 <Settings size={18} className="text-[#60cdff]" />
                 <h3 className="text-sm font-semibold text-white">Settings</h3>
               </div>
@@ -118,14 +175,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 })}
               </div>
             </div>
-            <div className="font-mono text-[10px] text-[#6f6f6f]">
+            <div
+              {...dragHandleProps}
+              className="flex cursor-grab items-center gap-1.5 font-mono text-[10px] text-[#6f6f6f] active:cursor-grabbing"
+              title="Drag to move Settings"
+            >
+              <GripHorizontal size={12} />
               Aether v0.1.0 · Local-first
             </div>
           </div>
 
           <div className="flex flex-1 flex-col justify-between overflow-y-auto p-5">
             <div>
-              <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
+              <div
+                {...dragHandleProps}
+                className="mb-4 flex cursor-grab items-center justify-between border-b border-white/10 pb-3 active:cursor-grabbing"
+                title="Drag to move Settings"
+              >
                 <h4 className="text-sm font-semibold text-white">
                   {activeTab === 'ai' && 'AI Engine & Inference'}
                   {activeTab === 'voice' && 'Voice Pipeline'}
@@ -186,7 +252,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </AnimatePresence>
   );

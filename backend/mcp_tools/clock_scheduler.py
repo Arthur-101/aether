@@ -31,7 +31,7 @@ def _serialize(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def create_one_time_task(
-    session_id: str, run_at_iso: str, task_prompt: str
+    session_id: str, run_at_iso: str, task_prompt: str, kind: str = "task"
 ) -> Dict[str, Any]:
     """Creates a future one-time task and schedules its APScheduler job."""
     if not (session_id or "").strip():
@@ -48,6 +48,7 @@ def create_one_time_task(
             prompt,
             False,
             "once",
+            kind=kind,
         )
     except Exception:
         engine.remove_job(task_id)
@@ -67,7 +68,7 @@ def schedule_one_time_task(session_id: str, run_at_iso: str, task_prompt: str) -
 
 
 def create_daily_task(
-    session_id: str, hour: int, minute: int, routine_prompt: str
+    session_id: str, hour: int, minute: int, routine_prompt: str, kind: str = "task"
 ) -> Dict[str, Any]:
     """Creates a daily recurring routine and schedules its APScheduler job."""
     if not (session_id or "").strip():
@@ -78,7 +79,9 @@ def create_daily_task(
     engine.add_daily_job(task_id, session_id, hour, minute, prompt)
     time_label = f"{hour:02d}:{minute:02d} daily"
     try:
-        repo.insert_task(task_id, session_id, time_label, prompt, True, "daily")
+        repo.insert_task(
+            task_id, session_id, time_label, prompt, True, "daily", kind=kind
+        )
     except Exception:
         engine.remove_job(task_id)
         raise
@@ -102,6 +105,7 @@ def create_custom_task(
     start_at_iso: str,
     end_at_iso: str,
     task_prompt: str,
+    kind: str = "task",
 ) -> Dict[str, Any]:
     """Creates a daily routine bounded by an exact start/end date-time range."""
     if not (session_id or "").strip():
@@ -121,6 +125,7 @@ def create_custom_task(
             "custom",
             start_dt.isoformat(timespec="seconds"),
             end_dt.isoformat(timespec="seconds"),
+            kind=kind,
         )
     except Exception:
         engine.remove_job(task_id)

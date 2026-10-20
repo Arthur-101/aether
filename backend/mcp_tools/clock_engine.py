@@ -114,6 +114,12 @@ def trigger_task(task_id: str, session_id: str, prompt: str) -> None:
     event_msg = f"[CLOCK ALARM TRIGGERED AT {now_str}]: Execute task: {prompt}"
     if _wake_callback:
         try:
-            _wake_callback(session_id=session_id, system_event=event_msg, task_id=task_id)
+            _wake_callback(
+                session_id=session_id,
+                system_event=event_msg,
+                task_id=task_id,
+                kind=row.get("kind") or "task",
+                prompt=prompt,
+            )
         except Exception:
             logger.exception("Wake callback failed for task %s", task_id)

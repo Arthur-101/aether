@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import type { ScheduledTask, TaskInput } from '../../types/ipc';
+import { AlarmPanel } from './AlarmPanel';
 import { TaskForm } from './TaskForm';
 import { formatSchedule } from './taskFormat';
 
@@ -21,6 +22,8 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
 }) => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
+  const alarms = tasks.filter((task) => task.kind === 'alarm');
+  const routines = tasks.filter((task) => task.kind !== 'alarm');
 
   const openNew = () => {
     setEditingTask(null);
@@ -49,7 +52,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
               : `${tasks.length} active task${tasks.length === 1 ? '' : 's'}`}
           </p>
           <p className="text-[10px] text-[#8b8b8b]">
-            One-time reminders and daily routines
+            Alarms, one-time reminders, and daily routines
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -70,6 +73,13 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         </div>
       </div>
 
+      <AlarmPanel
+        alarms={alarms}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
+      />
+
       {formOpen && (
         <TaskForm
           key={editingTask?.id || 'new'}
@@ -88,12 +98,18 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             <Clock size={20} className="text-[#6f6f6f]" />
             <p className="text-xs text-[#c7c7c7]">No pending alarms or routines.</p>
             <p className="text-[10px] text-[#8b8b8b]">
-              Add one here, or ask Aether in Quick Chat.
+              Set an alarm above, add a task, or ask Aether in Quick Chat.
             </p>
           </div>
         )}
 
-        {tasks.map((task) => (
+        {tasks.length > 0 && routines.length === 0 && !formOpen ? (
+          <p className="px-1 py-1 text-[9px] text-[#6f6f6f]">
+            No scheduled tasks or routines.
+          </p>
+        ) : null}
+
+        {routines.map((task) => (
           <div
             key={task.id}
             className="group flex items-start gap-2 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-2"

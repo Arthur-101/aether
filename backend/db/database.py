@@ -121,6 +121,7 @@ def init_db(db_path: Optional[Path] = None) -> None:
         prompt_to_execute TEXT NOT NULL,
         is_recurring INTEGER DEFAULT 0,
         schedule_type TEXT DEFAULT 'once',
+        kind TEXT DEFAULT 'task',
         start_at_iso TEXT,
         end_at_iso TEXT,
         status TEXT DEFAULT 'active'
@@ -132,6 +133,7 @@ def init_db(db_path: Optional[Path] = None) -> None:
     columns = {row["name"] for row in cur.fetchall()}
     migrations = {
         "schedule_type": "TEXT DEFAULT 'once'",
+        "kind": "TEXT DEFAULT 'task'",
         "start_at_iso": "TEXT",
         "end_at_iso": "TEXT",
     }

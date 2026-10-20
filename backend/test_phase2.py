@@ -130,7 +130,11 @@ def run_tests():
         # ----------------------------------------------------
         print("\n[Test 3] Testing Clock Scheduler & Reverse Triggers...")
         wake_events = []
-        register_wake_callback(lambda session_id, system_event, task_id: wake_events.append((session_id, system_event)))
+        register_wake_callback(
+            lambda session_id, system_event, task_id, **_: wake_events.append(
+                (session_id, system_event)
+            )
+        )
 
         # Schedule task for 2 seconds in future
         target_iso = (datetime.now() + timedelta(seconds=2)).isoformat()

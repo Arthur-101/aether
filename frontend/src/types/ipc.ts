@@ -85,6 +85,7 @@ export interface AttachmentItem {
 }
 
 export type TaskScheduleType = 'once' | 'daily' | 'custom';
+export type TaskKind = 'task' | 'alarm';
 
 export interface ScheduledTask {
   id: string;
@@ -93,6 +94,7 @@ export interface ScheduledTask {
   prompt_to_execute: string;
   is_recurring: boolean;
   schedule_type?: TaskScheduleType;
+  kind?: TaskKind;
   cron_or_iso: string;
   run_at_iso?: string | null;
   hour?: number | null;
@@ -107,11 +109,31 @@ export interface TaskInput {
   prompt: string;
   schedule_type: TaskScheduleType;
   is_recurring?: boolean;
+  kind?: TaskKind;
   run_at_iso?: string;
   hour?: number;
   minute?: number;
   start_at_iso?: string;
   end_at_iso?: string;
+}
+
+export interface ClockAlert {
+  event: string;
+  title: string;
+  kind: TaskKind;
+  taskId: string;
+}
+
+export interface WifiProfile {
+  name: string;
+  connected: boolean;
+}
+
+export interface BluetoothDeviceInfo {
+  name: string;
+  status: string;
+  connected: boolean;
+  instance_id?: string;
 }
 
 export interface AIProviderConfig {
@@ -201,7 +223,12 @@ export type OutgoingEvent =
   | { type: 'TOGGLE_BLUETOOTH'; payload: { enabled?: boolean } }
   | { type: 'TOGGLE_AIRPLANE_MODE'; payload: { enabled?: boolean } }
   | { type: 'TOGGLE_HOTSPOT'; payload: { enabled?: boolean } }
-  | { type: 'TOGGLE_DARK_MODE'; payload: { enabled?: boolean } };
+  | { type: 'TOGGLE_DARK_MODE'; payload: { enabled?: boolean } }
+  | { type: 'LIST_WIFI_PROFILES'; payload: Record<string, never> }
+  | { type: 'CONNECT_WIFI'; payload: { profile: string } }
+  | { type: 'DISCONNECT_WIFI'; payload: Record<string, never> }
+  | { type: 'LIST_BLUETOOTH_DEVICES'; payload: Record<string, never> }
+  | { type: 'OPEN_SETTINGS_PAGE'; payload: { page: string } };
 
 export interface IncomingEnvelope<T = any> {
   type: string;
