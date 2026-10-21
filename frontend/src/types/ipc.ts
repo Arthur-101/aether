@@ -13,6 +13,61 @@ export interface ModelStatus {
   local: boolean;
 }
 
+export type DashboardTabId =
+  | 'controls'
+  | 'chat'
+  | 'clock'
+  | 'stats'
+  | 'notes'
+  | 'wallpaper'
+  | 'power';
+
+export interface AppearanceConfig {
+  dashboard_tabs: DashboardTabId[];
+  pill_opacity: number;
+  island_opacity: number;
+  button_primary: string;
+  button_secondary: string;
+  button_gradient: boolean;
+  close_on_outside_click: boolean;
+}
+
+export interface ClockConfig {
+  weather_mode: 'auto' | 'manual';
+  weather_city: string;
+  weather_latitude?: number | null;
+  weather_longitude?: number | null;
+  weather_unit: 'celsius' | 'fahrenheit';
+  weather_label?: string;
+}
+
+export interface WeatherSnapshot {
+  available: boolean;
+  stale: boolean;
+  location: string;
+  temperature: number | null;
+  unit: 'C' | 'F';
+  condition: string;
+  icon: string;
+  humidity: number | null;
+  wind_kph: number | null;
+  updated_at: string;
+  message: string;
+}
+
+export interface TaskbarPinnedApp {
+  id: string;
+  name: string;
+  path: string;
+  icon?: string;
+  running?: boolean;
+}
+
+export interface TaskbarAppsConfig {
+  mode: 'mirror' | 'custom';
+  pinned: TaskbarPinnedApp[];
+}
+
 export interface SystemStats {
   cpu_percent: number;
   ram_percent: number;
@@ -179,6 +234,9 @@ export interface AppConfig {
     notes_directory?: string;
     notes_theme?: string;
   };
+  appearance?: AppearanceConfig;
+  clock?: ClockConfig;
+  taskbar_apps?: TaskbarAppsConfig;
 }
 
 export type OutgoingEvent =
@@ -198,6 +256,10 @@ export type OutgoingEvent =
   | { type: 'CREATE_TASK'; payload: TaskInput }
   | { type: 'UPDATE_TASK'; payload: TaskInput & { task_id: string } }
   | { type: 'DELETE_TASK'; payload: { task_id: string } }
+  | { type: 'COMPLETE_TASK'; payload: { task_id: string } }
+  | { type: 'PAUSE_TASK'; payload: { task_id: string } }
+  | { type: 'RESUME_TASK'; payload: { task_id: string } }
+  | { type: 'GET_WEATHER'; payload: Record<string, never> }
   | { type: 'LIST_NOTES'; payload: Record<string, never> }
   | { type: 'READ_NOTE'; payload: { note_id: string } }
   | { type: 'SAVE_NOTE'; payload: NoteSaveInput }

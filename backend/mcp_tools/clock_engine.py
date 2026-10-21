@@ -107,18 +107,21 @@ def trigger_task(task_id: str, session_id: str, prompt: str) -> None:
     row = repo.fetch_active_task(task_id)
     if not row:
         return
-    if not row["is_recurring"]:
+    kind = row.get("kind") or "task"
+    if not row["is_recurring"] and kind == "alarm":
+        # One-time alarms are done as soon as they ring. One-time AI tasks stay
+        # active until the execution layer reports success or failure.
         repo.set_status(task_id, "completed")
 
     now_str = format_local(local_now())
-    event_msg = f"[CLOCK ALARM TRIGGERED AT {now_str}]: Execute task: {prompt}"
+    event_msg = f"[SCHEDULED TRIGGER AT {now_str}]: Execute task: {prompt}"
     if _wake_callback:
         try:
             _wake_callback(
                 session_id=session_id,
                 system_event=event_msg,
                 task_id=task_id,
-                kind=row.get("kind") or "task",
+                kind=kind,
                 prompt=prompt,
             )
         except Exception:

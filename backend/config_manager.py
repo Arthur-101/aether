@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from platformdirs import user_data_dir
 
+from .config_schema import (
+    default_appearance,
+    default_clock,
+    default_taskbar_apps,
+    normalize_config,
+)
+
 APP_NAME = "Aether"
 
 
@@ -105,6 +112,9 @@ def get_default_config() -> Dict[str, Any]:
             "notes_directory": "",
             "notes_theme": "default",
         },
+        "appearance": default_appearance(),
+        "clock": default_clock(),
+        "taskbar_apps": default_taskbar_apps(),
     }
 
 
@@ -134,7 +144,7 @@ class ConfigManager:
                 elif isinstance(vals, dict) and isinstance(loaded[section], dict):
                     for k, v in vals.items():
                         loaded[section].setdefault(k, v)
-            self._config = loaded
+            self._config = normalize_config(loaded)
         except Exception:
             self._config = get_default_config()
             self.save(self._config)
@@ -143,7 +153,7 @@ class ConfigManager:
 
     def save(self, new_config: Dict[str, Any]) -> None:
         """Persists configuration to disk atomically."""
-        self._config = new_config
+        self._config = normalize_config(new_config)
         temp_path = self.config_path.with_suffix(".tmp")
         with open(temp_path, "w", encoding="utf-8") as f:
             json.dump(self._config, f, indent=2)

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Clock, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CalendarClock, ListChecks, Plus, RefreshCw } from 'lucide-react';
 import type { ScheduledTask, TaskInput } from '../../types/ipc';
-import { AlarmPanel } from './AlarmPanel';
 import { TaskForm } from './TaskForm';
-import { formatSchedule } from './taskFormat';
+import { TaskRow } from './TaskRow';
 
 interface TaskPanelProps {
   tasks: ScheduledTask[];
@@ -11,7 +10,18 @@ interface TaskPanelProps {
   onCreate: (task: TaskInput) => void;
   onUpdate: (task: TaskInput & { task_id: string }) => void;
   onDelete: (taskId: string) => void;
+  onComplete: (taskId: string) => void;
+  onPause: (taskId: string) => void;
+  onResume: (taskId: string) => void;
 }
+
+type TaskFilter = 'all' | 'upcoming' | 'recurring';
+
+const FILTERS: Array<{ id: TaskFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'recurring', label: 'Recurring' },
+];
 
 export const TaskPanel: React.FC<TaskPanelProps> = ({
   tasks,
@@ -19,11 +29,23 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   onCreate,
   onUpdate,
   onDelete,
+  onComplete,
+  onPause,
+  onResume,
 }) => {
+  const [filter, setFilter] = useState<TaskFilter>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
-  const alarms = tasks.filter((task) => task.kind === 'alarm');
-  const routines = tasks.filter((task) => task.kind !== 'alarm');
+
+  const workTasks = useMemo(
+    () => tasks.filter((task) => task.kind !== 'alarm'),
+    [tasks]
+  );
+  const visible = workTasks.filter((task) => {
+    if (filter === 'upcoming') return !task.is_recurring;
+    if (filter === 'recurring') return task.is_recurring;
+    return true;
+  });
 
   const openNew = () => {
     setEditingTask(null);
@@ -36,117 +58,113 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   };
 
   const submit = (task: TaskInput) => {
-    if (editingTask) onUpdate({ ...task, task_id: editingTask.id });
-    else onCreate(task);
+    if (editingTask) {
+      onUpdate({ ...task, task_id: editingTask.id });
+    } else {
+      onCreate(task);
+    }
     setFormOpen(false);
     setEditingTask(null);
   };
 
   return (
-    <div className="flex min-h-[180px] flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-[#f3f3f3]">
-            {tasks.length === 0
-              ? 'No active tasks'
-              : `${tasks.length} active task${tasks.length === 1 ? '' : 's'}`}
-          </p>
-          <p className="text-[10px] text-[#8b8b8b]">
-            Alarms, one-time reminders, and daily routines
-          </p>
+    <section className="notch-card flex h-full min-h-0 flex-col rounded-2xl p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06] accent-text">
+            <ListChecks size={14} />
+          </span>
+          <div>
+            <h3 className="text-[12px] font-semibold text-[#f2efe7]">Tasks</h3>
+            <p className="text-[9px] text-[#777168]">
+              {workTasks.length} {workTasks.length === 1 ? 'task' : 'tasks'} in your flow
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={onRefresh}
-            className="rounded-md bg-white/5 p-1.5 text-[#c7c7c7] transition hover:bg-white/10 hover:text-white"
-            title="Refresh tasks"
+            aria-label="Refresh tasks"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8f897d] transition hover:bg-white/10 hover:text-white"
           >
             <RefreshCw size={13} />
           </button>
           <button
+            type="button"
             onClick={openNew}
-            className="flex items-center gap-1 rounded-md bg-[#0067c0] px-2.5 py-1.5 text-[11px] font-medium text-white transition hover:bg-[#0078d4]"
+            className="accent-fill flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold"
           >
-            <Plus size={12} />
-            Add task
+            <Plus size={12} /> New task
           </button>
         </div>
       </div>
 
-      <AlarmPanel
-        alarms={alarms}
-        onCreate={onCreate}
-        onUpdate={onUpdate}
-        onDelete={onDelete}
-      />
+      <div className="mt-2 flex items-center gap-1 border-b border-white/[0.055] pb-2">
+        {FILTERS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setFilter(item.id)}
+            className={`rounded-full px-2.5 py-1 text-[9.5px] transition ${
+              filter === item.id
+                ? 'bg-white/[0.09] text-white'
+                : 'text-[#8f897d] hover:bg-white/[0.05] hover:text-white'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+        <span className="ml-auto text-[9px] text-[#6f6a61]">
+          One-time tasks use a checkmark · recurring tasks pause/resume
+        </span>
+      </div>
 
-      {formOpen && (
-        <TaskForm
-          key={editingTask?.id || 'new'}
-          initial={editingTask}
-          onCancel={() => {
-            setFormOpen(false);
-            setEditingTask(null);
-          }}
-          onSubmit={submit}
-        />
-      )}
+      {formOpen ? (
+        <div className="mt-2 rounded-xl border border-white/[0.075] bg-black/15 p-2">
+          <TaskForm
+            initial={editingTask}
+            onCancel={() => {
+              setFormOpen(false);
+              setEditingTask(null);
+            }}
+            onSubmit={submit}
+          />
+        </div>
+      ) : null}
 
-      <div className="flex max-h-[230px] flex-col gap-1.5 overflow-y-auto pr-0.5">
-        {tasks.length === 0 && !formOpen && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-1 py-6 text-center">
-            <Clock size={20} className="text-[#6f6f6f]" />
-            <p className="text-xs text-[#c7c7c7]">No pending alarms or routines.</p>
-            <p className="text-[10px] text-[#8b8b8b]">
-              Set an alarm above, add a task, or ask Aether in Quick Chat.
+      <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+        {visible.length ? (
+          visible.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              onEdit={openEdit}
+              onDelete={onDelete}
+              onComplete={onComplete}
+              onPause={onPause}
+              onResume={onResume}
+            />
+          ))
+        ) : (
+          <div className="flex h-full min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-white/10 p-6 text-center">
+            <CalendarClock size={22} className="text-[#6f6a61]" />
+            <p className="mt-2 text-[11px] font-medium text-[#b8b2a7]">
+              {workTasks.length ? 'Nothing in this filter' : 'A clear runway'}
             </p>
+            <p className="mt-1 max-w-[260px] text-[9.5px] leading-relaxed text-[#777168]">
+              Add a task manually, or ask Aether to schedule one in plain language.
+            </p>
+            <button
+              type="button"
+              onClick={openNew}
+              className="mt-3 rounded-lg bg-white/[0.07] px-2.5 py-1.5 text-[10px] text-white transition hover:bg-white/12"
+            >
+              Add your first task
+            </button>
           </div>
         )}
-
-        {tasks.length > 0 && routines.length === 0 && !formOpen ? (
-          <p className="px-1 py-1 text-[9px] text-[#6f6f6f]">
-            No scheduled tasks or routines.
-          </p>
-        ) : null}
-
-        {routines.map((task) => (
-          <div
-            key={task.id}
-            className="group flex items-start gap-2 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-2"
-          >
-            <div className="mt-0.5 rounded-md bg-[#0067c0]/15 p-1.5 text-[#60cdff]">
-              <Clock size={12} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-medium text-[#f3f3f3]">
-                {task.prompt_to_execute}
-              </p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] text-[#8b8b8b]">
-                <span>{formatSchedule(task)}</span>
-                <span className="truncate text-[#6f6f6f]">
-                  {task.session_title || 'Unknown session'}
-                </span>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-0.5 opacity-70 transition group-hover:opacity-100">
-              <button
-                onClick={() => openEdit(task)}
-                className="rounded p-1 text-[#c7c7c7] transition hover:bg-white/10 hover:text-white"
-                title="Edit task"
-              >
-                <Pencil size={11} />
-              </button>
-              <button
-                onClick={() => onDelete(task.id)}
-                className="rounded p-1 text-[#8b8b8b] transition hover:bg-[#ff99a4]/10 hover:text-[#ff99a4]"
-                title="Delete task"
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
-    </div>
+    </section>
   );
 };

@@ -11,6 +11,7 @@ import {
   StickyNote,
   ChevronLeft,
   ChevronRight,
+  History,
   Pin,
 } from 'lucide-react';
 import type { AttachmentItem, ChatTurn, ModelStatus } from '../../types/ipc';
@@ -26,6 +27,7 @@ interface QuickChatProps {
   onBrowseFiles: () => void;
   onSend: (message: string) => void;
   onDetach?: (filePath: string) => void;
+  onOpenSessions?: () => void;
 }
 
 function attachmentStatus(item: AttachmentItem): string {
@@ -45,6 +47,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onBrowseFiles,
   onSend,
   onDetach,
+  onOpenSessions,
 }) => {
   const [input, setInput] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
@@ -280,7 +283,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
         <button
           onClick={handleSend}
           disabled={!input.trim()}
-          className="flex items-center justify-center rounded-lg bg-[#0067c0] px-3 py-2 text-white transition hover:bg-[#1976c9] disabled:cursor-not-allowed disabled:opacity-40"
+          className="accent-fill flex items-center justify-center rounded-lg px-3 py-2 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Send size={14} />
         </button>
@@ -291,6 +294,18 @@ export const QuickChat: React.FC<QuickChatProps> = ({
           <kbd className="rounded bg-white/10 px-1.5 py-0.5">Ctrl+Win</kbd> Dictation ·{' '}
           <kbd className="rounded bg-white/10 px-1.5 py-0.5">Alt+Space</kbd> Voice
         </div>
+
+        {onOpenSessions ? (
+          <button
+            type="button"
+            onClick={onOpenSessions}
+            className="absolute left-0 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[9px] text-[#c7c7c7] transition hover:bg-white/10 hover:text-white"
+            title="Open session history"
+          >
+            <History size={9} />
+            Sessions
+          </button>
+        ) : null}
 
         {model.status?.local && (
           <button

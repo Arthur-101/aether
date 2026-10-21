@@ -1,11 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GripHorizontal, Settings, X, Cpu, Mic, Keyboard, HardDrive, Save, Check } from 'lucide-react';
-import type { AppConfig } from '../../types/ipc';
+import {
+  GripHorizontal,
+  Settings,
+  X,
+  Cpu,
+  Mic,
+  Keyboard,
+  HardDrive,
+  Palette,
+  Save,
+  Check,
+} from 'lucide-react';
+import type { AppearanceConfig, AppConfig } from '../../types/ipc';
+import { resolveAppearance, resolveTaskbarApps } from '../Island/appearance';
 import { AiSettings } from './tabs/AiSettings';
+import { AppearanceSettings } from './tabs/AppearanceSettings';
 import { VoiceSettings } from './tabs/VoiceSettings';
 import { HotkeySettings } from './tabs/HotkeySettings';
 import { StorageSettings } from './tabs/StorageSettings';
+import { useSettingsDrag } from './useSettingsDrag';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -20,13 +34,14 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type Tab = 'ai' | 'voice' | 'hotkeys' | 'storage';
+type Tab = 'ai' | 'voice' | 'hotkeys' | 'storage' | 'appearance';
 
 const tabs = [
   { id: 'ai' as const, label: 'AI & Models', icon: Cpu },
   { id: 'voice' as const, label: 'Voice Engine', icon: Mic },
   { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
   { id: 'storage' as const, label: 'Storage & Files', icon: HardDrive },
+  { id: 'appearance' as const, label: 'Appearance', icon: Palette },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -44,65 +59,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('ai');
   const [draft, setDraft] = useState<AppConfig | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const defaultOffset = () => ({
-    x: Math.max(0, (window.innerWidth - 620) / 2 - 24),
-    y: 0,
-  });
-  const [offset, setOffset] = useState(defaultOffset);
-  const dragRef = useRef<{
-    startX: number;
-    startY: number;
-    baseX: number;
-    baseY: number;
-  } | null>(null);
+  const { offset, dragHandleProps } = useSettingsDrag(isOpen);
 
   useEffect(() => {
     if (isOpen && config) setDraft(structuredClone(config));
   }, [isOpen, config]);
-
-  useEffect(() => {
-    if (isOpen) setOffset(defaultOffset());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest('button, input, select, textarea, a')) {
-      return;
-    }
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      baseX: offset.x,
-      baseY: offset.y,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const maxX = Math.max(0, (window.innerWidth - 620) / 2 - 12);
-    const maxDown = Math.max(0, window.innerHeight - 520 - 24);
-    setOffset({
-      x: Math.min(maxX, Math.max(-maxX, drag.baseX + event.clientX - drag.startX)),
-      y: Math.min(maxDown, Math.max(0, drag.baseY + event.clientY - drag.startY)),
-    });
-  };
-
-  const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  const dragHandleProps = {
-    onPointerDown: startDrag,
-    onPointerMove: moveDrag,
-    onPointerUp: endDrag,
-    onPointerCancel: endDrag,
-    style: { touchAction: 'none' as const },
-  };
 
   const updateAi = (patch: Partial<AppConfig['ai_provider']>) => {
     setDraft((prev) =>
@@ -122,6 +83,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const updateStorage = (storage: NonNullable<AppConfig['storage']>) => {
     setDraft((prev) => (prev ? { ...prev, storage } : prev));
+  };
+
+  const updateAppearance = (appearance: AppearanceConfig) => {
+    setDraft((prev) => (prev ? { ...prev, appearance } : prev));
   };
 
   const handleToggleThinking = (enabled: boolean) => {
@@ -195,8 +160,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col justify-between overflow-y-auto p-5">
-            <div>
+          <div className="flex min-h-0 flex-1 flex-col p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               <div
                 {...dragHandleProps}
                 className="mb-4 flex cursor-grab items-center justify-between border-b border-white/10 pb-3 active:cursor-grabbing"
@@ -207,6 +172,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'voice' && 'Voice Pipeline'}
                   {activeTab === 'hotkeys' && 'Global System Hotkeys'}
                   {activeTab === 'storage' && 'Output & Session Storage'}
+                  {activeTab === 'appearance' && 'Notch Appearance'}
                 </h4>
                 <button
                   onClick={onClose}
@@ -247,6 +213,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       resolvedNotesDirectory={notesDirectory}
                       onChange={updateStorage}
                       onOpenNotesFolder={onOpenNotesFolder}
+                    />
+                  )}
+                  {activeTab === 'appearance' && (
+                    <AppearanceSettings
+                      appearance={resolveAppearance(draft.appearance)}
+                      taskbarApps={resolveTaskbarApps(draft.taskbar_apps)}
+                      onChange={updateAppearance}
                     />
                   )}
                 </>

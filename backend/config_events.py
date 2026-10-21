@@ -90,6 +90,10 @@ async def _handle_update_config(payload: Dict[str, Any]) -> None:
     config_manager.set(section, key, value)
     if section == "hotkeys":
         _reload_hotkeys()
+    if section == "clock":
+        from .weather_service import clear_weather_cache
+
+        clear_weather_cache()
     await ws_manager.broadcast(
         "CONFIG_UPDATED", {"section": section, "key": key, "value": value}
     )

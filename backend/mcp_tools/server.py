@@ -16,10 +16,18 @@ from .media_tools import (
 )
 from .doc_tools import convert_document, search_dropped_file
 from .clock_scheduler import (
+    cancel_task_tool,
+    complete_task_tool,
+    list_tasks_tool,
+    pause_task_tool,
+    resume_task_tool,
+    schedule_alarm,
     schedule_custom_task,
     schedule_one_time_task,
     schedule_recurring_routine,
+    update_task_tool,
 )
+from .clock_tool_schemas import get_clock_tool_schemas
 
 # FastMCP Server Instance
 mcp = FastMCP("AetherTools")
@@ -34,6 +42,13 @@ mcp.tool()(search_dropped_file)
 mcp.tool()(schedule_one_time_task)
 mcp.tool()(schedule_recurring_routine)
 mcp.tool()(schedule_custom_task)
+mcp.tool()(list_tasks_tool)
+mcp.tool()(update_task_tool)
+mcp.tool()(cancel_task_tool)
+mcp.tool()(complete_task_tool)
+mcp.tool()(pause_task_tool)
+mcp.tool()(resume_task_tool)
+mcp.tool()(schedule_alarm)
 
 # Tool Dispatch Table
 TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
@@ -46,6 +61,13 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
     "schedule_custom_task": schedule_custom_task,
+    "list_scheduled_tasks": list_tasks_tool,
+    "update_scheduled_task": update_task_tool,
+    "cancel_scheduled_task": cancel_task_tool,
+    "complete_scheduled_task": complete_task_tool,
+    "pause_scheduled_task": pause_task_tool,
+    "resume_scheduled_task": resume_task_tool,
+    "schedule_alarm": schedule_alarm,
     "crop_image": crop_image,
     "add_background": add_background,
 }
@@ -151,57 +173,7 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
                 }
             }
         },
-        {
-            "type": "function",
-            "function": {
-                "name": "schedule_one_time_task",
-                "description": "Schedule a future task for the AI at an exact date/time.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "session_id": {"type": "string", "description": "Current session ID."},
-                        "run_at_iso": {"type": "string", "description": "ISO 8601 string, e.g. 2026-10-19T09:00:00."},
-                        "task_prompt": {"type": "string", "description": "Task instruction to execute."}
-                    },
-                    "required": ["session_id", "run_at_iso", "task_prompt"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "schedule_recurring_routine",
-                "description": "Schedule a daily recurring routine at specific hour and minute.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "session_id": {"type": "string", "description": "Current session ID."},
-                        "hour": {"type": "integer", "description": "Hour in 24h format (0-23)."},
-                        "minute": {"type": "integer", "description": "Minute (0-59)."},
-                        "routine_prompt": {"type": "string", "description": "Routine instruction to execute."}
-                    },
-                    "required": ["session_id", "hour", "minute", "routine_prompt"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "schedule_custom_task",
-                "description": "Schedule a daily task that stops after an exact end date/time.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "session_id": {"type": "string", "description": "Current session ID."},
-                        "start_at_iso": {"type": "string", "description": "First run ISO 8601 date/time."},
-                        "end_at_iso": {"type": "string", "description": "Last boundary ISO 8601 date/time."},
-                        "task_prompt": {"type": "string", "description": "Task instruction to execute."}
-                    },
-                    "required": ["session_id", "start_at_iso", "end_at_iso", "task_prompt"]
-                }
-            }
-        }
-    ]
+    ] + get_clock_tool_schemas()
 
 
 def execute_tool(name: str, arguments: Dict[str, Any]) -> str:

@@ -13,13 +13,18 @@ from backend.ai.llm_router import llm_router
 from backend.db.database import get_db, init_db
 from backend.mcp_tools import clock_task_repository as repo
 from backend.mcp_tools.clock_scheduler import (
+    ALARM_SESSION_ID,
     cancel_scheduled_task,
     cancel_tasks_for_session,
+    complete_scheduled_task,
     create_custom_task,
     create_daily_task,
     create_one_time_task,
     list_scheduled_tasks,
+    pause_scheduled_task,
     restore_scheduled_tasks,
+    resume_scheduled_task,
+    schedule_alarm,
     scheduler,
     update_scheduled_task,
 )
@@ -178,3 +183,36 @@ def test_scheduler_forces_real_session_id():
             "real-session",
         )
     assert execute.call_args.args[1]["session_id"] == "real-session"
+
+
+def test_pause_and_resume_recurring_task(task_db):
+    task = create_daily_task("session-1", 8, 15, "Morning review")
+    try:
+        paused = pause_scheduled_task(task["id"])
+        assert paused["status"] == "paused"
+        assert scheduler.get_job(task["id"]) is None
+        visible = list_scheduled_tasks("session-1")
+        assert any(item["id"] == task["id"] and item["status"] == "paused" for item in visible)
+
+        resumed = resume_scheduled_task(task["id"])
+        assert resumed["status"] == "active"
+        assert scheduler.get_job(task["id"]) is not None
+    finally:
+        cancel_scheduled_task(task["id"])
+
+
+def test_complete_one_time_task_removes_it_from_manager(task_db):
+    task = create_one_time_task("session-1", _future_iso(), "Finish report")
+    completed = complete_scheduled_task(task["id"])
+    assert completed["status"] == "completed"
+    assert scheduler.get_job(task["id"]) is None
+    assert all(item["id"] != task["id"] for item in list_scheduled_tasks())
+
+
+def test_alarm_tool_uses_internal_alarm_session(task_db):
+    message = schedule_alarm(run_at_iso=_future_iso(), task_prompt="Wake up")
+    assert "Set alarm" in message
+    alarms = [item for item in list_scheduled_tasks() if item["kind"] == "alarm"]
+    assert len(alarms) == 1
+    assert alarms[0]["session_id"] == ALARM_SESSION_ID
+    cancel_scheduled_task(alarms[0]["id"])

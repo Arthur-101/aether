@@ -40,6 +40,19 @@ def insert_task(
     conn.close()
 
 
+def fetch_task(task_id: str) -> Optional[Dict[str, Any]]:
+    """Returns a task in any status, including completed/cancelled rows."""
+    conn = get_db()
+    row = conn.execute(
+        """SELECT t.*, COALESCE(s.title, 'Unknown session') AS session_title
+           FROM scheduled_tasks t LEFT JOIN sessions s ON s.id = t.session_id
+           WHERE t.id = ?""",
+        (task_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def fetch_active_task(task_id: str) -> Optional[Dict[str, Any]]:
     conn = get_db()
     row = conn.execute(
@@ -52,9 +65,40 @@ def fetch_active_task(task_id: str) -> Optional[Dict[str, Any]]:
     return dict(row) if row else None
 
 
+def fetch_visible_task(task_id: str) -> Optional[Dict[str, Any]]:
+    """Returns an active or paused task for user/UI management."""
+    conn = get_db()
+    row = conn.execute(
+        """SELECT t.*, COALESCE(s.title, 'Unknown session') AS session_title
+           FROM scheduled_tasks t LEFT JOIN sessions s ON s.id = t.session_id
+           WHERE t.id = ? AND t.status IN ('active', 'paused')""",
+        (task_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
 def list_active_tasks(session_id: str = "") -> List[Dict[str, Any]]:
     conn = get_db()
     where = "WHERE t.status = 'active'"
+    params: tuple = ()
+    if session_id:
+        where += " AND t.session_id = ?"
+        params = (session_id,)
+    rows = conn.execute(
+        f"""SELECT t.*, COALESCE(s.title, 'Unknown session') AS session_title
+            FROM scheduled_tasks t LEFT JOIN sessions s ON s.id = t.session_id
+            {where} ORDER BY t.rowid DESC""",
+        params,
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def list_visible_tasks(session_id: str = "") -> List[Dict[str, Any]]:
+    """Returns active and paused tasks for the manager and MCP list tool."""
+    conn = get_db()
+    where = "WHERE t.status IN ('active', 'paused')"
     params: tuple = ()
     if session_id:
         where += " AND t.session_id = ?"
@@ -119,6 +163,21 @@ def cancel_active_task(task_id: str) -> bool:
     cur = conn.cursor()
     cur.execute(
         "UPDATE scheduled_tasks SET status = 'cancelled' WHERE id = ? AND status = 'active'",
+        (task_id,),
+    )
+    conn.commit()
+    affected = cur.rowcount > 0
+    conn.close()
+    return affected
+
+
+def cancel_visible_task(task_id: str) -> bool:
+    """Cancels an active or paused task."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE scheduled_tasks SET status = 'cancelled' "
+        "WHERE id = ? AND status IN ('active', 'paused')",
         (task_id,),
     )
     conn.commit()

@@ -105,6 +105,24 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const completeTask = useCallback(
+    (taskId: string) =>
+      sendEvent({ type: 'COMPLETE_TASK', payload: { task_id: taskId } }),
+    [sendEvent]
+  );
+
+  const pauseTask = useCallback(
+    (taskId: string) =>
+      sendEvent({ type: 'PAUSE_TASK', payload: { task_id: taskId } }),
+    [sendEvent]
+  );
+
+  const resumeTask = useCallback(
+    (taskId: string) =>
+      sendEvent({ type: 'RESUME_TASK', payload: { task_id: taskId } }),
+    [sendEvent]
+  );
+
   const refreshNotes = useCallback(
     () => sendEvent({ type: 'LIST_NOTES', payload: {} }),
     [sendEvent]
@@ -187,6 +205,12 @@ export function useBackendActions(
     [sendEvent, setConfig]
   );
 
+  const updateConfigValue = useCallback(
+    (section: string, key: string, value: unknown) =>
+      sendEvent({ type: 'UPDATE_CONFIG', payload: { section, key, value } }),
+    [sendEvent]
+  );
+
   const setVolume = useCallback(
     (level: number) => sendEvent({ type: 'SET_VOLUME', payload: { level } }),
     [sendEvent]
@@ -265,6 +289,9 @@ export function useBackendActions(
     createTask,
     updateTask,
     deleteTask,
+    completeTask,
+    pauseTask,
+    resumeTask,
     refreshNotes,
     readNote,
     saveNote,
@@ -276,6 +303,7 @@ export function useBackendActions(
     deleteSession,
     toggleThinking,
     saveConfig,
+    updateConfigValue,
     setVolume,
     setHotkeyCapture,
     setMuted,

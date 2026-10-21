@@ -111,10 +111,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   return (
     <form
       onSubmit={submit}
-      className="flex flex-col gap-2 rounded-lg border border-[#0067c0]/40 bg-[#0067c0]/10 p-2.5"
+      className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/[0.025] p-2.5"
     >
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-[#9dd5ff]">
+        <span className="text-[11px] font-semibold text-[var(--aether-accent)]">
           {initial ? 'Edit task' : 'New task'}
         </span>
         <button
@@ -131,7 +131,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
         placeholder="What should Aether do?"
-        className="rounded-md border border-white/10 bg-[#2b2b2b] px-2.5 py-1.5 text-[11px] text-white placeholder-[#8b8b8b] outline-none focus:border-[#0067c0]"
+        className="rounded-md border border-white/10 bg-[#2b2b2b] px-2.5 py-1.5 text-[11px] text-white outline-none placeholder:text-[#777168] focus:border-[var(--aether-accent)]"
       />
       <div className="flex gap-1 rounded-md bg-black/25 p-0.5">
         {(['once', 'custom', 'daily'] as const).map((type) => (
@@ -157,7 +157,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         )}
         {scheduleType !== 'daily' && (
           <label className={dateFieldClass}>
-            <CalendarDays size={12} className="shrink-0 text-[#60cdff]" />
+            <CalendarDays size={12} className="shrink-0 text-[var(--aether-accent)]" />
             <input
               type="date"
               value={startDate}
@@ -168,7 +168,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           </label>
         )}
         <label className={timeFieldClass}>
-          <Clock size={12} className="shrink-0 text-[#60cdff]" />
+          <Clock size={12} className="shrink-0 text-[var(--aether-accent)]" />
           <input
             type="time"
             value={startTime}
@@ -183,7 +183,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             To
           </span>
           <label className={dateFieldClass}>
-            <CalendarDays size={12} className="shrink-0 text-[#60cdff]" />
+            <CalendarDays size={12} className="shrink-0 text-[var(--aether-accent)]" />
             <input
               type="date"
               value={endDate}
@@ -193,7 +193,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             />
           </label>
           <label className={timeFieldClass}>
-            <Clock size={12} className="shrink-0 text-[#60cdff]" />
+            <Clock size={12} className="shrink-0 text-[var(--aether-accent)]" />
             <input
               type="time"
               value={endTime}
@@ -208,7 +208,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           Repeats daily at the start time until the end date/time.
         </p>
       )}
-      {error && <p className="text-[10px] text-[#ff99a4]">{error}</p>}
+      {error && <p className="text-[10px] text-[#fca5a5]">{error}</p>}
       <div className="flex justify-end gap-1.5">
         <button
           type="button"
@@ -219,7 +219,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         </button>
         <button
           type="submit"
-          className="rounded-md bg-[#0067c0] px-3 py-1 text-[10px] font-medium text-white transition hover:bg-[#0078d4]"
+          className="accent-fill rounded-md px-3 py-1 text-[10px] font-semibold"
         >
           {initial ? 'Save' : 'Create'}
         </button>

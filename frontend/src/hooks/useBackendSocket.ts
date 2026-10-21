@@ -20,6 +20,7 @@ import type {
   ScheduledTask,
   SystemStats,
   VoiceState,
+  WeatherSnapshot,
   WifiProfile,
 } from '../types/ipc';
 import type { Note, NoteMeta } from '../types/notes';
@@ -55,6 +56,7 @@ export function useBackendSocket() {
   const [wifiProfiles, setWifiProfiles] = useState<WifiProfile[]>([]);
   const [bluetoothDevices, setBluetoothDevices] = useState<BluetoothDeviceInfo[]>([]);
   const [clockAlert, setClockAlert] = useState<ClockAlert | null>(null);
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
@@ -146,6 +148,9 @@ export function useBackendSocket() {
           break;
         case 'TASKS_LIST':
           setTasks((payload.tasks as ScheduledTask[] | undefined) || []);
+          break;
+        case 'WEATHER_STATE':
+          setWeather(payload as WeatherSnapshot);
           break;
         case 'NOTES_LIST': {
           const noteList = (payload.notes as NoteMeta[] | undefined) || [];
@@ -247,8 +252,13 @@ export function useBackendSocket() {
   });
   useEffect(() => {
     if (!connected) return;
-    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS'];
+    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER'];
     bootTypes.forEach((type) => sendEvent({ type, payload: {} } as OutgoingEvent));
+    const weatherTimer = window.setInterval(
+      () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
+      15 * 60 * 1000
+    );
+    return () => window.clearInterval(weatherTimer);
   }, [connected, sendEvent]);
 
   const actions = useBackendActions(sendEvent, {
@@ -271,6 +281,10 @@ export function useBackendSocket() {
   const clearError = useCallback(() => setErrorMessage(null), []);
   const clearConfigError = useCallback(() => setConfigError(null), []);
   const clearWheelResult = useCallback(() => setLastWheelResult(null), []);
+  const refreshWeather = useCallback(
+    () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
+    [sendEvent]
+  );
 
   return {
     connected,
@@ -300,9 +314,11 @@ export function useBackendSocket() {
     wifiProfiles,
     bluetoothDevices,
     clockAlert,
+    weather,
     lastWheelResult,
     subscribeMouse,
     ...actions,
+    refreshWeather,
     closeRadialWheel,
     closeCircle,
     clearClockEvent,

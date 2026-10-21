@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
 import { useTauriFileDrop } from './hooks/useTauriFileDrop';
@@ -16,6 +16,11 @@ import {
   placementBesideSettings,
 } from './lib/externalWindows';
 import { openNotesFolder as openNotesFolderFallback } from './lib/notesApi';
+import {
+  DEFAULT_CLOCK_CONFIG,
+  resolveAppearance,
+} from './components/Island/appearance';
+import type { ClockConfig } from './types/ipc';
 import type { NotesApi } from './types/notes';
 
 function localIso(date: Date): string {
@@ -29,11 +34,11 @@ export function App() {
     voiceState,
     voiceTranscript,
     activeSessionId,
-    activeSessionTitle,
     chatHistory,
     chatPending,
     sessions,
     tasks,
+    weather,
     notes,
     activeNote,
     notesDirectory,
@@ -65,6 +70,11 @@ export function App() {
     createTask,
     updateTask,
     deleteTask,
+    completeTask,
+    pauseTask,
+    resumeTask,
+    refreshWeather,
+    updateConfigValue,
     refreshNotes,
     readNote,
     saveNote,
@@ -109,6 +119,22 @@ export function App() {
   const islandExpandedRef = useRef(false);
   const islandExpandedBeforeSettings = useRef(false);
   const settingsOpenRef = useRef(false);
+  const appearance = useMemo(
+    () => resolveAppearance(config?.appearance),
+    [config?.appearance]
+  );
+  const clockConfig = useMemo(
+    () => ({ ...DEFAULT_CLOCK_CONFIG, ...(config?.clock || {}) }),
+    [config?.clock]
+  );
+  const saveWeather = useCallback(
+    (patch: Partial<ClockConfig>) => {
+      Object.entries(patch).forEach(([key, value]) =>
+        updateConfigValue('clock', key, value)
+      );
+    },
+    [updateConfigValue]
+  );
 
   useEffect(() => {
     islandExpandedRef.current = isIslandExpanded;
@@ -137,6 +163,15 @@ export function App() {
     }
     islandExpandedBeforeSettings.current = false;
   }, [clearConfigError, refreshNotes]);
+
+  const openSessions = useCallback(() => {
+    if (isDrawerOpen) {
+      setIsDrawerOpen(false);
+      return;
+    }
+    refreshSessions();
+    setIsDrawerOpen(true);
+  }, [isDrawerOpen, refreshSessions]);
 
   const handleOpenSettingsPage = useCallback(
     (page: string) => {
@@ -188,15 +223,6 @@ export function App() {
     if (configError) openSettings();
   }, [configError, openSettings]);
 
-  const ai = config?.ai_provider;
-  const engineLabel = !ai
-    ? 'Connecting…'
-    : ai.mode === 'ollama'
-      ? `Ollama · ${ai.ollama_model_name || 'no model'}`
-      : ai.mode === 'cloud'
-        ? `${ai.cloud_provider || 'Cloud'} · ${ai.cloud_model || 'no model'}`
-        : 'Local GGUF';
-
   const notesApi: NotesApi = {
     items: notes,
     current: activeNote,
@@ -213,30 +239,21 @@ export function App() {
   return (
     <main className="relative h-screen w-screen select-none overflow-hidden bg-transparent font-sans">
       <DesktopIsland
-        sessionTitle={activeSessionTitle}
-        voiceState={voiceState}
         systemStats={systemStats}
-        thinkingMode={thinkingMode}
-        engineLabel={engineLabel}
         chatHistory={chatHistory}
         chatPending={chatPending}
         attachments={attachments}
         askRequest={askRequest}
         tasks={tasks}
+        weather={weather}
+        clockConfig={clockConfig}
         wifiProfiles={wifiProfiles}
         bluetoothDevices={bluetoothDevices}
         notes={notesApi}
         model={{ status: modelStatus, onLoad: loadModel, onRelease: releaseModel }}
         isExpanded={isIslandExpanded}
         onExpandedChange={setIsIslandExpanded}
-        onToggleDrawer={() => {
-          if (isDrawerOpen) {
-            setIsDrawerOpen(false);
-            return;
-          }
-          refreshSessions();
-          setIsDrawerOpen(true);
-        }}
+        onOpenSessions={openSessions}
         onOpenSettings={openSettings}
         onKillApp={killApp}
         onSendMessage={sendChatMessage}
@@ -246,6 +263,11 @@ export function App() {
         onCreateTask={createTask}
         onUpdateTask={updateTask}
         onDeleteTask={deleteTask}
+        onCompleteTask={completeTask}
+        onPauseTask={pauseTask}
+        onResumeTask={resumeTask}
+        onSaveWeather={saveWeather}
+        onRefreshWeather={refreshWeather}
         onSetVolume={setVolume}
         onSetMuted={setMuted}
         onSetBrightness={setBrightness}
@@ -259,7 +281,18 @@ export function App() {
         onDisconnectWifi={disconnectWifi}
         onRefreshBluetoothDevices={refreshBluetoothDevices}
         onOpenSettingsPage={handleOpenSettingsPage}
+        appearance={appearance}
+        peekEnabled={!isSettingsOpen}
       />
+
+      {isIslandExpanded && appearance.close_on_outside_click ? (
+        <div
+          data-aether-interactive
+          aria-hidden
+          className="fixed inset-0 z-40"
+          onClick={() => setIsIslandExpanded(false)}
+        />
+      ) : null}
 
       {radialWheel && (
         <RadialWheel

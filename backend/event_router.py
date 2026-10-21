@@ -5,18 +5,13 @@ to the appropriate backend subsystems (session, LLM, tools, config).
 """
 
 import asyncio
-import json
 import logging
 from typing import Any, Callable, Dict
 
 from .ai.errors import ModelNotConfiguredError
-from .ai.llm_router import llm_router
-from .ai.prompts import build_assistant_messages
-from .config_manager import get_app_dir, get_data_dir
+from .chat_execution import execute_chat_turn
 from .db.attachments import list_attachments
 from .db.sessions import session_manager
-from .mcp_tools.attachment_tools import image_attachment_paths
-from .mcp_tools.server import get_openai_tool_schemas
 from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether.router")
@@ -55,17 +50,6 @@ async def route_event(event: Dict[str, Any]) -> None:
         await ws_manager.broadcast("ERROR", {"event": event_type, "message": str(e)})
 
 
-def _load_preferences() -> Dict[str, Any]:
-    """Loads optional cross-session user facts from preferences.json."""
-    for path in (get_data_dir() / "preferences.json", get_app_dir() / "preferences.json"):
-        if path.exists():
-            try:
-                return json.loads(path.read_text(encoding="utf-8"))
-            except Exception:
-                return {}
-    return {}
-
-
 async def _chat_error(session_id: str, prompt: str, message: str) -> None:
     """Shows an actionable error inside Quick Chat and opens Settings."""
     await ws_manager.broadcast("ERROR_CONFIG_MISSING", {
@@ -90,25 +74,9 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
         return
 
     sid = session_manager.get_or_create_session(prompt)
-    loop = asyncio.get_running_loop()
-    context = await loop.run_in_executor(
-        None, lambda: session_manager.build_session_context(sid, prompt)
-    )
-    messages = build_assistant_messages(
-        prompt,
-        session_context=context,
-        user_preferences=_load_preferences(),
-        image_paths=await loop.run_in_executor(
-            None, lambda: image_attachment_paths(sid)
-        ),
-    )
-    tools = get_openai_tool_schemas()
 
     try:
-        result = await loop.run_in_executor(
-            None,
-            lambda: llm_router.chat_completion(messages, tools=tools, session_id=sid),
-        )
+        result = await execute_chat_turn(sid, prompt)
     except ModelNotConfiguredError as exc:
         await _chat_error(sid, prompt, str(exc))
         return
@@ -117,17 +85,10 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
         await _chat_error(sid, prompt, f"Model request failed: {exc}")
         return
 
-    reply = result.get("content", "")
-    if not reply:
-        reply = "I could not produce a response."
-
-    await loop.run_in_executor(
-        None, lambda: session_manager.commit_turn(sid, prompt, reply)
-    )
     await ws_manager.broadcast("SESSION_UPDATED", {
         "session_id": sid,
         "title": _get_session_title(sid),
-        "turn": {"user": prompt, "ai": reply},
+        "turn": {"user": prompt, "ai": result["reply"]},
         "reasoning": result.get("reasoning", ""),
         "tools_used": result.get("tool_calls_executed", []),
     })
@@ -222,10 +183,12 @@ def _register_builtin_handlers() -> None:
     from .note_events import register_note_events
     from .task_events import register_task_events
     from .tool_events import register_tool_events
+    from .weather_events import register_weather_events
 
     register_config_events()
     register_tool_events()
     register_task_events()
+    register_weather_events()
     register_model_events()
     register_note_events()
     register_app_events()

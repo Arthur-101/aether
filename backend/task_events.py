@@ -9,16 +9,18 @@ from typing import Any, Dict
 from .db.sessions import session_manager
 from .event_router import register_handler
 from .mcp_tools.clock_scheduler import (
+    ALARM_SESSION_ID,
     cancel_scheduled_task,
+    complete_scheduled_task,
     create_custom_task,
     create_daily_task,
     create_one_time_task,
     list_scheduled_tasks,
+    pause_scheduled_task,
+    resume_scheduled_task,
     update_scheduled_task,
 )
 from .ws_manager import ws_manager
-
-ALARM_SESSION_ID = "__aether_alarms__"
 
 
 async def broadcast_tasks() -> None:
@@ -140,9 +142,42 @@ async def _handle_delete_task(payload: Dict[str, Any]) -> None:
     await broadcast_tasks()
 
 
+async def _handle_complete_task(payload: Dict[str, Any]) -> None:
+    task_id = str(payload.get("task_id") or "")
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, lambda: complete_scheduled_task(task_id))
+    except (ValueError, TypeError) as exc:
+        await ws_manager.broadcast("ERROR", {"message": str(exc)})
+    await broadcast_tasks()
+
+
+async def _handle_pause_task(payload: Dict[str, Any]) -> None:
+    task_id = str(payload.get("task_id") or "")
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, lambda: pause_scheduled_task(task_id))
+    except (ValueError, TypeError) as exc:
+        await ws_manager.broadcast("ERROR", {"message": str(exc)})
+    await broadcast_tasks()
+
+
+async def _handle_resume_task(payload: Dict[str, Any]) -> None:
+    task_id = str(payload.get("task_id") or "")
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(None, lambda: resume_scheduled_task(task_id))
+    except (ValueError, TypeError) as exc:
+        await ws_manager.broadcast("ERROR", {"message": str(exc)})
+    await broadcast_tasks()
+
+
 def register_task_events() -> None:
     """Registers task CRUD handlers with the WebSocket event router."""
     register_handler("LIST_TASKS", _handle_list_tasks)
     register_handler("CREATE_TASK", _handle_create_task)
     register_handler("UPDATE_TASK", _handle_update_task)
     register_handler("DELETE_TASK", _handle_delete_task)
+    register_handler("COMPLETE_TASK", _handle_complete_task)
+    register_handler("PAUSE_TASK", _handle_pause_task)
+    register_handler("RESUME_TASK", _handle_resume_task)

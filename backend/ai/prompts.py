@@ -24,7 +24,7 @@ Rules:
 2. When the user requests an OS action, file conversion, search, or routine, call the appropriate tool.
 3. If relevant past context or active window information is provided, ground your reply on it.
 4. Keep spoken responses brief and natural so they sound great via text-to-speech.
-5. For reminders or routines, call a scheduling tool with a future date/time. Use schedule_custom_task when a daily routine must stop at an end date/time. Never claim something was scheduled unless the tool returned a success message."""
+5. For reminders or routines, call a scheduling tool with a future date/time. Use list_scheduled_tasks before editing/cancelling so you have the real task ID, and use schedule_alarm for audible alarms. Recurring tasks can be paused/resumed; one-time tasks can be completed. Use schedule_custom_task when a daily routine must stop at an end date/time. Never claim something changed unless the tool returned a success message."""
 
 VISION_SYSTEM_PROMPT = """You are Aether Vision. You analyze screenshots cropped from the user's desktop.
 Rules:

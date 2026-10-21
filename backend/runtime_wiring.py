@@ -129,8 +129,15 @@ def wire_clock_scheduler() -> None:
         kind: str = "task",
         prompt: str = "",
     ) -> None:
-        if kind == "alarm":
-            threading.Thread(target=play_alarm_chime, daemon=True).start()
+        if kind != "alarm":
+            from .task_execution import run_scheduled_task
+
+            asyncio.run_coroutine_threadsafe(
+                run_scheduled_task(session_id, task_id, prompt, kind), loop
+            )
+            return
+
+        threading.Thread(target=play_alarm_chime, daemon=True).start()
 
         async def _notify() -> None:
             await ws_manager.broadcast(
