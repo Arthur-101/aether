@@ -15,17 +15,19 @@ from .media_tools import (
     strip_image_metadata,
 )
 from .doc_tools import convert_document, search_dropped_file
-from .clock_scheduler import (
+from .clock_tools import (
     cancel_task_tool,
     complete_task_tool,
     list_tasks_tool,
     pause_task_tool,
     resume_task_tool,
     schedule_alarm,
+    update_task_tool,
+)
+from .clock_scheduler import (
     schedule_custom_task,
     schedule_one_time_task,
     schedule_recurring_routine,
-    update_task_tool,
 )
 from .clock_tool_schemas import get_clock_tool_schemas
 

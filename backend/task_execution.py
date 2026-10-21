@@ -99,8 +99,10 @@ async def _finish(
         {
             "kind": "task",
             "task_id": task_id,
-            "title": "Scheduled task finished" if success else "Scheduled task failed",
-            "event": _notification(prompt, message),
+            "title": title,
+            "event": _notification(prompt, message)
+            if success
+            else f"Failed: {message}",
         },
     )
     try:

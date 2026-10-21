@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
 from .config_manager import config_manager
+from .weather_codes import condition as _condition
 
 WEATHER_TTL_SECONDS = 10 * 60
 LOCATION_TTL_SECONDS = 6 * 60 * 60
@@ -136,45 +137,6 @@ def _resolve_location(clock: Dict[str, Any]) -> Tuple[float, float, str, float]:
     else:
         result = _auto_location()
     return _store_location(cache_key, *result)
-
-
-_WEATHER_CODES = {
-    0: ("Clear sky", "sun"),
-    1: ("Mainly clear", "sun"),
-    2: ("Partly cloudy", "cloud-sun"),
-    3: ("Overcast", "cloud"),
-    45: ("Fog", "fog"),
-    48: ("Rime fog", "fog"),
-    51: ("Light drizzle", "rain"),
-    53: ("Drizzle", "rain"),
-    55: ("Heavy drizzle", "rain"),
-    56: ("Freezing drizzle", "rain"),
-    57: ("Freezing drizzle", "rain"),
-    61: ("Light rain", "rain"),
-    63: ("Rain", "rain"),
-    65: ("Heavy rain", "rain"),
-    66: ("Freezing rain", "rain"),
-    67: ("Freezing rain", "rain"),
-    71: ("Light snow", "snow"),
-    73: ("Snow", "snow"),
-    75: ("Heavy snow", "snow"),
-    77: ("Snow grains", "snow"),
-    80: ("Light showers", "rain"),
-    81: ("Showers", "rain"),
-    82: ("Heavy showers", "rain"),
-    85: ("Snow showers", "snow"),
-    86: ("Snow showers", "snow"),
-    95: ("Thunderstorm", "thunder"),
-    96: ("Thunderstorm", "thunder"),
-    99: ("Thunderstorm", "thunder"),
-}
-
-
-def _condition(code: Any) -> Tuple[str, str]:
-    try:
-        return _WEATHER_CODES.get(int(code), ("Weather unavailable", "cloud"))
-    except (TypeError, ValueError):
-        return "Weather unavailable", "cloud"
 
 
 def _fetch_weather(

@@ -20,6 +20,18 @@ from .mcp_tools.server import get_openai_tool_schemas
 
 logger = logging.getLogger("aether.chat")
 
+CLOCK_MUTATION_TOOLS = {
+    "schedule_one_time_task",
+    "schedule_recurring_routine",
+    "schedule_custom_task",
+    "schedule_alarm",
+    "update_scheduled_task",
+    "cancel_scheduled_task",
+    "complete_scheduled_task",
+    "pause_scheduled_task",
+    "resume_scheduled_task",
+}
+
 
 def load_preferences() -> Dict[str, Any]:
     """Loads optional cross-session user facts from preferences.json."""
@@ -60,4 +72,14 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
     await loop.run_in_executor(
         None, lambda: session_manager.commit_turn(session_id, prompt, reply)
     )
+    if any(
+        call.get("name") in CLOCK_MUTATION_TOOLS
+        for call in result.get("tool_calls_executed", [])
+    ):
+        try:
+            from .task_events import broadcast_tasks
+
+            await broadcast_tasks()
+        except Exception:
+            logger.debug("Task list refresh after chat failed", exc_info=True)
     return {**result, "reply": reply}

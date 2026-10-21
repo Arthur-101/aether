@@ -69,3 +69,29 @@ def test_weather_failure_returns_offline_snapshot(monkeypatch):
     assert snapshot["stale"] is False
     assert snapshot["unit"] == "F"
     assert "offline" in snapshot["message"].lower()
+
+
+def test_weather_failure_after_cache_returns_stale_snapshot(monkeypatch):
+    weather_service.clear_weather_cache()
+    monkeypatch.setattr(
+        weather_service,
+        "config_manager",
+        _Config({"weather_mode": "manual", "weather_city": "London", "weather_unit": "celsius"}),
+    )
+    monkeypatch.setattr(weather_service, "_fetch_json", _fake_provider)
+    first = weather_service.get_weather()
+    assert first["available"] is True
+
+    with weather_service._cache_lock:
+        for cached in weather_service._weather_cache.values():
+            cached["_cached_at"] = 0
+
+    def fail(_url):
+        raise OSError("network down")
+
+    monkeypatch.setattr(weather_service, "_fetch_json", fail)
+    stale = weather_service.get_weather()
+
+    assert stale["available"] is True
+    assert stale["stale"] is True
+    assert stale["location"] == "London, England, UK"

@@ -24,10 +24,10 @@ from backend.mcp_tools.clock_scheduler import (
     pause_scheduled_task,
     restore_scheduled_tasks,
     resume_scheduled_task,
-    schedule_alarm,
     scheduler,
     update_scheduled_task,
 )
+from backend.mcp_tools.clock_tools import schedule_alarm
 
 
 @pytest.fixture()

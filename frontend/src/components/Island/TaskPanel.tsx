@@ -123,6 +123,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
       {formOpen ? (
         <div className="mt-2 rounded-xl border border-white/[0.075] bg-black/15 p-2">
           <TaskForm
+            key={editingTask?.id || 'new-task'}
             initial={editingTask}
             onCancel={() => {
               setFormOpen(false);

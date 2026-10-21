@@ -38,7 +38,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
 }) => {
   useEffect(() => {
     if (!clockAlert || clockAlert.kind === 'alarm') return;
-    const timer = window.setTimeout(onClearClock, 1800);
+    const timer = window.setTimeout(onClearClock, 6000);
     return () => window.clearTimeout(timer);
   }, [clockAlert, onClearClock]);
 
@@ -102,25 +102,32 @@ export const Notifications: React.FC<NotificationsProps> = ({
             className={`glass-panel pointer-events-auto flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-xs text-white ${
               isAlarm
                 ? 'border-[#fce100]/45 shadow-[0_0_32px_rgba(252,225,0,0.12)]'
-                : 'border-[#0067c0]/40'
+                : 'border-[var(--aether-accent)]/40'
             }`}
           >
             {isAlarm ? (
               <AlarmClock size={18} className="shrink-0 animate-pulse text-[#fce100]" />
             ) : (
-              <Bell size={18} className="shrink-0 text-[#60cdff]" />
+              <Bell size={18} className="shrink-0 accent-text" />
             )}
             <div className="flex min-w-0 flex-1 flex-col">
               <span
                 className={`font-semibold ${
-                  isAlarm ? 'text-[#fce100]' : 'text-[#9dd5ff]'
+                  isAlarm ? 'text-[#fce100]' : 'accent-text'
                 }`}
               >
-                {isAlarm ? 'Alarm' : 'Clock alarm'}
+                {isAlarm ? 'Alarm' : 'Task finished'}
               </span>
-              <span className="truncate text-[#e5e5e5]">
-                {isAlarm ? clockAlert.title : clockAlert.event}
-              </span>
+              {isAlarm ? (
+                <span className="truncate text-[#e5e5e5]">{clockAlert.title}</span>
+              ) : (
+                <>
+                  <span className="truncate text-[#e5e5e5]">{clockAlert.title}</span>
+                  <span className="mt-0.5 line-clamp-2 text-[9px] leading-relaxed text-[#8b8b8b]">
+                    {clockAlert.event}
+                  </span>
+                </>
+              )}
               {isAlarm ? (
                 <span className="mt-0.5 text-[9px] text-[#8b8b8b]">
                   Tap Snooze or Dismiss to stop the ring.

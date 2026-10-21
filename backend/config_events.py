@@ -87,6 +87,7 @@ async def _handle_update_config(payload: Dict[str, Any]) -> None:
     if not section or not key:
         return
     value = payload.get("value")
+    logger.info("Config update: %s.%s = %r", section, key, value)
     config_manager.set(section, key, value)
     if section == "hotkeys":
         _reload_hotkeys()

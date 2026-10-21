@@ -45,7 +45,7 @@ export const IslandTabContent: React.FC<IslandTabContentProps> = ({
         icon={tabDefinition('stats').icon}
         eyebrow="Telemetry"
         title="Stats are moving into the notch"
-        description="The full CPU, GPU, and RAM gauges, top apps, network throughput, and speed test land in Phase 3. Current system values remain available to the rest of the dashboard."
+        description="The full CPU, GPU, and RAM gauges, top apps, network throughput, and speed test land in Phase 4. Current system values remain available to the rest of the dashboard."
       >
         <div className="grid grid-cols-3 gap-2">
           {[
@@ -94,7 +94,7 @@ export const IslandTabContent: React.FC<IslandTabContentProps> = ({
         icon={tabDefinition('wallpaper').icon}
         eyebrow="Personalize"
         title="Wallpaper carousel"
-        description="Recent and folder-based wallpapers, a tilted preview carousel, and apply-to-desktop controls arrive in Phase 5."
+        description="Recent and folder-based wallpapers, a tilted preview carousel, and apply-to-desktop controls arrive in Phase 6."
       />
     );
   }
@@ -104,7 +104,7 @@ export const IslandTabContent: React.FC<IslandTabContentProps> = ({
       icon={tabDefinition('power').icon}
       eyebrow="Session"
       title="Power controls"
-      description="Lock, Sleep, Restart, and Shut down cards with confirmation for destructive actions arrive in Phase 5."
+      description="Lock, Sleep, Restart, and Shut down cards with confirmation for destructive actions arrive in Phase 6."
     />
   );
 };

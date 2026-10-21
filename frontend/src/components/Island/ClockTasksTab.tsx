@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarClock } from 'lucide-react';
 import type {
   ClockConfig,
@@ -7,7 +7,7 @@ import type {
   WeatherSnapshot,
 } from '../../types/ipc';
 import { AiTaskCard } from './AiTaskCard';
-import { AlarmPanel } from './AlarmPanel';
+import { AlarmPanel, type AlarmPanelHandle } from './AlarmPanel';
 import { ClockTopStrip } from './ClockTopStrip';
 import { TaskPanel } from './TaskPanel';
 import type { ClockTools } from './useClockTools';
@@ -46,6 +46,7 @@ export const ClockTasksTab: React.FC<ClockTasksTabProps> = ({
   onAskAether,
 }) => {
   const [now, setNow] = useState(() => new Date());
+  const alarmPanelRef = useRef<AlarmPanelHandle>(null);
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(interval);
@@ -80,6 +81,7 @@ export const ClockTasksTab: React.FC<ClockTasksTabProps> = ({
         tasks={tasks}
         onSaveWeather={onSaveWeather}
         onRefreshWeather={onRefreshWeather}
+        onNewAlarm={() => alarmPanelRef.current?.openCreate()}
       />
 
       <div className="grid min-h-[300px] flex-1 grid-cols-[1.55fr_1fr] gap-2.5">
@@ -97,6 +99,7 @@ export const ClockTasksTab: React.FC<ClockTasksTabProps> = ({
           <AiTaskCard onAskAether={onAskAether} />
           <div className="min-h-0 flex-1">
             <AlarmPanel
+              ref={alarmPanelRef}
               alarms={alarms}
               onCreate={onCreateTask}
               onUpdate={onUpdateTask}
