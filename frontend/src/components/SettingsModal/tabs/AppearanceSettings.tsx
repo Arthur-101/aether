@@ -1,13 +1,21 @@
 import React from 'react';
-import { Layers, MonitorUp, PanelTop, Sparkles } from 'lucide-react';
-import type { AppearanceConfig, TaskbarAppsConfig } from '../../../types/ipc';
+import { Layers, PanelTop, Sparkles } from 'lucide-react';
+import type {
+  AppearanceConfig,
+  TaskbarAppsConfig,
+  TaskbarAppsState,
+} from '../../../types/ipc';
 import { ButtonColorSettings } from './ButtonColorSettings';
 import { DashboardTabsSettings } from './DashboardTabsSettings';
+import { TaskbarAppsSettings } from './TaskbarAppsSettings';
 
 interface AppearanceSettingsProps {
   appearance: AppearanceConfig;
   taskbarApps: TaskbarAppsConfig;
+  taskbarState: TaskbarAppsState | null;
   onChange: (appearance: AppearanceConfig) => void;
+  onTaskbarChange: (taskbarApps: TaskbarAppsConfig) => void;
+  onRefreshTaskbar: () => void;
 }
 
 const Section: React.FC<{
@@ -62,10 +70,53 @@ const OpacitySlider: React.FC<{
   );
 };
 
+const BlurSlider: React.FC<{
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}> = ({ label, value, onChange }) => (
+  <div className="rounded-lg border border-white/10 bg-black/15 p-2.5">
+    <div className="mb-1.5 flex items-center justify-between text-[10px]">
+      <span className="text-[#c7c7c7]">{label}</span>
+      <span className="font-mono text-[#e5e5e5]">{value}px</span>
+    </div>
+    <input
+      type="range"
+      min={0}
+      max={60}
+      step={1}
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value))}
+      style={{ '--fill': `${(value / 60) * 100}%` } as React.CSSProperties}
+      className="win-slider h-4 w-full cursor-pointer"
+      aria-label={label}
+    />
+    <div className="relative mt-2 h-6 overflow-hidden rounded-md border border-white/10">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'repeating-linear-gradient(90deg, rgba(232,197,107,0.55) 0 9px, rgba(96,205,255,0.4) 9px 18px, rgba(255,255,255,0.16) 18px 27px)',
+        }}
+      />
+      <div
+        className="absolute inset-1.5 rounded border border-white/15 bg-black/20"
+        style={{
+          backdropFilter: `blur(${value}px)`,
+          WebkitBackdropFilter: `blur(${value}px)`,
+        }}
+      />
+    </div>
+  </div>
+);
+
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   appearance,
   taskbarApps,
+  taskbarState,
   onChange,
+  onTaskbarChange,
+  onRefreshTaskbar,
 }) => {
   const update = (patch: Partial<AppearanceConfig>) =>
     onChange({ ...appearance, ...patch });
@@ -75,7 +126,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
       <Section
         icon={<PanelTop size={14} />}
         title="Notch & Island"
-        description="Opacity affects the background surface only; text and icons stay readable."
+        description="Opacity and blur affect the background surface only; text and icons stay readable."
       >
         <div className="grid grid-cols-2 gap-2">
           <OpacitySlider
@@ -87,6 +138,18 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
             label="Island opacity"
             value={appearance.island_opacity}
             onChange={(island_opacity) => update({ island_opacity })}
+          />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <BlurSlider
+            label="Pill blur"
+            value={appearance.pill_blur}
+            onChange={(pill_blur) => update({ pill_blur })}
+          />
+          <BlurSlider
+            label="Island blur"
+            value={appearance.island_blur}
+            onChange={(island_blur) => update({ island_blur })}
           />
         </div>
       </Section>
@@ -133,21 +196,12 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         title="Taskbar apps"
         description="The hover dock mirrors Windows taskbar pins by default."
       >
-        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/15 px-2.5 py-2 text-[10px]">
-          <span className="flex items-center gap-2 text-[#c7c7c7]">
-            <MonitorUp size={13} className="accent-text" />
-            {taskbarApps.mode === 'mirror' ? 'Mirror Windows pins' : 'Custom list'}
-          </span>
-          <span className="text-[#777]">
-            {taskbarApps.pinned.length > 0
-              ? `${taskbarApps.pinned.length} custom`
-              : 'Live mirror'}
-          </span>
-        </div>
-        <p className="mt-1.5 text-[9px] text-[#6f6b63]">
-          Add, remove, reorder, sync, and reset land with live taskbar discovery in
-          Phase 3.
-        </p>
+        <TaskbarAppsSettings
+          config={taskbarApps}
+          state={taskbarState}
+          onChange={onTaskbarChange}
+          onRefresh={onRefreshTaskbar}
+        />
       </Section>
     </div>
   );

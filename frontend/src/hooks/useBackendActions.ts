@@ -8,6 +8,7 @@ import type {
   AppConfig,
   AttachmentItem,
   ChatTurn,
+  MediaControlAction,
   OutgoingEvent,
   SessionItem,
   TaskInput,
@@ -72,6 +73,29 @@ export function useBackendActions(
   const refreshTasks = useCallback(() => {
     sendEvent({ type: 'LIST_TASKS', payload: {} });
   }, [sendEvent]);
+
+  const refreshTaskbarApps = useCallback(
+    (refresh = false) =>
+      sendEvent({ type: 'GET_TASKBAR_APPS', payload: refresh ? { refresh: true } : {} }),
+    [sendEvent]
+  );
+
+  const launchTaskbarApp = useCallback(
+    (appId: string) =>
+      sendEvent({ type: 'LAUNCH_TASKBAR_APP', payload: { app_id: appId } }),
+    [sendEvent]
+  );
+
+  const refreshMedia = useCallback(
+    () => sendEvent({ type: 'GET_MEDIA_STATE', payload: {} }),
+    [sendEvent]
+  );
+
+  const mediaControl = useCallback(
+    (action: MediaControlAction) =>
+      sendEvent({ type: 'MEDIA_CONTROL', payload: { action } }),
+    [sendEvent]
+  );
 
   const loadModel = useCallback(
     () => sendEvent({ type: 'LOAD_MODEL', payload: {} }),
@@ -283,6 +307,10 @@ export function useBackendActions(
     switchSession,
     refreshSessions,
     refreshTasks,
+    refreshTaskbarApps,
+    launchTaskbarApp,
+    refreshMedia,
+    mediaControl,
     loadModel,
     releaseModel,
     killApp,

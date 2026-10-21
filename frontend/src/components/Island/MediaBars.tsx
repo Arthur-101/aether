@@ -16,7 +16,7 @@ export const MediaBars: React.FC<MediaBarsProps> = ({
   compact = false,
 }) => {
   if (!active) return null;
-  const color = spotify ? '#1ED760' : 'var(--aether-accent)';
+  const color = spotify ? '#1DB954' : 'var(--aether-accent)';
   const heights = compact ? [8, 15, 10] : [11, 18, 14];
   const delays = ['0ms', '140ms', '70ms'];
 

@@ -32,6 +32,8 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "dashboard_tabs": list(DEFAULT_DASHBOARD_TABS),
     "pill_opacity": 0.88,
     "island_opacity": 0.92,
+    "pill_blur": 30,
+    "island_blur": 30,
     "button_primary": "#E8C56B",
     "button_secondary": "#F4DF9A",
     "button_gradient": True,
@@ -104,6 +106,14 @@ def _clamp_opacity(value: Any, fallback: float) -> float:
     return round(max(0.3, min(1.0, number)), 2)
 
 
+def _clamp_blur(value: Any, fallback: int) -> int:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return int(round(max(0.0, min(60.0, number))))
+
+
 def _as_bool(value: Any, fallback: bool) -> bool:
     return value if isinstance(value, bool) else fallback
 
@@ -118,6 +128,12 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
         ),
         "island_opacity": _clamp_opacity(
             raw.get("island_opacity"), DEFAULT_APPEARANCE["island_opacity"]
+        ),
+        "pill_blur": _clamp_blur(
+            raw.get("pill_blur"), DEFAULT_APPEARANCE["pill_blur"]
+        ),
+        "island_blur": _clamp_blur(
+            raw.get("island_blur"), DEFAULT_APPEARANCE["island_blur"]
         ),
         "button_primary": normalize_hex(
             raw.get("button_primary"), DEFAULT_APPEARANCE["button_primary"]

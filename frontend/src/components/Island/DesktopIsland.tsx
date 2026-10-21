@@ -6,16 +6,18 @@ import type {
   ChatTurn,
   ClockConfig,
   DashboardTabId,
+  MediaControlAction,
+  MediaSnapshot,
   ModelStatus,
   ScheduledTask,
   SystemStats,
   TaskInput,
+  TaskbarPinnedApp,
   WeatherSnapshot,
   WifiProfile,
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
 import { pickNativePath } from '../../lib/system';
-import { PLACEHOLDER_DOCK_APPS, type DockApp } from './dockApps';
 import { DashboardTabs } from './DashboardTabs';
 import { IslandTabContent } from './IslandTabContent';
 import { NotchShell } from './NotchShell';
@@ -67,9 +69,11 @@ interface DesktopIslandProps {
   onOpenSettingsPage: (page: string) => void;
   appearance: AppearanceConfig;
   peekEnabled?: boolean;
-  mediaActive?: boolean;
-  mediaSpotify?: boolean;
-  dockApps?: DockApp[];
+  media: MediaSnapshot | null;
+  taskbarApps: TaskbarPinnedApp[];
+  onLaunchTaskbarApp: (app: TaskbarPinnedApp) => void;
+  onManageTaskbarApps: () => void;
+  onMediaControl: (action: MediaControlAction) => void;
 }
 
 export const DesktopIsland: React.FC<DesktopIslandProps> = ({
@@ -117,9 +121,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onOpenSettingsPage,
   appearance,
   peekEnabled = true,
-  mediaActive = false,
-  mediaSpotify = false,
-  dockApps = PLACEHOLDER_DOCK_APPS,
+  media,
+  taskbarApps,
+  onLaunchTaskbarApp,
+  onManageTaskbarApps,
+  onMediaControl,
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTabId>('controls');
   const clockTools = useClockTools();
@@ -165,9 +171,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
         onExpandedChange={onExpandedChange}
         appearance={appearance}
         peekEnabled={peekEnabled}
-        apps={dockApps}
-        mediaActive={mediaActive}
-        spotify={mediaSpotify}
+        apps={taskbarApps}
+        media={media}
+        onLaunchApp={onLaunchTaskbarApp}
+        onManageApps={onManageTaskbarApps}
+        onMediaControl={onMediaControl}
         onOpenSettings={onOpenSettings}
         onKill={onKillApp}
       >

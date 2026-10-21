@@ -7,7 +7,7 @@ import { RadialWheel } from './components/RadialWheel/RadialWheel';
 import { SessionDrawer } from './components/SessionDrawer/SessionDrawer';
 import { CropModal } from './components/MicroModals/CropModal';
 import { AddBgModal } from './components/MicroModals/AddBgModal';
-import { SettingsModal } from './components/SettingsModal/SettingsModal';
+import { SettingsModal, type SettingsTab } from './components/SettingsModal/SettingsModal';
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { Notifications } from './components/Notifications';
 import {
@@ -20,7 +20,7 @@ import {
   DEFAULT_CLOCK_CONFIG,
   resolveAppearance,
 } from './components/Island/appearance';
-import type { ClockConfig } from './types/ipc';
+import type { ClockConfig, MediaControlAction, TaskbarPinnedApp } from './types/ipc';
 import type { NotesApi } from './types/notes';
 
 function localIso(date: Date): string {
@@ -39,6 +39,8 @@ export function App() {
     sessions,
     tasks,
     weather,
+    taskbarState,
+    media,
     notes,
     activeNote,
     notesDirectory,
@@ -64,6 +66,9 @@ export function App() {
     switchSession,
     refreshSessions,
     refreshTasks,
+    refreshTaskbarApps,
+    launchTaskbarApp,
+    mediaControl,
     loadModel,
     releaseModel,
     killApp,
@@ -112,6 +117,7 @@ export function App() {
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab | null>(null);
   const [isIslandExpanded, setIsIslandExpanded] = useState(false);
   const [cropFile, setCropFile] = useState<string | null>(null);
   const [addBgFile, setAddBgFile] = useState<string | null>(null);
@@ -126,6 +132,10 @@ export function App() {
   const clockConfig = useMemo(
     () => ({ ...DEFAULT_CLOCK_CONFIG, ...(config?.clock || {}) }),
     [config?.clock]
+  );
+  const taskbarApps = useMemo<TaskbarPinnedApp[]>(
+    () => taskbarState?.apps ?? [],
+    [taskbarState?.apps]
   );
   const saveWeather = useCallback(
     (patch: Partial<ClockConfig>) => {
@@ -144,18 +154,37 @@ export function App() {
     settingsOpenRef.current = isSettingsOpen;
   }, [isSettingsOpen]);
 
-  const openSettings = useCallback(() => {
+  const showSettings = useCallback((tab: SettingsTab | null) => {
     if (!settingsOpenRef.current) {
       islandExpandedBeforeSettings.current = islandExpandedRef.current;
       settingsOpenRef.current = true;
       setIsIslandExpanded(false);
     }
+    setSettingsInitialTab(tab);
     setIsSettingsOpen(true);
   }, []);
+
+  const openSettings = useCallback(() => showSettings(null), [showSettings]);
+
+  const openTaskbarSettings = useCallback(
+    () => showSettings('appearance'),
+    [showSettings]
+  );
+
+  const handleLaunchTaskbarApp = useCallback(
+    (app: TaskbarPinnedApp) => launchTaskbarApp(app.id),
+    [launchTaskbarApp]
+  );
+
+  const handleMediaControl = useCallback(
+    (action: MediaControlAction) => mediaControl(action),
+    [mediaControl]
+  );
 
   const closeSettings = useCallback(() => {
     settingsOpenRef.current = false;
     setIsSettingsOpen(false);
+    setSettingsInitialTab(null);
     clearConfigError();
     refreshNotes();
     if (islandExpandedBeforeSettings.current) {
@@ -283,6 +312,11 @@ export function App() {
         onOpenSettingsPage={handleOpenSettingsPage}
         appearance={appearance}
         peekEnabled={!isSettingsOpen}
+        media={media}
+        taskbarApps={taskbarApps}
+        onLaunchTaskbarApp={handleLaunchTaskbarApp}
+        onManageTaskbarApps={openTaskbarSettings}
+        onMediaControl={handleMediaControl}
       />
 
       {isIslandExpanded && appearance.close_on_outside_click ? (
@@ -355,6 +389,9 @@ export function App() {
         onSave={saveConfig}
         onHotkeyCapture={setHotkeyCapture}
         onOpenNotesFolder={handleOpenNotesFolder}
+        taskbarState={taskbarState}
+        initialTab={settingsInitialTab}
+        onRefreshTaskbar={refreshTaskbarApps}
         onClose={closeSettings}
       />
 

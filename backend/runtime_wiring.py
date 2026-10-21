@@ -171,11 +171,20 @@ def start_runtime() -> None:
     from .system_events import register_system_events
 
     register_system_events()
+    try:
+        from .media_events import register_media_events
+        from .taskbar_events import register_taskbar_events
+
+        register_media_events()
+        register_taskbar_events()
+    except Exception as exc:
+        logger.warning("Taskbar/media event registration skipped: %s", exc)
 
     for name, wire in (
         ("Hotkey init", wire_hotkey_callbacks),
         ("Mouse tracker init", wire_mouse_tracker),
         ("Clock scheduler init", wire_clock_scheduler),
+        ("Media poller init", _wire_media_poller),
     ):
         try:
             wire()
@@ -183,8 +192,26 @@ def start_runtime() -> None:
             logger.warning("%s skipped: %s", name, exc)
 
 
+def _wire_media_poller() -> None:
+    from .media_events import wire_media_poller
+
+    wire_media_poller()
+
+
 def stop_runtime() -> None:
     """Stops listeners, model server, and scheduler during shutdown."""
+    try:
+        from .media_events import stop_media_updates
+
+        stop_media_updates()
+    except Exception:
+        pass
+    try:
+        from .taskbar_events import stop_taskbar_poller
+
+        stop_taskbar_poller()
+    except Exception:
+        pass
     try:
         from .os_hooks.hotkeys import hotkey_manager
 

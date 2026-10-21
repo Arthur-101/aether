@@ -46,6 +46,22 @@ def test_appearance_is_clamped_and_sanitized():
     assert appearance["close_on_outside_click"] is True
 
 
+def test_appearance_blur_is_clamped_and_backfilled():
+    appearance = normalize_appearance(
+        {"pill_blur": -12, "island_blur": 999}
+    )
+    assert appearance["pill_blur"] == 0
+    assert appearance["island_blur"] == 60
+
+    defaults = normalize_appearance({})
+    assert defaults["pill_blur"] == 30
+    assert defaults["island_blur"] == 30
+
+    rounded = normalize_appearance({"pill_blur": "12.6", "island_blur": "bad"})
+    assert rounded["pill_blur"] == 13
+    assert rounded["island_blur"] == 30
+
+
 def test_taskbar_mode_and_pins_are_normalized():
     taskbar = normalize_taskbar_apps(
         {

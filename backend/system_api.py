@@ -20,6 +20,7 @@ _FILE_FILTERS: Dict[str, List[Tuple[str, str]]] = {
     "audio": [("Audio files", "*.wav *.mp3 *.flac"), ("All files", "*.*")],
     "image": [("Images", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")],
     "document": [("Documents", "*.pdf *.docx *.md"), ("All files", "*.*")],
+    "app": [("Apps and shortcuts", "*.exe *.lnk"), ("All files", "*.*")],
     "all": [("All files", "*.*")],
 }
 

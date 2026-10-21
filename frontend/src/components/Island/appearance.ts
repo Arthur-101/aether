@@ -32,6 +32,8 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   ],
   pill_opacity: 0.88,
   island_opacity: 0.92,
+  pill_blur: 30,
+  island_blur: 30,
   button_primary: GOLD_PRIMARY,
   button_secondary: GOLD_SECONDARY,
   button_gradient: true,
@@ -60,6 +62,12 @@ function clampOpacity(value: unknown, fallback: number): number {
   return Math.round(Math.max(0.3, Math.min(1, number)) * 100) / 100;
 }
 
+function clampBlur(value: unknown, fallback: number): number {
+  const number = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.round(Math.max(0, Math.min(60, number)));
+}
+
 export function resolveAppearance(
   value?: Partial<AppearanceConfig> | null
 ): AppearanceConfig {
@@ -68,6 +76,8 @@ export function resolveAppearance(
     dashboard_tabs: normalizeDashboardTabs(raw.dashboard_tabs as string[] | undefined),
     pill_opacity: clampOpacity(raw.pill_opacity, DEFAULT_APPEARANCE.pill_opacity),
     island_opacity: clampOpacity(raw.island_opacity, DEFAULT_APPEARANCE.island_opacity),
+    pill_blur: clampBlur(raw.pill_blur, DEFAULT_APPEARANCE.pill_blur),
+    island_blur: clampBlur(raw.island_blur, DEFAULT_APPEARANCE.island_blur),
     button_primary: normalizeHex(
       String(raw.button_primary ?? ''),
       GOLD_PRIMARY
@@ -125,6 +135,8 @@ export function appearanceCssVars(
       appearance.button_primary,
       appearance.button_secondary
     ),
+    '--aether-pill-blur': `${appearance.pill_blur}px`,
+    '--aether-island-blur': `${appearance.island_blur}px`,
   } as CSSProperties;
 }
 

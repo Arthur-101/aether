@@ -24,6 +24,15 @@ def _reload_hotkeys() -> None:
         logger.warning("Hotkey reload skipped: %s", exc)
 
 
+async def _broadcast_taskbar_state() -> None:
+    try:
+        from .taskbar_events import broadcast_taskbar_apps
+
+        await broadcast_taskbar_apps()
+    except Exception as exc:
+        logger.debug("Taskbar state broadcast skipped: %s", exc)
+
+
 async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
     """Persists a partial/full config and applies runtime side effects."""
     old = dict(config_manager.get("ai_provider") or {})
@@ -56,6 +65,8 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
     from .model_events import broadcast_model_status
 
     await broadcast_model_status()
+    if "taskbar_apps" in updates:
+        await _broadcast_taskbar_state()
     return current
 
 
@@ -95,6 +106,8 @@ async def _handle_update_config(payload: Dict[str, Any]) -> None:
         from .weather_service import clear_weather_cache
 
         clear_weather_cache()
+    if section == "taskbar_apps":
+        await _broadcast_taskbar_state()
     await ws_manager.broadcast(
         "CONFIG_UPDATED", {"section": section, "key": key, "value": value}
     )

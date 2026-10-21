@@ -26,6 +26,8 @@ export interface AppearanceConfig {
   dashboard_tabs: DashboardTabId[];
   pill_opacity: number;
   island_opacity: number;
+  pill_blur: number;
+  island_blur: number;
   button_primary: string;
   button_secondary: string;
   button_gradient: boolean;
@@ -60,12 +62,61 @@ export interface TaskbarPinnedApp {
   name: string;
   path: string;
   icon?: string;
-  running?: boolean;
+  running?: boolean | null;
+  missing?: boolean;
+  target_path?: string;
+  arguments?: string;
+  app_id?: string;
 }
 
 export interface TaskbarAppsConfig {
   mode: 'mirror' | 'custom';
   pinned: TaskbarPinnedApp[];
+}
+
+export interface TaskbarAppsState {
+  mode: 'mirror' | 'custom';
+  pinned: TaskbarPinnedApp[];
+  discovered: TaskbarPinnedApp[];
+  apps: TaskbarPinnedApp[];
+  available: boolean;
+  message: string;
+}
+
+export type MediaStatus =
+  | 'closed'
+  | 'opened'
+  | 'changing'
+  | 'stopped'
+  | 'playing'
+  | 'paused'
+  | 'idle'
+  | 'unavailable'
+  | 'unknown';
+
+export type MediaControlAction = 'play' | 'pause' | 'play_pause' | 'next' | 'previous';
+
+export interface MediaSnapshot {
+  available: boolean;
+  has_session: boolean;
+  is_playing: boolean;
+  status: MediaStatus;
+  source: string;
+  source_id: string;
+  source_label: string;
+  is_spotify: boolean;
+  title: string;
+  artist: string;
+  album: string;
+  artwork: string | null;
+  position_seconds: number;
+  duration_seconds: number;
+  can_play: boolean;
+  can_pause: boolean;
+  can_next: boolean;
+  can_previous: boolean;
+  updated_at: string;
+  message: string;
 }
 
 export interface SystemStats {
@@ -260,6 +311,10 @@ export type OutgoingEvent =
   | { type: 'PAUSE_TASK'; payload: { task_id: string } }
   | { type: 'RESUME_TASK'; payload: { task_id: string } }
   | { type: 'GET_WEATHER'; payload: Record<string, never> }
+  | { type: 'GET_TASKBAR_APPS'; payload: { refresh?: boolean } }
+  | { type: 'LAUNCH_TASKBAR_APP'; payload: { app_id: string } }
+  | { type: 'GET_MEDIA_STATE'; payload: Record<string, never> }
+  | { type: 'MEDIA_CONTROL'; payload: { action: MediaControlAction } }
   | { type: 'LIST_NOTES'; payload: Record<string, never> }
   | { type: 'READ_NOTE'; payload: { note_id: string } }
   | { type: 'SAVE_NOTE'; payload: NoteSaveInput }

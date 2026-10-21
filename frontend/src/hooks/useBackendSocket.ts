@@ -11,6 +11,7 @@ import type {
   ChatTurn,
   ClockAlert,
   IncomingEnvelope,
+  MediaSnapshot,
   ModelStatus,
   OutgoingEvent,
   RadialWheelCursor,
@@ -19,6 +20,7 @@ import type {
   SessionItem,
   ScheduledTask,
   SystemStats,
+  TaskbarAppsState,
   VoiceState,
   WeatherSnapshot,
   WifiProfile,
@@ -57,6 +59,8 @@ export function useBackendSocket() {
   const [bluetoothDevices, setBluetoothDevices] = useState<BluetoothDeviceInfo[]>([]);
   const [clockAlert, setClockAlert] = useState<ClockAlert | null>(null);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [taskbarState, setTaskbarState] = useState<TaskbarAppsState | null>(null);
+  const [media, setMedia] = useState<MediaSnapshot | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
@@ -151,6 +155,12 @@ export function useBackendSocket() {
           break;
         case 'WEATHER_STATE':
           setWeather(payload as WeatherSnapshot);
+          break;
+        case 'TASKBAR_APPS_STATE':
+          setTaskbarState(payload as TaskbarAppsState);
+          break;
+        case 'MEDIA_STATE':
+          setMedia(payload as MediaSnapshot);
           break;
         case 'NOTES_LIST': {
           const noteList = (payload.notes as NoteMeta[] | undefined) || [];
@@ -252,7 +262,7 @@ export function useBackendSocket() {
   });
   useEffect(() => {
     if (!connected) return;
-    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER'];
+    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE'];
     bootTypes.forEach((type) => sendEvent({ type, payload: {} } as OutgoingEvent));
     const weatherTimer = window.setInterval(
       () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
@@ -315,6 +325,8 @@ export function useBackendSocket() {
     bluetoothDevices,
     clockAlert,
     weather,
+    taskbarState,
+    media,
     lastWheelResult,
     subscribeMouse,
     ...actions,

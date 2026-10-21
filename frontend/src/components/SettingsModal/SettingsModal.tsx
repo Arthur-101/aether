@@ -12,7 +12,12 @@ import {
   Save,
   Check,
 } from 'lucide-react';
-import type { AppearanceConfig, AppConfig } from '../../types/ipc';
+import type {
+  AppearanceConfig,
+  AppConfig,
+  TaskbarAppsConfig,
+  TaskbarAppsState,
+} from '../../types/ipc';
 import { resolveAppearance, resolveTaskbarApps } from '../Island/appearance';
 import { AiSettings } from './tabs/AiSettings';
 import { AppearanceSettings } from './tabs/AppearanceSettings';
@@ -31,10 +36,14 @@ interface SettingsModalProps {
   onSave: (config: AppConfig) => void;
   onHotkeyCapture: (enabled: boolean) => void;
   onOpenNotesFolder: (path: string) => void;
+  taskbarState: TaskbarAppsState | null;
+  initialTab?: SettingsTab | null;
+  onRefreshTaskbar: () => void;
   onClose: () => void;
 }
 
-type Tab = 'ai' | 'voice' | 'hotkeys' | 'storage' | 'appearance';
+export type SettingsTab = 'ai' | 'voice' | 'hotkeys' | 'storage' | 'appearance';
+type Tab = SettingsTab;
 
 const tabs = [
   { id: 'ai' as const, label: 'AI & Models', icon: Cpu },
@@ -54,6 +63,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave,
   onHotkeyCapture,
   onOpenNotesFolder,
+  taskbarState,
+  initialTab,
+  onRefreshTaskbar,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('ai');
@@ -64,6 +76,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen && config) setDraft(structuredClone(config));
   }, [isOpen, config]);
+
+  useEffect(() => {
+    if (isOpen && initialTab) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'appearance') onRefreshTaskbar();
+  }, [isOpen, activeTab, onRefreshTaskbar]);
 
   const updateAi = (patch: Partial<AppConfig['ai_provider']>) => {
     setDraft((prev) =>
@@ -89,6 +109,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setDraft((prev) => (prev ? { ...prev, appearance } : prev));
   };
 
+  const updateTaskbarApps = (taskbar_apps: TaskbarAppsConfig) => {
+    setDraft((prev) => (prev ? { ...prev, taskbar_apps } : prev));
+  };
+
   const handleToggleThinking = (enabled: boolean) => {
     onToggleThinking(enabled);
     updateAi({ thinking_mode: enabled });
@@ -104,6 +128,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }, 550);
   };
 
+  const settingsSurface = resolveAppearance((draft ?? config)?.appearance);
+
   if (!isOpen) return null;
 
   return (
@@ -118,9 +144,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             initial={{ scale: 0.97, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.97, opacity: 0 }}
+            style={{
+              '--glass-alpha': settingsSurface.island_opacity,
+              '--glass-blur': `${settingsSurface.island_blur}px`,
+            } as React.CSSProperties}
             className="aether-interactive glass-panel flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
           >
-          <div className="flex w-44 flex-col justify-between border-r border-white/10 bg-[#202020] p-4">
+          <div className="settings-sidebar flex w-44 flex-col justify-between border-r border-white/10 p-4">
             <div>
               <div
                 {...dragHandleProps}
@@ -160,8 +190,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col p-5">
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col p-5">
+            <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
               <div
                 {...dragHandleProps}
                 className="mb-4 flex cursor-grab items-center justify-between border-b border-white/10 pb-3 active:cursor-grabbing"
@@ -219,7 +249,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <AppearanceSettings
                       appearance={resolveAppearance(draft.appearance)}
                       taskbarApps={resolveTaskbarApps(draft.taskbar_apps)}
+                      taskbarState={taskbarState}
                       onChange={updateAppearance}
+                      onTaskbarChange={updateTaskbarApps}
+                      onRefreshTaskbar={onRefreshTaskbar}
                     />
                   )}
                 </>

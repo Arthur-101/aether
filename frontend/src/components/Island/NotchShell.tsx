@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { AppearanceConfig } from '../../types/ipc';
+import type { AppearanceConfig, MediaControlAction, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
 import { appearanceCssVars } from './appearance';
-import type { DockApp } from './dockApps';
+import { MediaWidget } from './MediaWidget';
 import { NotchHeader } from './NotchHeader';
 import { NotchIdle } from './NotchIdle';
 import { NotchPeek } from './NotchPeek';
@@ -12,9 +12,11 @@ interface NotchShellProps {
   onExpandedChange: (expanded: boolean) => void;
   appearance: AppearanceConfig;
   peekEnabled: boolean;
-  apps: DockApp[];
-  mediaActive: boolean;
-  spotify: boolean;
+  apps: TaskbarPinnedApp[];
+  media: MediaSnapshot | null;
+  onLaunchApp: (app: TaskbarPinnedApp) => void;
+  onManageApps: () => void;
+  onMediaControl: (action: MediaControlAction) => void;
   onOpenSettings: () => void;
   onKill: () => void;
   children: React.ReactNode;
@@ -26,8 +28,10 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   appearance,
   peekEnabled,
   apps,
-  mediaActive,
-  spotify,
+  media,
+  onLaunchApp,
+  onManageApps,
+  onMediaControl,
   onOpenSettings,
   onKill,
   children,
@@ -40,6 +44,8 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   }));
   const enterTimer = useRef<number | null>(null);
   const leaveTimer = useRef<number | null>(null);
+  const mediaActive = Boolean(media?.is_playing);
+  const spotify = Boolean(media?.is_spotify);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -133,6 +139,9 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         '--notch-alpha': isExpanded
           ? appearance.island_opacity
           : appearance.pill_opacity,
+        '--notch-blur': `${
+          isExpanded ? appearance.island_blur : appearance.pill_blur
+        }px`,
       } as React.CSSProperties}
     >
       {isExpanded ? (
@@ -151,6 +160,11 @@ export const NotchShell: React.FC<NotchShellProps> = ({
             onKill={onKill}
             onClose={close}
           />
+          {media?.has_session ? (
+            <div className="shrink-0 border-b border-white/[0.065] px-4 py-2">
+              <MediaWidget media={media} onControl={onMediaControl} compact />
+            </div>
+          ) : null}
           {children}
         </motion.div>
       ) : (
@@ -164,10 +178,13 @@ export const NotchShell: React.FC<NotchShellProps> = ({
           {peek ? (
             <NotchPeek
               now={now}
-              apps={apps.length > 0 ? apps : []}
+              width={width}
+              apps={apps}
               mediaActive={mediaActive}
               spotify={spotify}
               onOpen={open}
+              onLaunch={onLaunchApp}
+              onManageApps={onManageApps}
             />
           ) : (
             <NotchIdle
