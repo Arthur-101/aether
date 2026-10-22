@@ -12,8 +12,8 @@ interface AiSettingsProps {
 }
 
 const inputClass =
-  'w-full rounded-md border border-white/10 bg-[#2b2b2b] px-3 py-2 font-mono text-[11px] text-[#f3f3f3] outline-none focus:border-[#0067c0]';
-const labelClass = 'mb-1 block text-[11px] font-medium text-[#c7c7c7]';
+  'w-full rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3 py-2 font-mono text-[11px] text-[var(--aether-text-1)] outline-none focus:border-[var(--aether-accent)]';
+const labelClass = 'mb-1 block text-[11px] font-medium text-[var(--aether-text-2)]';
 
 const modes = [
   { id: 'local_gguf', label: 'Local GGUF', hint: 'llama-server · private' },
@@ -44,13 +44,13 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
 
       <div>
         <label className={labelClass}>Execution Mode</label>
-        <div className="grid grid-cols-2 gap-2 rounded-md bg-[#1f1f1f] p-1">
+        <div className="grid grid-cols-2 gap-2 rounded-md bg-[var(--aether-surface-5)] p-1">
           <button
             onClick={() => onToggleThinking(false)}
             className={`rounded px-2 py-2 text-center transition ${
               !thinkingMode
-                ? 'bg-[#0067c0] text-white'
-                : 'text-[#8b8b8b] hover:bg-white/5 hover:text-white'
+                ? 'accent-fill'
+                : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
             }`}
           >
             <div className="font-medium">Normal Mode</div>
@@ -60,8 +60,8 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
             onClick={() => onToggleThinking(true)}
             className={`rounded px-2 py-2 text-center transition ${
               thinkingMode
-                ? 'bg-[#0067c0] text-white'
-                : 'text-[#8b8b8b] hover:bg-white/5 hover:text-white'
+                ? 'accent-fill'
+                : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
             }`}
           >
             <div className="font-medium">Thinking Mode</div>
@@ -72,15 +72,15 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
 
       <div>
         <label className={labelClass}>Inference Backend</label>
-        <div className="grid grid-cols-3 gap-1 rounded-md bg-[#1f1f1f] p-1">
+        <div className="grid grid-cols-3 gap-1 rounded-md bg-[var(--aether-surface-5)] p-1">
           {modes.map((mode) => (
             <button
               key={mode.id}
               onClick={() => onChange({ mode: mode.id })}
               className={`rounded px-2 py-1.5 transition ${
                 ai.mode === mode.id
-                  ? 'bg-[#383838] text-white'
-                  : 'text-[#8b8b8b] hover:text-white'
+                  ? 'bg-[var(--aether-surface-5)] text-[var(--aether-text-1)]'
+                  : 'text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]'
               }`}
             >
               <div className="font-medium">{mode.label}</div>
@@ -104,7 +104,7 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
               />
               <button
                 onClick={browseGguf}
-                className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#0067c0] px-3 text-[11px] font-medium text-white transition hover:bg-[#1976c9]"
+                className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition"
               >
                 <FolderOpen size={13} />
                 Browse
@@ -121,8 +121,8 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
                   onClick={() => onChange({ context_length: ctx })}
                   className={`rounded-md border px-3 py-1.5 text-xs transition ${
                     ai.context_length === ctx
-                      ? 'border-[#0067c0] bg-[#0067c0]/15 text-[#9dd5ff]'
-                      : 'border-white/10 bg-[#2b2b2b] text-[#8b8b8b] hover:text-white'
+                      ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/15 text-[var(--aether-accent-text)]'
+                      : 'border-[var(--aether-line)] bg-[var(--aether-surface-1)] text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]'
                   }`}
                 >
                   {ctx}
@@ -199,3 +199,4 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
     </div>
   );
 };
+

@@ -24,15 +24,28 @@ export type DashboardTabId =
 
 export interface AppearanceConfig {
   dashboard_tabs: DashboardTabId[];
+  theme_mode: ThemeMode;
+  glow_style: GlowStyle;
+  glow_color: GlowColor;
   pill_opacity: number;
   island_opacity: number;
-  pill_blur: number;
-  island_blur: number;
+  pill_grain: number;
+  island_grain: number;
+  pill_pop: number;
+  island_pop: number;
   button_primary: string;
   button_secondary: string;
   button_gradient: boolean;
   close_on_outside_click: boolean;
 }
+
+export type ThemeMode = 'system' | 'light' | 'dark';
+
+/** How the media widget's glow is drawn. */
+export type GlowStyle = 'off' | 'soft' | 'glass' | 'neon' | 'pulse';
+
+/** Whether the glow follows the media source or the app accent. */
+export type GlowColor = 'source' | 'theme';
 
 export interface ClockConfig {
   weather_mode: 'auto' | 'manual';
@@ -119,13 +132,34 @@ export interface MediaSnapshot {
   message: string;
 }
 
+export interface TopAppStat {
+  name: string;
+  ram_mb: number;
+  processes: number;
+}
+
 export interface SystemStats {
   cpu_percent: number;
   ram_percent: number;
   ram_used_gb?: number;
   ram_total_gb?: number;
   disk_percent: number;
+  disk_used_gb?: number;
+  disk_total_gb?: number;
+  disk_read_mbps?: number;
+  disk_write_mbps?: number;
+  net_down_mbps?: number;
+  net_up_mbps?: number;
+  uptime_seconds?: number;
+  cpu_cores?: number | null;
+  cpu_threads?: number | null;
+  top_apps?: TopAppStat[];
+  gpu_percent?: number | null;
+  gpu_name?: string | null;
   gpu_vram_gb?: number | null;
+  gpu_vram_used_gb?: number | null;
+  gpu_vram_total_gb?: number | null;
+  gpu_temp_c?: number | null;
   volume?: number;
   muted?: boolean;
   wifi?: boolean | null;
@@ -136,6 +170,32 @@ export interface SystemStats {
   hotspot?: boolean | null;
   brightness?: number | null;
   dark_mode?: boolean;
+}
+
+export type SpeedTestState = 'idle' | 'running' | 'done' | 'error';
+
+export interface SpeedTestResult {
+  state: SpeedTestState;
+  ping_ms?: number | null;
+  download_mbps?: number | null;
+  upload_mbps?: number | null;
+  message?: string;
+  server?: string;
+  tested_at?: string;
+}
+
+export interface AudioOutputDevice {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+export interface DisplayInfo {
+  name: string;
+  width: number;
+  height: number;
+  refresh_hz: number;
 }
 
 export interface SessionItem {
@@ -345,9 +405,15 @@ export type OutgoingEvent =
   | { type: 'CONNECT_WIFI'; payload: { profile: string } }
   | { type: 'DISCONNECT_WIFI'; payload: Record<string, never> }
   | { type: 'LIST_BLUETOOTH_DEVICES'; payload: Record<string, never> }
+  | { type: 'LIST_AUDIO_DEVICES'; payload: Record<string, never> }
+  | { type: 'SET_AUDIO_DEVICE'; payload: { device_id: string } }
+  | { type: 'GET_DISPLAY_INFO'; payload: Record<string, never> }
+  | { type: 'RUN_SPEED_TEST'; payload: Record<string, never> }
   | { type: 'OPEN_SETTINGS_PAGE'; payload: { page: string } };
 
 export interface IncomingEnvelope<T = any> {
   type: string;
   payload: T;
 }
+
+

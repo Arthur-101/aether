@@ -59,13 +59,13 @@ export const AlarmForm: React.FC<AlarmFormProps> = ({
   return (
     <div className="mt-2 rounded-xl border border-white/[0.075] bg-black/15 p-2">
       <div className="flex items-center justify-between">
-        <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#8f897d]">
+        <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--aether-text-3)]">
           {editing ? 'Edit alarm' : 'New alarm'}
         </span>
         <button
           type="button"
           onClick={onCancel}
-          className="flex h-6 w-6 items-center justify-center rounded-md text-[#7f796e] transition hover:bg-white/10 hover:text-white"
+          className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
           aria-label="Cancel alarm"
         >
           <X size={11} />
@@ -79,13 +79,13 @@ export const AlarmForm: React.FC<AlarmFormProps> = ({
             setTime(event.target.value);
             setError('');
           }}
-          className="w-[92px] shrink-0 rounded-md border border-white/10 bg-[#2b2b2b] px-1.5 py-1 font-mono text-[13px] text-white outline-none [color-scheme:dark] focus:border-[var(--aether-accent)]"
+          className="w-[92px] shrink-0 rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-1.5 py-1 font-mono text-[13px] text-[var(--aether-text-1)] outline-none [color-scheme:dark] focus:border-[var(--aether-accent)]"
         />
         <input
           value={label}
           onChange={(event) => setLabel(event.target.value)}
           placeholder="Wake up"
-          className="min-w-0 flex-1 rounded-md border border-white/10 bg-[#2b2b2b] px-2 py-1.5 text-[10px] text-white outline-none placeholder:text-[#777168] focus:border-[var(--aether-accent)]"
+          className="min-w-0 flex-1 rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1.5 text-[10px] text-[var(--aether-text-1)] outline-none placeholder:text-[var(--aether-text-3)] focus:border-[var(--aether-accent)]"
         />
         <button
           type="button"
@@ -95,7 +95,7 @@ export const AlarmForm: React.FC<AlarmFormProps> = ({
           {editing ? 'Save' : 'Set'}
         </button>
       </div>
-      <label className="mt-1.5 flex w-fit cursor-pointer items-center gap-1.5 text-[9px] text-[#a8a196]">
+      <label className="mt-1.5 flex w-fit cursor-pointer items-center gap-1.5 text-[9px] text-[var(--aether-text-1)]">
         <input
           type="checkbox"
           checked={repeat}

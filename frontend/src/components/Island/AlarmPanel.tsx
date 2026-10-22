@@ -3,6 +3,7 @@ import { AlarmClock, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import type { ScheduledTask, TaskInput } from '../../types/ipc';
 import { alarmTimeLabel } from './alarmFormat';
 import { AlarmForm } from './AlarmForm';
+import { CardArt } from './CardArt';
 
 export interface AlarmPanelHandle {
   openCreate: () => void;
@@ -18,7 +19,7 @@ interface AlarmPanelProps {
 }
 
 const iconButton =
-  'flex h-6 w-6 items-center justify-center rounded-md text-[#7f796e] transition hover:bg-white/10 hover:text-white';
+  'flex h-6 w-6 items-center justify-center rounded-md text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]';
 
 export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
   function AlarmPanel(
@@ -48,15 +49,20 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
     };
 
     return (
-      <section className="notch-card flex min-h-0 flex-col rounded-2xl p-3">
-        <div className="flex items-center justify-between gap-2">
+      <section className="notch-card motif-card relative flex min-h-0 flex-col overflow-hidden rounded-2xl p-3">
+        <CardArt
+          variant="rings"
+          className="pointer-events-none absolute bottom-1 right-1 h-[130px] w-[130px]"
+        />
+
+        <div className="relative flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06] accent-text">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--aether-fill)] accent-text">
               <AlarmClock size={14} />
             </span>
             <div>
-              <h3 className="text-[12px] font-semibold text-[#f2efe7]">Alarms</h3>
-              <p className="text-[9px] text-[#777168]">
+              <h3 className="text-[13px] font-semibold text-[var(--aether-text-1)]">Alarms</h3>
+              <p className="text-[10px] text-[var(--aether-text-3)]">
                 {alarms.length ? `${alarms.length} scheduled` : 'Chime + snooze 5m'}
               </p>
             </div>
@@ -65,7 +71,7 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
             type="button"
             onClick={startNew}
             aria-label="New alarm"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06] text-[#c9c3b7] transition hover:bg-white/10 hover:text-white"
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--aether-fill)] text-[var(--aether-text-1)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
           >
             <Plus size={13} />
           </button>
@@ -96,10 +102,10 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
                 >
                   <AlarmClock size={14} className="shrink-0 accent-text" />
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-[14px] font-semibold leading-tight text-white">
+                    <p className="font-mono text-[14px] font-semibold leading-tight text-[var(--aether-text-1)]">
                       {alarmTimeLabel(alarm)}
                     </p>
-                    <p className="truncate text-[9px] text-[#837d72]">
+                    <p className="truncate text-[9px] text-[var(--aether-text-3)]">
                       {alarm.prompt_to_execute} ·{' '}
                       {alarm.is_recurring ? 'Every day' : 'One time'}
                       {paused ? ' · Paused' : ''}
@@ -140,12 +146,12 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
             })}
           </div>
         ) : !formOpen ? (
-          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 p-4 text-center">
-            <AlarmClock size={20} className="text-[#6f6a61]" />
-            <p className="mt-1.5 text-[10px] font-medium text-[#b8b2a7]">
+          <div className="mt-2 flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--aether-line)] p-4 text-center">
+            <AlarmClock size={20} className="text-[var(--aether-text-3)]" />
+            <p className="mt-1.5 text-[10px] font-medium text-[var(--aether-text-1)]">
               No alarms yet
             </p>
-            <p className="mt-1 text-[9px] leading-relaxed text-[#777168]">
+            <p className="mt-1 text-[9px] leading-relaxed text-[var(--aether-text-3)]">
               Aether chimes and offers Snooze 5m.
             </p>
           </div>

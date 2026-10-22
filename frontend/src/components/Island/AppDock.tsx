@@ -38,11 +38,12 @@ const DockIcon: React.FC<{ app: DockApp }> = ({ app }) => {
 interface AppDockProps {
   apps: DockApp[];
   side: 'left' | 'right';
-  maxWidth?: number;
+  /** Spacing between neighbouring icons. Fixed, so icons never shrink. */
+  step?: number;
   onLaunch?: (app: DockApp) => void;
 }
 
-export const AppDock: React.FC<AppDockProps> = ({ apps, side, maxWidth, onLaunch }) => {
+export const AppDock: React.FC<AppDockProps> = ({ apps, side, step = 18, onLaunch }) => {
   const [hovered, setHovered] = useState<number | null>(null);
   const tiltFor = (index: number) => {
     if (apps.length < 2) return 0;
@@ -50,10 +51,6 @@ export const AppDock: React.FC<AppDockProps> = ({ apps, side, maxWidth, onLaunch
       side === 'left' ? (apps.length - 1 - index) / (apps.length - 1) : index / (apps.length - 1);
     return (side === 'left' ? -1 : 1) * ratio * 12;
   };
-  const step =
-    maxWidth && apps.length > 1
-      ? Math.min(30, Math.max(18, (maxWidth - 28) / (apps.length - 1)))
-      : 18;
 
   if (apps.length === 0) return null;
 
@@ -82,16 +79,20 @@ export const AppDock: React.FC<AppDockProps> = ({ apps, side, maxWidth, onLaunch
             className="notch-tilt fluent-focus relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border outline-none"
             style={{
               marginLeft: index === 0 ? 0 : step - 28,
-              zIndex: isHovered ? 30 : 10 - Math.abs(index - (hovered ?? 0)),
+              // Later icons sit on top so the deck reads as stacked cards.
+              zIndex: isHovered ? 30 : 10 + index,
               opacity: app.missing ? 0.55 : 1,
               transform: `translateX(${pushed}px) translateY(${isHovered ? -1 : 0}px) rotate(${
                 isHovered ? 0 : tiltFor(index)
               }deg) scale(${isHovered ? 1.28 : 1})`,
-              backgroundColor: 'rgba(255,255,255,0.055)',
-              borderColor: isHovered ? 'var(--aether-accent)' : 'rgba(255,255,255,0.12)',
+              // Opaque tile so each card hides the icon tucked behind it.
+              backgroundColor: isHovered
+                ? 'rgba(38, 40, 46, 0.98)'
+                : 'rgba(26, 28, 33, 0.96)',
+              borderColor: isHovered ? 'var(--aether-accent)' : 'rgba(255,255,255,0.14)',
               boxShadow: isHovered
                 ? '0 6px 18px rgba(0,0,0,0.4), 0 0 0 1px var(--aether-accent)'
-                : undefined,
+                : '-2px 0 6px rgba(0,0,0,0.45)',
             }}
           >
             <DockIcon app={app} />

@@ -29,10 +29,10 @@ export const DashboardTabs: React.FC<DashboardTabsProps> = ({
           role="tab"
           aria-selected={active}
           onClick={() => onSelect(id)}
-          className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11.5px] transition ${
+          className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[11.5px] transition ${
             active
               ? 'accent-fill font-bold shadow-[0_6px_18px_rgba(0,0,0,0.2)]'
-              : 'font-medium text-[#a5a097] hover:bg-white/5 hover:text-white'
+              : 'font-medium text-[var(--aether-text-2)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
           }`}
         >
           <Icon size={13} strokeWidth={active ? 2.1 : 1.8} />

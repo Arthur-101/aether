@@ -301,6 +301,27 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshAudioDevices = useCallback(
+    () => sendEvent({ type: 'LIST_AUDIO_DEVICES', payload: {} }),
+    [sendEvent]
+  );
+
+  const setAudioDevice = useCallback(
+    (deviceId: string) =>
+      sendEvent({ type: 'SET_AUDIO_DEVICE', payload: { device_id: deviceId } }),
+    [sendEvent]
+  );
+
+  const refreshDisplayInfo = useCallback(
+    () => sendEvent({ type: 'GET_DISPLAY_INFO', payload: {} }),
+    [sendEvent]
+  );
+
+  const runSpeedTest = useCallback(
+    () => sendEvent({ type: 'RUN_SPEED_TEST', payload: {} }),
+    [sendEvent]
+  );
+
   return {
     sendChatMessage,
     newSession,
@@ -346,5 +367,10 @@ export function useBackendActions(
     disconnectWifi,
     refreshBluetoothDevices,
     openSettingsPage,
+    refreshAudioDevices,
+    setAudioDevice,
+    refreshDisplayInfo,
+    runSpeedTest,
   };
 }
+

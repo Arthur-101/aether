@@ -3,7 +3,10 @@ import type {
   AppearanceConfig,
   ClockConfig,
   DashboardTabId,
+  GlowColor,
+  GlowStyle,
   TaskbarAppsConfig,
+  ThemeMode,
 } from '../../types/ipc';
 import { normalizeHex, accentBackground, accentTextColor } from './contrast';
 import { normalizeDashboardTabs } from './tabRegistry';
@@ -30,10 +33,15 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
     'wallpaper',
     'power',
   ],
+  theme_mode: 'system',
+  glow_style: 'glass',
+  glow_color: 'source',
   pill_opacity: 0.88,
   island_opacity: 0.92,
-  pill_blur: 30,
-  island_blur: 30,
+  pill_grain: 5,
+  island_grain: 5,
+  pill_pop: 60,
+  island_pop: 60,
   button_primary: GOLD_PRIMARY,
   button_secondary: GOLD_SECONDARY,
   button_gradient: true,
@@ -62,10 +70,50 @@ function clampOpacity(value: unknown, fallback: number): number {
   return Math.round(Math.max(0.3, Math.min(1, number)) * 100) / 100;
 }
 
-function clampBlur(value: unknown, fallback: number): number {
+function clampPercent(value: unknown, fallback: number): number {
   const number = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return Math.round(Math.max(0, Math.min(60, number)));
+  return Math.round(Math.max(0, Math.min(100, number)));
+}
+
+export function normalizeThemeMode(value: unknown): ThemeMode {
+  const mode = String(value ?? '').trim().toLowerCase();
+  return mode === 'light' || mode === 'dark' ? mode : 'system';
+}
+
+export function normalizeGlowStyle(value: unknown): GlowStyle {
+  const style = String(value ?? '').trim().toLowerCase();
+  return GLOW_STYLES.includes(style as GlowStyle)
+    ? (style as GlowStyle)
+    : DEFAULT_APPEARANCE.glow_style;
+}
+
+export function normalizeGlowColor(value: unknown): GlowColor {
+  const color = String(value ?? '').trim().toLowerCase();
+  return color === 'theme' ? 'theme' : 'source';
+}
+
+export const GLOW_STYLES: GlowStyle[] = [
+  'off',
+  'soft',
+  'glass',
+  'neon',
+  'pulse',
+];
+
+/**
+ * Resolves the theme the overlay should paint.
+ *
+ * `system` follows the Windows theme, so the island, the pill, and Settings
+ * all flip with the desktop. An explicit light or dark choice overrides it.
+ */
+export function resolveTheme(
+  mode: ThemeMode,
+  windowsDarkMode: boolean | null | undefined
+): 'light' | 'dark' {
+  if (mode === 'light') return 'light';
+  if (mode === 'dark') return 'dark';
+  return windowsDarkMode === false ? 'light' : 'dark';
 }
 
 export function resolveAppearance(
@@ -74,10 +122,15 @@ export function resolveAppearance(
   const raw = value ?? {};
   return {
     dashboard_tabs: normalizeDashboardTabs(raw.dashboard_tabs as string[] | undefined),
+    theme_mode: normalizeThemeMode(raw.theme_mode),
+    glow_style: normalizeGlowStyle(raw.glow_style),
+    glow_color: normalizeGlowColor(raw.glow_color),
     pill_opacity: clampOpacity(raw.pill_opacity, DEFAULT_APPEARANCE.pill_opacity),
     island_opacity: clampOpacity(raw.island_opacity, DEFAULT_APPEARANCE.island_opacity),
-    pill_blur: clampBlur(raw.pill_blur, DEFAULT_APPEARANCE.pill_blur),
-    island_blur: clampBlur(raw.island_blur, DEFAULT_APPEARANCE.island_blur),
+    pill_grain: clampPercent(raw.pill_grain, DEFAULT_APPEARANCE.pill_grain),
+    island_grain: clampPercent(raw.island_grain, DEFAULT_APPEARANCE.island_grain),
+    pill_pop: clampPercent(raw.pill_pop, DEFAULT_APPEARANCE.pill_pop),
+    island_pop: clampPercent(raw.island_pop, DEFAULT_APPEARANCE.island_pop),
     button_primary: normalizeHex(
       String(raw.button_primary ?? ''),
       GOLD_PRIMARY
@@ -121,7 +174,8 @@ export function accentStyle(appearance: AppearanceConfig): CSSProperties {
 }
 
 export function appearanceCssVars(
-  appearance: AppearanceConfig
+  appearance: AppearanceConfig,
+  theme?: 'light' | 'dark'
 ): CSSProperties {
   return {
     '--aether-accent': appearance.button_primary,
@@ -135,8 +189,19 @@ export function appearanceCssVars(
       appearance.button_primary,
       appearance.button_secondary
     ),
-    '--aether-pill-blur': `${appearance.pill_blur}px`,
-    '--aether-island-blur': `${appearance.island_blur}px`,
+    // A custom property that references another is resolved where it is
+    // declared, so the accent text colour has to be set alongside the accent
+    // itself rather than derived in the stylesheet.
+    ...(theme
+      ? {
+          '--aether-accent-text':
+            theme === 'light'
+              ? `color-mix(in srgb, ${appearance.button_primary} 82%, black)`
+              : appearance.button_primary,
+        }
+      : {}),
+    '--aether-grain': appearance.island_grain,
+    '--aether-pop': appearance.island_pop,
   } as CSSProperties;
 }
 

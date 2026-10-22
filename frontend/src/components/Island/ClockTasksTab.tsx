@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarClock } from 'lucide-react';
 import type {
   ClockConfig,
   ScheduledTask,
@@ -10,6 +9,7 @@ import { AiTaskCard } from './AiTaskCard';
 import { AlarmPanel, type AlarmPanelHandle } from './AlarmPanel';
 import { ClockTopStrip } from './ClockTopStrip';
 import { TaskPanel } from './TaskPanel';
+import { CLOCK_HEIGHT } from './tabSizes';
 import type { ClockTools } from './useClockTools';
 
 interface ClockTasksTabProps {
@@ -57,56 +57,46 @@ export const ClockTasksTab: React.FC<ClockTasksTabProps> = ({
   );
 
   return (
-    <div className="flex min-h-[458px] flex-col gap-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-[#857f73]">
-            <CalendarClock size={11} /> Clock &amp; Tasks
-          </p>
-          <h3 className="text-lg font-semibold text-[#f2efe7]">
-            Your day, in one place
-          </h3>
-        </div>
-        <p className="max-w-[300px] text-right text-[9px] leading-relaxed text-[#777168]">
-          Timers keep running while you switch tabs. Aether can schedule tasks
-          through chat, and they finish quietly in the background.
-        </p>
-      </div>
-
-      <ClockTopStrip
-        now={now}
-        weather={weather}
-        clockConfig={clockConfig}
-        clockTools={clockTools}
-        tasks={tasks}
-        onSaveWeather={onSaveWeather}
-        onRefreshWeather={onRefreshWeather}
-        onNewAlarm={() => alarmPanelRef.current?.openCreate()}
-      />
-
-      <div className="grid min-h-[300px] flex-1 grid-cols-[1.55fr_1fr] gap-2.5">
-        <TaskPanel
+    <div
+      className="overflow-y-auto pr-0.5"
+      style={{ height: CLOCK_HEIGHT }}
+    >
+      <div className="flex flex-col gap-3">
+        <ClockTopStrip
+          now={now}
+          weather={weather}
+          clockConfig={clockConfig}
+          clockTools={clockTools}
           tasks={tasks}
-          onRefresh={onRefreshTasks}
-          onCreate={onCreateTask}
-          onUpdate={onUpdateTask}
-          onDelete={onDeleteTask}
-          onComplete={onCompleteTask}
-          onPause={onPauseTask}
-          onResume={onResumeTask}
+          onSaveWeather={onSaveWeather}
+          onRefreshWeather={onRefreshWeather}
+          onNewAlarm={() => alarmPanelRef.current?.openCreate()}
         />
-        <div className="flex min-h-0 flex-col gap-2.5">
-          <AiTaskCard onAskAether={onAskAether} />
-          <div className="min-h-0 flex-1">
-            <AlarmPanel
-              ref={alarmPanelRef}
-              alarms={alarms}
-              onCreate={onCreateTask}
-              onUpdate={onUpdateTask}
-              onDelete={onDeleteTask}
-              onPause={onPauseTask}
-              onResume={onResumeTask}
-            />
+
+        <div className="grid min-h-[320px] grid-cols-[1.55fr_1fr] gap-2.5">
+          <TaskPanel
+            tasks={tasks}
+            onRefresh={onRefreshTasks}
+            onCreate={onCreateTask}
+            onUpdate={onUpdateTask}
+            onDelete={onDeleteTask}
+            onComplete={onCompleteTask}
+            onPause={onPauseTask}
+            onResume={onResumeTask}
+          />
+          <div className="flex min-h-0 flex-col gap-2.5">
+            <AiTaskCard onAskAether={onAskAether} />
+            <div className="min-h-0 flex-1">
+              <AlarmPanel
+                ref={alarmPanelRef}
+                alarms={alarms}
+                onCreate={onCreateTask}
+                onUpdate={onUpdateTask}
+                onDelete={onDeleteTask}
+                onPause={onPauseTask}
+                onResume={onResumeTask}
+              />
+            </div>
           </div>
         </div>
       </div>

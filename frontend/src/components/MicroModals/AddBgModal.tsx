@@ -40,17 +40,17 @@ export const AddBgModal: React.FC<AddBgModalProps> = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="glass-panel w-[460px] rounded-2xl p-5 shadow-2xl flex flex-col gap-4 border border-white/10"
+          className="glass-panel w-[460px] rounded-2xl p-5 shadow-2xl flex flex-col gap-4 border border-[var(--aether-line)]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between pb-2 border-b border-white/5">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--aether-line-soft)]">
             <div className="flex items-center gap-2">
               <Palette size={18} className="text-cyan-400" />
-              <h3 className="text-sm font-semibold text-white">Add Background & Polish</h3>
+              <h3 className="text-sm font-semibold text-[var(--aether-text-1)]">Add Background & Polish</h3>
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
+              className="p-1 rounded-lg text-slate-400 hover:text-[var(--aether-text-1)] hover:bg-[var(--aether-fill)] transition"
             >
               <X size={16} />
             </button>
@@ -137,14 +137,14 @@ export const AddBgModal: React.FC<AddBgModalProps> = ({
           </div>
 
           {/* Footer CTAs */}
-          <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          <div className="flex items-center justify-between pt-2 border-t border-[var(--aether-line-soft)]">
             <button
               onClick={() => {
                 setPadding(32);
                 setCorners(16);
                 setShadow(24);
               }}
-              className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white flex items-center gap-1 transition"
+              className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-[var(--aether-text-1)] flex items-center gap-1 transition"
             >
               <RotateCcw size={14} />
               <span>Reset</span>
@@ -154,7 +154,7 @@ export const AddBgModal: React.FC<AddBgModalProps> = ({
                 onSave(filePath, selectedBg, padding, corners, shadow);
                 onClose();
               }}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 shadow-lg shadow-cyan-500/20 transition"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-[var(--aether-text-1)] text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 shadow-lg shadow-cyan-500/20 transition"
             >
               <Download size={14} />
               <span>Save with Background</span>

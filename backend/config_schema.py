@@ -30,15 +30,24 @@ DEFAULT_CLOCK: Dict[str, Any] = {
 
 DEFAULT_APPEARANCE: Dict[str, Any] = {
     "dashboard_tabs": list(DEFAULT_DASHBOARD_TABS),
+    "theme_mode": "system",
+    "glow_style": "glass",
+    "glow_color": "source",
     "pill_opacity": 0.88,
     "island_opacity": 0.92,
-    "pill_blur": 30,
-    "island_blur": 30,
+    "pill_grain": 5,
+    "island_grain": 5,
+    "pill_pop": 60,
+    "island_pop": 60,
     "button_primary": "#E8C56B",
     "button_secondary": "#F4DF9A",
     "button_gradient": True,
     "close_on_outside_click": False,
 }
+
+_THEME_MODES = ("system", "light", "dark")
+_GLOW_STYLES = ("off", "soft", "glass", "neon", "pulse")
+_GLOW_COLORS = ("source", "theme")
 
 DEFAULT_TASKBAR_APPS: Dict[str, Any] = {
     "mode": "mirror",
@@ -106,12 +115,12 @@ def _clamp_opacity(value: Any, fallback: float) -> float:
     return round(max(0.3, min(1.0, number)), 2)
 
 
-def _clamp_blur(value: Any, fallback: int) -> int:
+def _clamp_percent(value: Any, fallback: int) -> int:
     try:
         number = float(value)
     except (TypeError, ValueError):
         return fallback
-    return int(round(max(0.0, min(60.0, number))))
+    return int(round(max(0.0, min(100.0, number))))
 
 
 def _as_bool(value: Any, fallback: bool) -> bool:
@@ -121,19 +130,37 @@ def _as_bool(value: Any, fallback: bool) -> bool:
 def normalize_appearance(value: Any) -> Dict[str, Any]:
     """Backfills, clamps, and sanitizes the appearance section."""
     raw = value if isinstance(value, dict) else {}
+    theme_mode = str(raw.get("theme_mode") or "").strip().lower()
+    glow_style = str(raw.get("glow_style") or "").strip().lower()
+    glow_color = str(raw.get("glow_color") or "").strip().lower()
     return {
         "dashboard_tabs": normalize_dashboard_tabs(raw.get("dashboard_tabs")),
+        "theme_mode": (
+            theme_mode if theme_mode in _THEME_MODES else DEFAULT_APPEARANCE["theme_mode"]
+        ),
+        "glow_style": (
+            glow_style if glow_style in _GLOW_STYLES else DEFAULT_APPEARANCE["glow_style"]
+        ),
+        "glow_color": (
+            glow_color if glow_color in _GLOW_COLORS else DEFAULT_APPEARANCE["glow_color"]
+        ),
         "pill_opacity": _clamp_opacity(
             raw.get("pill_opacity"), DEFAULT_APPEARANCE["pill_opacity"]
         ),
         "island_opacity": _clamp_opacity(
             raw.get("island_opacity"), DEFAULT_APPEARANCE["island_opacity"]
         ),
-        "pill_blur": _clamp_blur(
-            raw.get("pill_blur"), DEFAULT_APPEARANCE["pill_blur"]
+        "pill_grain": _clamp_percent(
+            raw.get("pill_grain"), DEFAULT_APPEARANCE["pill_grain"]
         ),
-        "island_blur": _clamp_blur(
-            raw.get("island_blur"), DEFAULT_APPEARANCE["island_blur"]
+        "island_grain": _clamp_percent(
+            raw.get("island_grain"), DEFAULT_APPEARANCE["island_grain"]
+        ),
+        "pill_pop": _clamp_percent(
+            raw.get("pill_pop"), DEFAULT_APPEARANCE["pill_pop"]
+        ),
+        "island_pop": _clamp_percent(
+            raw.get("island_pop"), DEFAULT_APPEARANCE["island_pop"]
         ),
         "button_primary": normalize_hex(
             raw.get("button_primary"), DEFAULT_APPEARANCE["button_primary"]

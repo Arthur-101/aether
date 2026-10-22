@@ -46,20 +46,40 @@ def test_appearance_is_clamped_and_sanitized():
     assert appearance["close_on_outside_click"] is True
 
 
-def test_appearance_blur_is_clamped_and_backfilled():
+def test_appearance_grain_and_pop_are_clamped_and_backfilled():
     appearance = normalize_appearance(
-        {"pill_blur": -12, "island_blur": 999}
+        {
+            "pill_grain": -12,
+            "island_grain": 999,
+            "pill_pop": "12.6",
+            "island_pop": "bad",
+        }
     )
-    assert appearance["pill_blur"] == 0
-    assert appearance["island_blur"] == 60
+    assert appearance["pill_grain"] == 0
+    assert appearance["island_grain"] == 100
+    assert appearance["pill_pop"] == 13
+    assert appearance["island_pop"] == 60
 
     defaults = normalize_appearance({})
-    assert defaults["pill_blur"] == 30
-    assert defaults["island_blur"] == 30
+    assert defaults["pill_grain"] == 5
+    assert defaults["island_grain"] == 5
+    assert defaults["pill_pop"] == 60
+    assert defaults["island_pop"] == 60
 
-    rounded = normalize_appearance({"pill_blur": "12.6", "island_blur": "bad"})
-    assert rounded["pill_blur"] == 13
-    assert rounded["island_blur"] == 30
+
+def test_appearance_no_longer_carries_blur_fields():
+    appearance = normalize_appearance({"pill_blur": 30, "island_blur": 30})
+    assert "pill_blur" not in appearance
+    assert "island_blur" not in appearance
+
+
+def test_theme_mode_defaults_to_system_and_rejects_nonsense():
+    """The overlay follows the Windows theme unless the user overrides it."""
+    assert normalize_appearance({})["theme_mode"] == "system"
+    assert normalize_appearance({"theme_mode": "light"})["theme_mode"] == "light"
+    assert normalize_appearance({"theme_mode": "dark"})["theme_mode"] == "dark"
+    assert normalize_appearance({"theme_mode": "neon"})["theme_mode"] == "system"
+    assert normalize_appearance({"theme_mode": None})["theme_mode"] == "system"
 
 
 def test_taskbar_mode_and_pins_are_normalized():

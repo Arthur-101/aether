@@ -9,7 +9,7 @@ import { Power } from 'lucide-react';
 export const KillAppButton: React.FC<{ onKill: () => void }> = ({ onKill }) => (
   <button
     onClick={onKill}
-    className="rounded-md bg-[#442726]/70 p-1.5 text-[#ff99a4] transition hover:bg-[#5b2f2d] hover:text-white"
+    className="rounded-md bg-[#442726]/70 p-1.5 text-[#ff99a4] transition hover:bg-[#5b2f2d] hover:text-[var(--aether-text-1)]"
     title="Kill Aether (dev): free ports 8765/1420/8089 and stop the app"
   >
     <Power size={14} />

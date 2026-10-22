@@ -26,6 +26,7 @@ from .network_controls import (
     set_wifi_enabled,
 )
 from .brightness_controls import get_brightness, set_brightness
+from .telemetry_stats import collect_stats_extras
 
 VK_MEDIA_NEXT_TRACK = 0xB0
 VK_MEDIA_PREV_TRACK = 0xB1
@@ -87,39 +88,59 @@ def get_system_telemetry() -> Dict[str, Any]:
         "dark_mode": get_dark_mode(),
     }
 
-    try:
-        import pynvml
-
-        pynvml.nvmlInit()
-        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-        info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-        telemetry["gpu_vram_gb"] = round(info.used / (1024 ** 3), 2)
-        pynvml.nvmlShutdown()
-    except Exception:
-        pass
+    # GPU load, throughput, uptime, and the top RAM consumers live in their
+    # own module because they keep sampling state and have their own cache.
+    telemetry.update(collect_stats_extras(disk))
 
     return telemetry
 
 
 # ─── Master Volume (pycaw) ──────────────────────────────────────
-# COM interfaces are apartment-bound. The daemon calls these helpers from
-# asyncio's executor, so cache one endpoint per worker thread instead of
-# reacquiring the default audio device on every slider update.
+# COM is apartment bound and the daemon calls these helpers from asyncio's
+# executor, so every worker thread has to initialise COM for itself.
+#
+# The default endpoint is resolved on each call rather than cached. The
+# default device changes whenever something is plugged in or the user picks
+# another output, and a cached endpoint then reads one device's volume
+# while the setter writes another's. That is what makes a slider fight
+# itself: the value is set on the new device and reported from the old one.
 _audio_local = threading.local()
 
 
+def _ensure_com() -> None:
+    """Initialises COM for the calling thread, once."""
+    if getattr(_audio_local, "com_ready", False):
+        return
+    try:
+        import comtypes
+
+        comtypes.CoInitializeEx(None, comtypes.COINIT_APARTMENTTHREADED)
+    except Exception:
+        try:
+            import comtypes
+
+            comtypes.CoInitialize()
+        except Exception:
+            pass
+    _audio_local.com_ready = True
+
+
 def _get_audio_endpoint():
-    endpoint = getattr(_audio_local, "endpoint", None)
-    if endpoint is not None:
-        return endpoint
-    speakers = AudioUtilities.GetSpeakers()
-    if hasattr(speakers, "EndpointVolume"):
-        endpoint = speakers.EndpointVolume
-    else:
-        interface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        endpoint = interface.QueryInterface(IAudioEndpointVolume)
-    _audio_local.endpoint = endpoint
-    return endpoint
+    """Returns the master volume interface of the current default output."""
+    _ensure_com()
+    from comtypes import CLSCTX_INPROC_SERVER, CoCreateInstance
+    from pycaw.api.mmdeviceapi import IMMDeviceEnumerator
+    from pycaw.utils import CLSID_MMDeviceEnumerator
+    from pycaw.pycaw import EDataFlow, ERole
+
+    enumerator = CoCreateInstance(
+        CLSID_MMDeviceEnumerator, IMMDeviceEnumerator, CLSCTX_INPROC_SERVER
+    )
+    device = enumerator.GetDefaultAudioEndpoint(
+        EDataFlow.eRender.value, ERole.eMultimedia.value
+    )
+    interface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    return interface.QueryInterface(IAudioEndpointVolume)
 
 
 def _reset_audio_endpoint() -> None:
@@ -130,10 +151,10 @@ def get_master_volume() -> float:
     try:
         return round(float(_get_audio_endpoint().GetMasterVolumeLevelScalar()), 2)
     except Exception:
-        _reset_audio_endpoint()
         try:
             return round(float(_get_audio_endpoint().GetMasterVolumeLevelScalar()), 2)
         except Exception:
+            logger.warning("Could not read the master volume", exc_info=True)
             return 0.5
 
 
@@ -142,11 +163,10 @@ def set_master_volume(level: float) -> float:
     try:
         _get_audio_endpoint().SetMasterVolumeLevelScalar(clamped, None)
     except Exception:
-        _reset_audio_endpoint()
         try:
             _get_audio_endpoint().SetMasterVolumeLevelScalar(clamped, None)
         except Exception:
-            pass
+            logger.warning("Could not set the master volume", exc_info=True)
     return clamped
 
 
@@ -154,7 +174,6 @@ def get_mute_state() -> bool:
     try:
         return bool(_get_audio_endpoint().GetMute())
     except Exception:
-        _reset_audio_endpoint()
         try:
             return bool(_get_audio_endpoint().GetMute())
         except Exception:
@@ -165,11 +184,10 @@ def set_mute_state(muted: bool) -> bool:
     try:
         _get_audio_endpoint().SetMute(int(muted), None)
     except Exception:
-        _reset_audio_endpoint()
         try:
             _get_audio_endpoint().SetMute(int(muted), None)
         except Exception:
-            pass
+            logger.warning("Could not change the mute state", exc_info=True)
     return muted
 
 

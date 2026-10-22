@@ -52,6 +52,42 @@ def test_explorer_running_state_is_omitted_not_faked():
     assert _running_state(r"C:\Apps\Tool.exe", set(), set()) is False
 
 
+def test_browser_pin_is_running_when_a_real_browser_window_is_open():
+    """A browser started via a web-app shortcut still shows its own dot.
+
+    The web app and the browser share one process, so the process command
+    line alone would hide the browser's running dot.
+    """
+    brave = r"C:\Program Files\Brave\Application\brave.exe"
+    normalized = normalize_path(brave)
+
+    def state(windows):
+        return _running_state(
+            brave,
+            {normalized},
+            {"brave"},
+            window_state={"by_exe": {normalized: windows}, "pwa_ids": set()},
+        )
+
+    browser_window = {"pwa": False, "hwnd": 1}
+    web_app_window = {"pwa": True, "hwnd": 2}
+
+    assert state([browser_window]) is True
+    assert state([web_app_window]) is False
+    assert state([browser_window, web_app_window]) is True
+
+
+def test_explorer_folder_window_marks_the_pinned_entry_running():
+    """A File Explorer folder window proves the pinned entry is running."""
+    explorer = r"C:\Windows\explorer.exe"
+    normalized = normalize_path(explorer)
+    state = {
+        "by_exe": {normalized: [{"pwa": False, "hwnd": 7, "class": "CabinetWClass"}]},
+        "pwa_ids": set(),
+    }
+    assert _running_state(explorer, {normalized}, {"explorer"}, window_state=state) is True
+
+
 def test_web_app_id_parsing_supports_shortcut_argument_forms():
     app_id = "lodlkdfmihgonocnmddehnfgiljnadcf"
     assert app_id_from_arguments(

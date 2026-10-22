@@ -39,6 +39,7 @@ interface SettingsModalProps {
   taskbarState: TaskbarAppsState | null;
   initialTab?: SettingsTab | null;
   onRefreshTaskbar: () => void;
+  onPreviewAppearance?: (appearance: AppearanceConfig | null) => void;
   onClose: () => void;
 }
 
@@ -66,6 +67,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   taskbarState,
   initialTab,
   onRefreshTaskbar,
+  onPreviewAppearance,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('ai');
@@ -76,6 +78,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen && config) setDraft(structuredClone(config));
   }, [isOpen, config]);
+
+  useEffect(() => {
+    // Closing without saving restores the live surfaces.
+    if (!isOpen) onPreviewAppearance?.(null);
+  }, [isOpen, onPreviewAppearance]);
 
   useEffect(() => {
     if (isOpen && initialTab) setActiveTab(initialTab);
@@ -107,6 +114,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const updateAppearance = (appearance: AppearanceConfig) => {
     setDraft((prev) => (prev ? { ...prev, appearance } : prev));
+    // Live preview: the pill and island follow the draft while dragging.
+    onPreviewAppearance?.(appearance);
   };
 
   const updateTaskbarApps = (taskbar_apps: TaskbarAppsConfig) => {
@@ -124,6 +133,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
+      onPreviewAppearance?.(null);
       onClose();
     }, 550);
   };
@@ -146,19 +156,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             exit={{ scale: 0.97, opacity: 0 }}
             style={{
               '--glass-alpha': settingsSurface.island_opacity,
-              '--glass-blur': `${settingsSurface.island_blur}px`,
+              '--aether-grain': settingsSurface.island_grain,
+              '--aether-pop': settingsSurface.island_pop,
             } as React.CSSProperties}
-            className="aether-interactive glass-panel flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
+            className="aether-interactive glass-panel aether-grain aether-pop flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
           >
-          <div className="settings-sidebar flex w-44 flex-col justify-between border-r border-white/10 p-4">
+          <div className="settings-sidebar flex w-44 flex-col justify-between border-r border-[var(--aether-line)] p-4">
             <div>
               <div
                 {...dragHandleProps}
                 className="mb-6 flex cursor-grab items-center gap-2 active:cursor-grabbing"
                 title="Drag to move Settings"
               >
-                <Settings size={18} className="text-[#60cdff]" />
-                <h3 className="text-sm font-semibold text-white">Settings</h3>
+                <Settings size={18} className="text-[var(--aether-accent-text)]" />
+                <h3 className="text-sm font-semibold text-[var(--aether-text-1)]">Settings</h3>
               </div>
               <div className="flex flex-col gap-1 text-xs">
                 {tabs.map((item) => {
@@ -169,11 +180,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => setActiveTab(item.id)}
                       className={`flex items-center gap-2 rounded-md px-3 py-2 text-left transition ${
                         activeTab === item.id
-                          ? 'border border-white/10 bg-[#383838] font-medium text-white'
-                          : 'text-[#8b8b8b] hover:bg-white/5 hover:text-[#f3f3f3]'
+                          ? 'border border-[var(--aether-line)] bg-[var(--aether-surface-5)] font-medium text-[var(--aether-text-1)]'
+                          : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
                       }`}
                     >
-                      <Icon size={14} className={activeTab === item.id ? 'text-[#60cdff]' : ''} />
+                      <Icon size={14} className={activeTab === item.id ? 'text-[var(--aether-accent-text)]' : ''} />
                       <span>{item.label}</span>
                     </button>
                   );
@@ -182,7 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div
               {...dragHandleProps}
-              className="flex cursor-grab items-center gap-1.5 font-mono text-[10px] text-[#6f6f6f] active:cursor-grabbing"
+              className="flex cursor-grab items-center gap-1.5 font-mono text-[10px] text-[var(--aether-text-3)] active:cursor-grabbing"
               title="Drag to move Settings"
             >
               <GripHorizontal size={12} />
@@ -194,10 +205,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
               <div
                 {...dragHandleProps}
-                className="mb-4 flex cursor-grab items-center justify-between border-b border-white/10 pb-3 active:cursor-grabbing"
+                className="mb-4 flex cursor-grab items-center justify-between border-b border-[var(--aether-line)] pb-3 active:cursor-grabbing"
                 title="Drag to move Settings"
               >
-                <h4 className="text-sm font-semibold text-white">
+                <h4 className="text-sm font-semibold text-[var(--aether-text-1)]">
                   {activeTab === 'ai' && 'AI Engine & Inference'}
                   {activeTab === 'voice' && 'Voice Pipeline'}
                   {activeTab === 'hotkeys' && 'Global System Hotkeys'}
@@ -206,14 +217,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </h4>
                 <button
                   onClick={onClose}
-                  className="rounded-md p-1 text-[#8b8b8b] transition hover:bg-white/5 hover:text-white"
+                  className="rounded-md p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
                 >
                   <X size={16} />
                 </button>
               </div>
 
               {!draft ? (
-                <div className="py-16 text-center text-xs text-[#8b8b8b]">
+                <div className="py-16 text-center text-xs text-[var(--aether-text-3)]">
                   Waiting for the Aether daemon…
                 </div>
               ) : (
@@ -259,11 +270,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            <div className="mt-4 flex justify-end border-t border-white/10 pt-3">
+            <div className="mt-4 flex justify-end border-t border-[var(--aether-line)] pt-3">
               <button
                 onClick={handleSave}
                 disabled={!draft}
-                className="flex items-center gap-1.5 rounded-md bg-[#0067c0] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#1976c9] disabled:opacity-40"
+                className="accent-fill flex items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold transition disabled:opacity-40"
               >
                 {isSaved ? <Check size={14} /> : <Save size={14} />}
                 <span>{isSaved ? 'Saved!' : 'Save & Apply'}</span>

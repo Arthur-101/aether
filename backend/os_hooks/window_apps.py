@@ -14,29 +14,24 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .window_rules import (
+    is_app_mode_window,
+    is_cloaked,
+    is_taskbar_window,
+)
+
+try:
+    import win32con
+    import win32gui
+    import win32process
+except ImportError:  # pragma: no cover - non-Windows environments
+    win32con = None  # type: ignore[assignment]
+    win32gui = None  # type: ignore[assignment]
+    win32process = None  # type: ignore[assignment]
+
 _APP_ID_RE = re.compile(
     r'--app-id(?:=|\s+)(?:"([^"]+)"|([^\s"]+))', re.IGNORECASE
 )
-_SKIP_CLASSES = {
-    "progman",
-    "shell_traywnd",
-    "shell_secondarytraywnd",
-    "workerw",
-    "windows.ui.core.corewindow",
-}
-_SKIP_PROCESSES = {
-    "applicationframehost.exe",
-    "explorer.exe",
-    "searchhost.exe",
-    "shellexperiencehost.exe",
-    "startmenuexperiencehost.exe",
-    "systemsettings.exe",
-    "textinputhost.exe",
-}
-_SKIP_TITLES = {"aether"}
-_EX_TOOLWINDOW = 0x00000080
-_EX_APPWINDOW = 0x00040000
-_DWMWA_CLOAKED = 14
 
 
 def app_id_from_arguments(arguments: str) -> str:
@@ -65,42 +60,6 @@ def _normalize_path(value: str) -> str:
     )
 
 
-def is_taskbar_window(
-    hwnd: int,
-    pid: int,
-    title: str,
-    window_class: str,
-    exstyle: int,
-    owner: int,
-    exe: str,
-) -> bool:
-    """Returns True for an unowned, titled window that belongs on the taskbar."""
-    if not hwnd or not pid or not title.strip() or owner:
-        return False
-    if exstyle & _EX_TOOLWINDOW and not exstyle & _EX_APPWINDOW:
-        return False
-    if window_class.casefold() in _SKIP_CLASSES:
-        return False
-    if Path(exe).name.casefold() in _SKIP_PROCESSES:
-        return False
-    return title.strip().casefold() not in _SKIP_TITLES
-
-
-def _is_cloaked(hwnd: int) -> bool:
-    """Skips UWP/ghost windows that DWM has cloaked off-screen."""
-    try:
-        cloaked = ctypes.c_int(0)
-        result = ctypes.windll.dwmapi.DwmGetWindowAttribute(
-            hwnd,
-            _DWMWA_CLOAKED,
-            ctypes.byref(cloaked),
-            ctypes.sizeof(cloaked),
-        )
-        return result == 0 and cloaked.value != 0
-    except Exception:
-        return False
-
-
 def _empty_snapshot() -> Dict[str, Any]:
     return {"windows": [], "by_app_id": {}, "by_exe": {}, "pwa_ids": set()}
 
@@ -109,10 +68,9 @@ def window_snapshot() -> Dict[str, Any]:
     """Returns taskbar-worthy visible windows grouped by app id and executable."""
     try:
         import psutil
-        import win32con
-        import win32gui
-        import win32process
     except ImportError:
+        return _empty_snapshot()
+    if win32gui is None:
         return _empty_snapshot()
 
     process_cache: Dict[int, Dict[str, Any]] = {}
@@ -156,11 +114,16 @@ def window_snapshot() -> Dict[str, Any]:
                 hwnd, pid, title, window_class, exstyle, owner, exe
             ):
                 return True
-            if _is_cloaked(hwnd):
+            if is_cloaked(hwnd):
                 return True
             cmdline = list(info.get("cmdline") or [])
-            app_id = _option_from_cmdline(cmdline, "--app-id")
+            raw_app_id = _option_from_cmdline(cmdline, "--app-id")
             source = _option_from_cmdline(cmdline, "--source-shortcut")
+            is_pwa = bool(raw_app_id) and is_app_mode_window(hwnd, window_class)
+            # Only a real app-mode window belongs to the web app. A normal
+            # browser window shares the process (and its --app-id) with a web
+            # app, so it must not be attributed to that app.
+            app_id = raw_app_id if is_pwa else ""
             window = {
                 "hwnd": hwnd,
                 "pid": pid,
@@ -170,11 +133,11 @@ def window_snapshot() -> Dict[str, Any]:
                 "process": str(info.get("name") or Path(exe).name),
                 "app_id": app_id,
                 "source_shortcut": source if source else "",
-                "pwa": bool(app_id),
+                "pwa": is_pwa,
             }
             windows.append(window)
             by_exe.setdefault(_normalize_path(exe), []).append(window)
-            if app_id:
+            if app_id and is_pwa:
                 by_app_id.setdefault(app_id.casefold(), window)
         except Exception:
             return True

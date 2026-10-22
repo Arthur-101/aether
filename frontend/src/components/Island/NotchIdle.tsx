@@ -24,7 +24,7 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
         onOpen();
       }}
       aria-label={`Open Aether command center. ${time}`}
-      className="relative flex h-full w-full items-center justify-center text-[#f4f1e7] outline-none"
+      className="relative flex h-full w-full items-center justify-center text-[var(--aether-text-1)] outline-none"
     >
       <span className="font-mono text-[13px] font-semibold tabular-nums tracking-[0.01em]">
         {time}

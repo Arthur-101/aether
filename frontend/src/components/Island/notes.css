@@ -4,7 +4,7 @@
   --note-bg: rgba(255, 255, 255, 0.045);
   --note-text: #f3f3f3;
   --note-muted: #9a9a9a;
-  --note-accent: #60cdff;
+  --note-accent: var(--aether-accent);
   --note-border: rgba(255, 255, 255, 0.12);
   --note-hover: rgba(255, 255, 255, 0.08);
   --note-active: rgba(96, 205, 255, 0.22);

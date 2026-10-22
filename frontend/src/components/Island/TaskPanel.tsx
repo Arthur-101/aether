@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { CalendarClock, ListChecks, Plus, RefreshCw } from 'lucide-react';
 import type { ScheduledTask, TaskInput } from '../../types/ipc';
+import { CardArt } from './CardArt';
 import { TaskForm } from './TaskForm';
 import { TaskRow } from './TaskRow';
 
@@ -68,15 +69,20 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
   };
 
   return (
-    <section className="notch-card flex h-full min-h-0 flex-col rounded-2xl p-3">
-      <div className="flex items-center justify-between gap-2">
+    <section className="notch-card motif-card relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl p-3">
+      <CardArt
+        variant="flow"
+        className="pointer-events-none absolute bottom-2 right-2 h-[150px] w-[150px]"
+      />
+
+      <div className="relative flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.06] accent-text">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--aether-fill)] accent-text">
             <ListChecks size={14} />
           </span>
           <div>
-            <h3 className="text-[12px] font-semibold text-[#f2efe7]">Tasks</h3>
-            <p className="text-[9px] text-[#777168]">
+            <h3 className="text-[13px] font-semibold text-[var(--aether-text-1)]">Tasks</h3>
+            <p className="text-[10px] text-[var(--aether-text-3)]">
               {workTasks.length} {workTasks.length === 1 ? 'task' : 'tasks'} in your flow
             </p>
           </div>
@@ -86,38 +92,35 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             type="button"
             onClick={onRefresh}
             aria-label="Refresh tasks"
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8f897d] transition hover:bg-white/10 hover:text-white"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
           >
             <RefreshCw size={13} />
           </button>
           <button
             type="button"
             onClick={openNew}
-            className="accent-fill flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold"
+            className="accent-fill flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold"
           >
             <Plus size={12} /> New task
           </button>
         </div>
       </div>
 
-      <div className="mt-2 flex items-center gap-1 border-b border-white/[0.055] pb-2">
+      <div className="relative mt-2 flex items-center gap-1 border-b border-[var(--aether-line-soft)] pb-2">
         {FILTERS.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setFilter(item.id)}
-            className={`rounded-full px-2.5 py-1 text-[9.5px] transition ${
+            className={`rounded-full px-2.5 py-1 text-[11px] transition ${
               filter === item.id
-                ? 'bg-white/[0.09] text-white'
-                : 'text-[#8f897d] hover:bg-white/[0.05] hover:text-white'
+                ? 'bg-[var(--aether-fill-2)] text-[var(--aether-text-1)]'
+                : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
             }`}
           >
             {item.label}
           </button>
         ))}
-        <span className="ml-auto text-[9px] text-[#6f6a61]">
-          One-time tasks use a checkmark · recurring tasks pause/resume
-        </span>
       </div>
 
       {formOpen ? (
@@ -148,18 +151,18 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
             />
           ))
         ) : (
-          <div className="flex h-full min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-white/10 p-6 text-center">
-            <CalendarClock size={22} className="text-[#6f6a61]" />
-            <p className="mt-2 text-[11px] font-medium text-[#b8b2a7]">
+          <div className="flex h-full min-h-[180px] flex-col items-center justify-center rounded-xl border border-dashed border-[var(--aether-line)] p-6 text-center">
+            <CalendarClock size={22} className="text-[var(--aether-text-3)]" />
+            <p className="mt-2 text-[11px] font-medium text-[var(--aether-text-1)]">
               {workTasks.length ? 'Nothing in this filter' : 'A clear runway'}
             </p>
-            <p className="mt-1 max-w-[260px] text-[9.5px] leading-relaxed text-[#777168]">
+            <p className="mt-1 max-w-[260px] text-[9.5px] leading-relaxed text-[var(--aether-text-3)]">
               Add a task manually, or ask Aether to schedule one in plain language.
             </p>
             <button
               type="button"
               onClick={openNew}
-              className="mt-3 rounded-lg bg-white/[0.07] px-2.5 py-1.5 text-[10px] text-white transition hover:bg-white/12"
+              className="mt-3 rounded-lg bg-[var(--aether-fill-2)] px-2.5 py-1.5 text-[10px] text-[var(--aether-text-1)] transition hover:bg-white/12"
             >
               Add your first task
             </button>

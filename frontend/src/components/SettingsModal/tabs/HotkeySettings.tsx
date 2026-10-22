@@ -113,13 +113,13 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
   return (
     <div className="flex flex-col gap-2 text-xs">
       <div className="mb-1 flex items-start justify-between gap-3">
-        <p className="text-[11px] leading-relaxed text-[#8b8b8b]">
+        <p className="text-[11px] leading-relaxed text-[var(--aether-text-3)]">
           Click a shortcut, then press the new keys. Changes take effect immediately after
           Save &amp; Apply.
         </p>
         <button
           onClick={reset}
-          className="flex shrink-0 items-center gap-1 rounded-md border border-white/10 bg-[#2b2b2b] px-2 py-1 text-[10px] text-[#c7c7c7] transition hover:bg-[#383838] hover:text-white"
+          className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1 text-[10px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-surface-5)] hover:text-[var(--aether-text-1)]"
         >
           <RotateCcw size={11} />
           Reset
@@ -131,15 +131,15 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
         return (
           <div
             key={row.key}
-            className="flex items-center justify-between rounded-md border border-white/10 bg-[#2b2b2b] p-2.5"
+            className="flex items-center justify-between rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] p-2.5"
           >
-            <span className="font-medium text-[#f3f3f3]">{row.label}</span>
+            <span className="font-medium text-[var(--aether-text-1)]">{row.label}</span>
             <button
               onClick={() => setRecording(isRecording ? null : row.key)}
               className={`flex min-w-[138px] items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[11px] transition ${
                 isRecording
-                  ? 'border-[#0067C0] bg-[#0067C0]/15 text-[#9dd5ff]'
-                  : 'border-white/10 bg-[#202020] text-[#9dd5ff] hover:border-[#0067C0]/60'
+                  ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/15 text-[var(--aether-accent-text)]'
+                  : 'border-[var(--aether-line)] bg-[var(--aether-surface-3)] text-[var(--aether-accent-text)] hover:border-[var(--aether-accent)]/60'
               }`}
             >
               {isRecording ? (
@@ -155,10 +155,11 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
         );
       })}
 
-      <p className="mt-1 text-[10px] text-[#8b8b8b]">
+      <p className="mt-1 text-[10px] text-[var(--aether-text-3)]">
         Tip: Radial Wheel accepts Ctrl, Shift, or Alt as the drag modifier. Other actions
         require a main key such as Space, A–Z, or F1–F12.
       </p>
     </div>
   );
 };
+

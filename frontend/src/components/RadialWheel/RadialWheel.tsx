@@ -160,24 +160,24 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
           onClick={activateCore}
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-4 text-center"
         >
-          <div className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-[#60cdff]">
+          <div className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-[var(--aether-accent-text)]">
             <Sparkles size={10} />
             <span>{activeRing === 'format' ? 'FORMAT' : 'UTILITY'}</span>
           </div>
-          <div className="mt-0.5 max-w-[118px] truncate text-[12px] font-bold text-white">
+          <div className="mt-0.5 max-w-[118px] truncate text-[12px] font-bold text-[var(--aether-text-1)]">
             {activeLabel}
           </div>
-          <div className="mt-0.5 max-w-[86px] truncate text-[9px] text-[#c7c7c7]">
+          <div className="mt-0.5 max-w-[86px] truncate text-[9px] text-[var(--aether-text-2)]">
             {data.file_path.split(/[\\/]/).pop()}
           </div>
-          <div className="mt-0.5 text-[9px] text-[#8b8b8b]">
+          <div className="mt-0.5 text-[9px] text-[var(--aether-text-3)]">
             {coreHighlighted ? 'Release to cancel' : 'Release on a slice'}
           </div>
         </div>
 
         <button
           onClick={() => setActiveRing(activeRing === 'format' ? 'utility' : 'format')}
-          className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-white/10 bg-[#2b2b2b]/95 px-2.5 py-1 text-[9px] font-medium text-[#c7c7c7] transition hover:bg-[#383838] hover:text-white"
+          className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2.5 py-1 text-[9px] font-medium text-[var(--aether-text-2)] transition hover:bg-[var(--aether-surface-5)] hover:text-[var(--aether-text-1)]"
           title="Switch action ring"
         >
           <Repeat2 size={10} />
@@ -186,7 +186,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
 
         <button
           onClick={onClose}
-          className="absolute right-1 top-1 rounded-full bg-[#2b2b2b] p-1 text-[#8b8b8b] transition hover:text-white"
+          className="absolute right-1 top-1 rounded-full bg-[var(--aether-surface-1)] p-1 text-[var(--aether-text-3)] transition hover:text-[var(--aether-text-1)]"
         >
           <X size={14} />
         </button>

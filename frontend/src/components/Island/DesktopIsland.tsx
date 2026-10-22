@@ -1,15 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type {
   AppearanceConfig,
   AttachmentItem,
+  AudioOutputDevice,
   BluetoothDeviceInfo,
   ChatTurn,
   ClockConfig,
   DashboardTabId,
+  DisplayInfo,
   MediaControlAction,
   MediaSnapshot,
   ModelStatus,
   ScheduledTask,
+  SpeedTestResult,
   SystemStats,
   TaskInput,
   TaskbarPinnedApp,
@@ -18,14 +21,16 @@ import type {
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
 import { pickNativePath } from '../../lib/system';
-import { DashboardTabs } from './DashboardTabs';
-import { IslandTabContent } from './IslandTabContent';
+import { IslandBody } from './IslandBody';
 import { NotchShell } from './NotchShell';
 import { visibleTabIds } from './appearance';
+import { TAB_WIDTH } from './tabSizes';
 import { useClockTools } from './useClockTools';
 
 interface DesktopIslandProps {
   systemStats: SystemStats | null;
+  speedTest: SpeedTestResult | null;
+  onRunSpeedTest: () => void;
   chatHistory: ChatTurn[];
   chatPending: string | null;
   attachments: AttachmentItem[];
@@ -35,6 +40,8 @@ interface DesktopIslandProps {
   clockConfig: ClockConfig;
   wifiProfiles: WifiProfile[];
   bluetoothDevices: BluetoothDeviceInfo[];
+  audioDevices: AudioOutputDevice[];
+  displayInfo: DisplayInfo | null;
   notes: NotesApi;
   model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
   isExpanded: boolean;
@@ -66,6 +73,8 @@ interface DesktopIslandProps {
   onConnectWifi: (profile: string) => void;
   onDisconnectWifi: () => void;
   onRefreshBluetoothDevices: () => void;
+  onRefreshAudioDevices: () => void;
+  onSelectAudioDevice: (deviceId: string) => void;
   onOpenSettingsPage: (page: string) => void;
   appearance: AppearanceConfig;
   peekEnabled?: boolean;
@@ -78,6 +87,8 @@ interface DesktopIslandProps {
 
 export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   systemStats,
+  speedTest,
+  onRunSpeedTest,
   chatHistory,
   chatPending,
   attachments,
@@ -87,6 +98,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   clockConfig,
   wifiProfiles,
   bluetoothDevices,
+  audioDevices,
+  displayInfo,
   notes,
   model,
   isExpanded,
@@ -118,6 +131,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onConnectWifi,
   onDisconnectWifi,
   onRefreshBluetoothDevices,
+  onRefreshAudioDevices,
+  onSelectAudioDevice,
   onOpenSettingsPage,
   appearance,
   peekEnabled = true,
@@ -131,6 +146,14 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   const clockTools = useClockTools();
   const tabs = visibleTabIds(appearance);
   const effectiveTab = tabs.includes(activeTab) ? activeTab : tabs[0] ?? 'controls';
+  const [contentHeight, setContentHeight] = useState(0);
+  const [tabsWidth, setTabsWidth] = useState(0);
+  const handleMeasured = useCallback((height: number) => {
+    setContentHeight((previous) => (Math.abs(previous - height) > 0.5 ? height : previous));
+  }, []);
+  const handleTabsWidth = useCallback((width: number) => {
+    setTabsWidth((previous) => (Math.abs(previous - width) > 0.5 ? width : previous));
+  }, []);
 
   useEffect(() => {
     if (!askRequest) return;
@@ -175,65 +198,80 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
         media={media}
         onLaunchApp={onLaunchTaskbarApp}
         onManageApps={onManageTaskbarApps}
-        onMediaControl={onMediaControl}
         onOpenSettings={onOpenSettings}
         onKill={onKillApp}
+        tabWidth={TAB_WIDTH[effectiveTab] ?? 960}
+        tabsWidth={tabsWidth}
+        contentHeight={contentHeight}
       >
-        <DashboardTabs tabs={tabs} activeTab={effectiveTab} onSelect={selectTab} />
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <IslandTabContent
-            tab={effectiveTab}
-            systemStats={systemStats}
-            controls={{
-              stats: systemStats,
-              wifiProfiles,
-              bluetoothDevices,
-              onSetVolume,
-              onSetMuted,
-              onSetBrightness,
-              onToggleWifi,
-              onToggleBluetooth,
-              onToggleAirplaneMode,
-              onToggleHotspot,
-              onToggleDarkMode,
-              onRefreshWifiProfiles,
-              onConnectWifi,
-              onDisconnectWifi,
-              onRefreshBluetoothDevices,
-              onOpenSettingsPage,
-            }}
-            chat={{
-              history: chatHistory,
-              pending: chatPending,
-              attachments,
-              focusToken: askRequest?.id ?? 0,
-              model,
-              notes,
-              onBrowseFiles: browseForAsk,
-              onSend: onSendMessage,
-              onDetach: onDetachFile,
-              onOpenSessions,
-            }}
-            clock={{
-              tasks,
-              weather,
-              clockConfig,
-              clockTools,
-              onRefreshTasks,
-              onCreateTask,
-              onUpdateTask,
-              onDeleteTask,
-              onCompleteTask,
-              onPauseTask,
-              onResumeTask,
-              onSaveWeather,
-              onRefreshWeather,
-              onAskAether: askAether,
-            }}
-            notes={tabNotes}
-          />
-        </div>
+        <IslandBody
+          tabs={tabs}
+          activeTab={effectiveTab}
+          onSelectTab={selectTab}
+          systemStats={systemStats}
+          speedTest={speedTest}
+          onRunSpeedTest={onRunSpeedTest}
+          controls={{
+            stats: systemStats,
+            wifiProfiles,
+            bluetoothDevices,
+            audioDevices,
+            displayInfo,
+            glowStyle: appearance.glow_style,
+            glowColor: appearance.glow_color,
+            onSetVolume,
+            onSetMuted,
+            onSetBrightness,
+            onToggleWifi,
+            onToggleBluetooth,
+            onToggleAirplaneMode,
+            onToggleHotspot,
+            onToggleDarkMode,
+            onRefreshWifiProfiles,
+            onConnectWifi,
+            onDisconnectWifi,
+            onRefreshBluetoothDevices,
+            onRefreshAudioDevices,
+            onSelectAudioDevice,
+            onOpenSettingsPage,
+            media,
+            onMediaControl,
+          }}
+          chat={{
+            history: chatHistory,
+            pending: chatPending,
+            attachments,
+            focusToken: askRequest?.id ?? 0,
+            model,
+            notes,
+            onBrowseFiles: browseForAsk,
+            onSend: onSendMessage,
+            onDetach: onDetachFile,
+            onOpenSessions,
+          }}
+          clock={{
+            tasks,
+            weather,
+            clockConfig,
+            clockTools,
+            onRefreshTasks,
+            onCreateTask,
+            onUpdateTask,
+            onDeleteTask,
+            onCompleteTask,
+            onPauseTask,
+            onResumeTask,
+            onSaveWeather,
+            onRefreshWeather,
+            onAskAether: askAether,
+          }}
+          notes={tabNotes}
+          onMeasured={handleMeasured}
+          onTabsWidth={handleTabsWidth}
+        />
       </NotchShell>
     </div>
   );
 };
+
+

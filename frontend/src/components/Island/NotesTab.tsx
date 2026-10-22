@@ -33,7 +33,7 @@ interface Draft {
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
 const ICON_BUTTON =
-  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[#d7d7d7] transition hover:bg-white/10 hover:text-white disabled:cursor-default disabled:opacity-40';
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--aether-line)] bg-[var(--aether-fill)] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:cursor-default disabled:opacity-40';
 
 export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
   const apiRef = useRef(notes);
@@ -295,11 +295,11 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
             setListOpen((open) => !open);
           }}
           disabled={!current && !hasNotes}
-          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 text-[11px] text-[#f3f3f3] transition hover:bg-white/10 disabled:cursor-default disabled:opacity-50"
+          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2 text-[11px] text-[var(--aether-text-1)] transition hover:bg-[var(--aether-fill-2)] disabled:cursor-default disabled:opacity-50"
         >
-          <StickyNote size={12} className="shrink-0 text-[#8b8b8b]" />
+          <StickyNote size={12} className="shrink-0 text-[var(--aether-text-3)]" />
           <span className="truncate">{current ? title || 'Untitled note' : 'Notes'}</span>
-          <ChevronDown size={12} className="ml-auto shrink-0 text-[#8b8b8b]" />
+          <ChevronDown size={12} className="ml-auto shrink-0 text-[var(--aether-text-3)]" />
         </button>
         <button type="button" onClick={createNote} title="New note" className={ICON_BUTTON}>
           <Plus size={14} />
@@ -333,11 +333,11 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
             <MoreHorizontal size={14} />
           </button>
           {menuOpen && current ? (
-            <div className="absolute right-0 top-9 z-30 w-44 rounded-lg border border-white/15 bg-[#232323]/98 p-1 shadow-2xl backdrop-blur-xl">
+            <div className="absolute right-0 top-9 z-30 w-44 rounded-lg border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] p-1 shadow-2xl backdrop-blur-xl">
               <button
                 type="button"
                 onClick={togglePin}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[#d7d7d7] transition hover:bg-white/10 hover:text-white"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
               >
                 {draftRef.current.pinned ? <PinOff size={12} /> : <Pin size={12} />}
                 {draftRef.current.pinned ? 'Unpin note' : 'Pin note'}
@@ -345,12 +345,12 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
               <button
                 type="button"
                 onClick={attachCurrent}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[#d7d7d7] transition hover:bg-white/10 hover:text-white"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
               >
                 <MessageSquarePlus size={12} />
                 Attach to chat
               </button>
-              <div className="my-1 h-px bg-white/10" />
+              <div className="my-1 h-px bg-[var(--aether-fill-2)]" />
               <button
                 type="button"
                 onClick={deleteCurrent}
@@ -370,8 +370,8 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
           />
         ) : null}
         {themeOpen && current ? (
-          <div className="absolute right-0 top-9 z-30 max-h-[330px] w-48 overflow-y-auto rounded-lg border border-white/15 bg-[#232323]/98 p-1 shadow-2xl backdrop-blur-xl">
-            <p className="px-2 py-1 text-[9px] uppercase tracking-wider text-[#8b8b8b]">
+          <div className="absolute right-0 top-9 z-30 max-h-[330px] w-48 overflow-y-auto rounded-lg border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] p-1 shadow-2xl backdrop-blur-xl">
+            <p className="px-2 py-1 text-[9px] uppercase tracking-wider text-[var(--aether-text-3)]">
               Note theme
             </p>
             {NOTE_THEMES.map((option) => (
@@ -381,8 +381,8 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
                 onClick={() => handleTheme(option.id)}
                 className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] transition ${
                   option.id === theme
-                    ? 'bg-white/15 text-white'
-                    : 'text-[#d7d7d7] hover:bg-white/10'
+                    ? 'bg-[var(--aether-fill-3)] text-[var(--aether-text-1)]'
+                    : 'text-[var(--aether-text-2)] hover:bg-[var(--aether-fill-2)]'
                 }`}
               >
                 <span
@@ -395,7 +395,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
                 />
                 <span className="truncate">{option.label}</span>
                 {option.id === theme ? (
-                  <Check size={11} className="ml-auto shrink-0 text-[#60cdff]" />
+                  <Check size={11} className="ml-auto shrink-0 text-[var(--aether-accent-text)]" />
                 ) : null}
               </button>
             ))}
@@ -417,7 +417,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
             className="note-title-input w-full bg-transparent px-3 pt-2.5 pb-1 text-[13px] font-semibold outline-none"
           />
           {awaitingContent ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-10 text-[#8b8b8b]">
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-[var(--aether-text-3)]">
               <Loader2 size={16} className="animate-spin" />
               <p className="text-[10px]">Opening note…</p>
             </div>
@@ -430,23 +430,23 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 px-4 py-8 text-center">
+        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--aether-line)] px-4 py-8 text-center">
           {hasNotes ? (
             <>
-              <Loader2 size={16} className="animate-spin text-[#8b8b8b]" />
-              <p className="text-[10px] text-[#8b8b8b]">Opening note…</p>
+              <Loader2 size={16} className="animate-spin text-[var(--aether-text-3)]" />
+              <p className="text-[10px] text-[var(--aether-text-3)]">Opening note…</p>
             </>
           ) : (
             <>
-              <StickyNote size={20} className="text-[#6f6f6f]" />
-              <p className="text-[11px] text-[#c7c7c7]">No notes yet</p>
-              <p className="text-[10px] text-[#8b8b8b]">
+              <StickyNote size={20} className="text-[var(--aether-text-3)]" />
+              <p className="text-[11px] text-[var(--aether-text-2)]">No notes yet</p>
+              <p className="text-[10px] text-[var(--aether-text-3)]">
                 Notes are plain Markdown files in your vault.
               </p>
               <button
                 type="button"
                 onClick={createNote}
-                className="mt-1 flex items-center gap-1.5 rounded-md bg-[#0067C0] px-2.5 py-1 text-[10px] font-medium text-white transition hover:bg-[#0078D4]"
+                className="accent-fill mt-1 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-medium transition"
               >
                 <Plus size={11} />
                 New note
@@ -456,7 +456,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
         </div>
       )}
 
-      <div className="flex items-center justify-between px-0.5 text-[9px] text-[#8b8b8b]">
+      <div className="flex items-center justify-end gap-3 px-0.5 text-[9px] text-[var(--aether-text-3)]">
         <span className="flex items-center gap-1">
           {status === 'saving' ? (
             <>

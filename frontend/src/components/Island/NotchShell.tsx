@@ -1,11 +1,20 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { AppearanceConfig, MediaControlAction, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
+import type { AppearanceConfig, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
 import { appearanceCssVars } from './appearance';
-import { MediaWidget } from './MediaWidget';
 import { NotchHeader } from './NotchHeader';
 import { NotchIdle } from './NotchIdle';
 import { NotchPeek } from './NotchPeek';
+import { computePeekLayout } from './peekLayout';
+import {
+  CONTENT_PADDING,
+  HEADER_HEIGHT,
+  MAX_ISLAND_WIDTH,
+  MIN_ISLAND_HEIGHT,
+  MIN_ISLAND_WIDTH,
+  SHELL_BORDER,
+  TABS_HEIGHT,
+} from './tabSizes';
 
 interface NotchShellProps {
   isExpanded: boolean;
@@ -16,9 +25,14 @@ interface NotchShellProps {
   media: MediaSnapshot | null;
   onLaunchApp: (app: TaskbarPinnedApp) => void;
   onManageApps: () => void;
-  onMediaControl: (action: MediaControlAction) => void;
   onOpenSettings: () => void;
   onKill: () => void;
+  /** Width the active tab wants, in pixels. */
+  tabWidth: number;
+  /** Width the tab strip needs, so the shell never clips a tab label. */
+  tabsWidth: number;
+  /** Height of the rendered tab body, in pixels. */
+  contentHeight: number;
   children: React.ReactNode;
 }
 
@@ -31,9 +45,11 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   media,
   onLaunchApp,
   onManageApps,
-  onMediaControl,
   onOpenSettings,
   onKill,
+  tabWidth,
+  tabsWidth,
+  contentHeight,
   children,
 }) => {
   const [now, setNow] = useState(() => new Date());
@@ -102,13 +118,40 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   };
 
   const compactWidth = mediaActive ? 176 : 140;
+  // The peek grows with the number of apps rather than scrolling.
+  const peekLayout = useMemo(
+    () => computePeekLayout(apps.length, viewport.width),
+    [apps.length, viewport.width]
+  );
+  // The expanded island sizes itself to the active tab: the width the tab
+  // asks for, and the height its content actually needed. It is never
+  // narrower than the tab strip, or the tab labels would start wrapping.
+  const expandedWidth = Math.max(
+    MIN_ISLAND_WIDTH,
+    Math.min(
+      Math.max(tabWidth, tabsWidth),
+      MAX_ISLAND_WIDTH,
+      viewport.width - 32
+    )
+  );
+  const expandedHeight = Math.max(
+    MIN_ISLAND_HEIGHT,
+    Math.min(
+      HEADER_HEIGHT +
+        TABS_HEIGHT +
+        SHELL_BORDER +
+        contentHeight +
+        CONTENT_PADDING,
+      viewport.height - 16
+    )
+  );
   const width = isExpanded
-    ? Math.min(1200, viewport.width - 32)
+    ? expandedWidth
     : peek
-      ? Math.min(520, viewport.width - 24)
+      ? peekLayout.width
       : compactWidth;
   const height = isExpanded
-    ? Math.min(680, viewport.height - 16)
+    ? expandedHeight
     : peek
       ? 48
       : 36;
@@ -133,15 +176,16 @@ export const NotchShell: React.FC<NotchShellProps> = ({
           setPeek(false);
         }
       }}
-      className="notch-surface relative z-50 flex flex-col overflow-hidden text-white"
+      className="notch-surface aether-grain aether-pop relative z-50 flex flex-col overflow-hidden text-[var(--aether-text-1)]"
       style={{
         ...appearanceCssVars(appearance),
         '--notch-alpha': isExpanded
           ? appearance.island_opacity
           : appearance.pill_opacity,
-        '--notch-blur': `${
-          isExpanded ? appearance.island_blur : appearance.pill_blur
-        }px`,
+        // The pill and the island carry their own grain and pop depth, so the
+        // surface keeps its own identity as it grows.
+        '--aether-grain': isExpanded ? appearance.island_grain : appearance.pill_grain,
+        '--aether-pop': isExpanded ? appearance.island_pop : appearance.pill_pop,
       } as React.CSSProperties}
     >
       {isExpanded ? (
@@ -154,17 +198,10 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         >
           <NotchHeader
             now={now}
-            mediaActive={mediaActive}
-            spotify={spotify}
             onOpenSettings={onOpenSettings}
             onKill={onKill}
             onClose={close}
           />
-          {media?.has_session ? (
-            <div className="shrink-0 border-b border-white/[0.065] px-4 py-2">
-              <MediaWidget media={media} onControl={onMediaControl} compact />
-            </div>
-          ) : null}
           {children}
         </motion.div>
       ) : (
@@ -178,7 +215,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
           {peek ? (
             <NotchPeek
               now={now}
-              width={width}
+              layout={peekLayout}
               apps={apps}
               mediaActive={mediaActive}
               spotify={spotify}

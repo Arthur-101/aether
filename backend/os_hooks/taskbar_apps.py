@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .shell_icons import icon_data_uri
+from .taskbar_icons import resolve_icon, split_icon_location, target_from_icon
 from .taskbar_launch import normalize_path, running_snapshot
 from .taskbar_order import pinned_shortcut_order
 from .window_apps import app_id_from_arguments
@@ -36,20 +37,6 @@ def pinned_folder() -> Optional[Path]:
     if not appdata:
         return None
     return Path(appdata).joinpath(*_PIN_PARTS)
-
-
-def split_icon_location(value: str) -> Tuple[str, int]:
-    """Splits a shell IconLocation into its path and resource index."""
-    raw = os.path.expandvars((value or "").strip().strip('"'))
-    if not raw:
-        return "", 0
-    head, sep, tail = raw.rpartition(",")
-    if sep:
-        try:
-            return head.strip().strip('"'), int(tail.strip())
-        except ValueError:
-            pass
-    return raw, 0
 
 
 def _shortcut_details(path: Path) -> Dict[str, str]:
@@ -84,26 +71,6 @@ def _display_name(source: Path, configured: str = "") -> str:
     return (source.stem or source.name).strip()[:120]
 
 
-def _resolve_icon(source: Path, target: str, icon_location: str) -> Optional[str]:
-    icon_path, icon_index = split_icon_location(icon_location)
-    candidates: List[Path] = []
-    if icon_path:
-        candidates.append(Path(icon_path))
-    if target:
-        candidates.append(Path(target))
-    candidates.append(source)
-    seen = set()
-    for candidate in candidates:
-        key = os.path.normcase(str(candidate))
-        if key in seen:
-            continue
-        seen.add(key)
-        uri = icon_data_uri(str(candidate), icon_index if candidate == candidates[0] else 0)
-        if uri:
-            return uri
-    return None
-
-
 def _running_state(
     target: str,
     paths: set[str],
@@ -119,16 +86,18 @@ def _running_state(
         )
     if not target:
         return None
-    if Path(target).name.lower() == "explorer.exe":
-        # explorer.exe is always present; only a folder window would prove the
-        # pinned File Explorer entry is running. Omit rather than lie.
-        return None
     normalized = normalize_path(target)
     if window_state is not None:
         windows = window_state.get("by_exe", {}).get(normalized, [])
         if windows:
             # A browser running only a web-app window is not the browser pin.
+            # A real browser window (tab strip) counts, even when the process
+            # also hosts a web app.
             return any(not window.get("pwa") for window in windows)
+    if Path(target).name.lower() == "explorer.exe":
+        # explorer.exe is always running as the shell; only a folder window
+        # proves the pinned File Explorer entry is in use. Omit rather than lie.
+        return None
     if normalized in paths:
         return True
     if Path(target).stem.lower() in names:
@@ -150,6 +119,10 @@ def _entry(
     target = details.get("target", "") if expanded.suffix.lower() == ".lnk" else str(expanded)
     icon_location = details.get("icon", "")
     arguments = details.get("arguments", "")
+    if not target:
+        # Some shell shortcuts carry no target and only name their icon path.
+        # The icon path is the real executable, so it can stand in.
+        target = target_from_icon(icon_location)
     web_app_id = app_id_from_arguments(arguments)
     missing = not expanded.exists() or bool(
         target and not Path(target).exists()
@@ -177,7 +150,7 @@ def _entry(
     if web_app_id:
         entry["app_id"] = web_app_id
     if with_icon:
-        entry["icon"] = _resolve_icon(expanded, target, icon_location)
+        entry["icon"] = resolve_icon(expanded, target, icon_location)
     return entry
 
 

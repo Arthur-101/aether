@@ -20,16 +20,24 @@ export function formatStopwatch(ms: number): string {
 }
 
 export function nextAlarm(tasks: ScheduledTask[]): ScheduledTask | null {
+  return upcomingAlarms(tasks, 1)[0] ?? null;
+}
+
+export function upcomingAlarms(
+  tasks: ScheduledTask[],
+  limit = 4
+): ScheduledTask[] {
   const alarms = tasks.filter(
     (task) => task.kind === 'alarm' && task.status !== 'paused'
   );
-  const withTimes = alarms
+  return alarms
     .map((task) => ({
       task,
       time: task.next_run_at ? new Date(task.next_run_at).getTime() : Infinity,
     }))
-    .sort((a, b) => a.time - b.time);
-  return withTimes[0]?.task ?? null;
+    .sort((a, b) => a.time - b.time)
+    .slice(0, limit)
+    .map((entry) => entry.task);
 }
 
 export function alarmLabel(task: ScheduledTask | null): string {

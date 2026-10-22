@@ -5,12 +5,18 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Dict, Set, Tuple
 
 import psutil
 
 from .window_apps import matching_windows
+from .window_focus import (
+    explorer_windows,
+    focus_window,
+    window_handles,
+)
 
 logger = logging.getLogger("aether.taskbar.launch")
 
@@ -40,60 +46,41 @@ def running_snapshot() -> Tuple[Set[str], Set[str]]:
     return paths, names
 
 
-def _focus_window(hwnd: int) -> None:
-    """Best-effort foreground activation, including the thread-attach fallback."""
-    try:
-        import win32api
-        import win32con
-        import win32gui
-        import win32process
-    except ImportError:
-        return
-
-    try:
-        if win32gui.IsIconic(hwnd):
-            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-        win32gui.BringWindowToTop(hwnd)
-        win32gui.SetForegroundWindow(hwnd)
-        if win32gui.GetForegroundWindow() == hwnd:
-            return
-
-        foreground = win32gui.GetForegroundWindow()
-        foreground_thread, _ = win32process.GetWindowThreadProcessId(foreground)
-        target_thread, _ = win32process.GetWindowThreadProcessId(hwnd)
-        current_thread = win32api.GetCurrentThreadId()
-        attached = []
-        try:
-            if foreground_thread and foreground_thread != current_thread:
-                win32process.AttachThreadInput(current_thread, foreground_thread, True)
-                attached.append(foreground_thread)
-            if target_thread and target_thread not in attached:
-                win32process.AttachThreadInput(current_thread, target_thread, True)
-                attached.append(target_thread)
-            win32gui.BringWindowToTop(hwnd)
-            win32gui.SetForegroundWindow(hwnd)
-            win32gui.SetActiveWindow(hwnd)
-            win32gui.SetFocus(hwnd)
-        finally:
-            for thread in attached:
-                try:
-                    win32process.AttachThreadInput(current_thread, thread, False)
-                except Exception:
-                    pass
-    except Exception as exc:
-        logger.debug("Window focus failed: %s", exc)
-
-
 def focus_existing(target: str, app_id: str = "") -> bool:
     """Brings an already-running app forward. Returns True when focused."""
-    if not app_id and (
-        not target or Path(target).name.lower() == "explorer.exe"
-    ):
+    if not app_id and Path(target).name.lower() == "explorer.exe":
+        # The pinned File Explorer entry resolves to no target, so match the
+        # open folder windows directly instead of always opening a new one.
+        for hwnd in explorer_windows():
+            focus_window(hwnd)
+            return True
+        return False
+    if not app_id and not target:
         return False
     for window in matching_windows(target, app_id):
-        _focus_window(int(window["hwnd"]))
+        focus_window(int(window["hwnd"]))
         return True
     return False
+
+
+def _raise_new_window(
+    before: set[int], target: str, app_id: str, timeout: float = 3.0
+) -> None:
+    """Raises the window a just-launched app opened.
+
+    A background process has no foreground rights, so a newly opened window
+    lands behind whatever is on top. This waits for the app's own new window
+    and pulls it forward, which is what a taskbar click is expected to do.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for window in matching_windows(target, app_id):
+            hwnd = int(window["hwnd"])
+            if hwnd in before:
+                continue
+            focus_window(hwnd)
+            return
+        time.sleep(0.15)
 
 
 def launch_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
@@ -109,6 +96,7 @@ def launch_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     if (app_id or target) and focus_existing(target, app_id):
         return {"ok": True, "action": "focused", "message": "Brought the app forward."}
 
+    before = window_handles()
     try:
         if path.lower().endswith((".lnk", ".url")):
             # Windows resolves shortcut arguments and launch verbs safely.
@@ -125,4 +113,6 @@ def launch_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as exc:
         logger.warning("Could not launch %s: %s", path, exc)
         return {"ok": False, "message": f"Windows could not launch {entry.get('name') or path}."}
+
+    _raise_new_window(before, target, app_id)
     return {"ok": True, "action": "launched", "message": "App launched."}

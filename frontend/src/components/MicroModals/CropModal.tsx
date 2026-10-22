@@ -45,24 +45,24 @@ export const CropModal: React.FC<CropModalProps> = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="glass-panel w-[460px] rounded-2xl p-5 shadow-2xl flex flex-col gap-4 border border-white/10"
+          className="glass-panel w-[460px] rounded-2xl p-5 shadow-2xl flex flex-col gap-4 border border-[var(--aether-line)]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between pb-2 border-b border-white/5">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--aether-line-soft)]">
             <div className="flex items-center gap-2">
               <Crop size={18} className="text-orange-400" />
-              <h3 className="text-sm font-semibold text-white">Crop Image</h3>
+              <h3 className="text-sm font-semibold text-[var(--aether-text-1)]">Crop Image</h3>
             </div>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition"
+              className="p-1 rounded-lg text-slate-400 hover:text-[var(--aether-text-1)] hover:bg-[var(--aether-fill)] transition"
             >
               <X size={16} />
             </button>
           </div>
 
           {/* Canvas Area Preview */}
-          <div className="h-56 bg-slate-950/80 rounded-xl border border-white/5 flex items-center justify-center relative overflow-hidden">
+          <div className="h-56 bg-slate-950/80 rounded-xl border border-[var(--aether-line-soft)] flex items-center justify-center relative overflow-hidden">
             <div className="w-48 h-36 border-2 border-orange-400/80 rounded shadow-lg relative flex items-center justify-center">
               <span className="text-[11px] text-orange-200/90 font-mono">
                 {width} × {height} ({aspectRatio})
@@ -87,8 +87,8 @@ export const CropModal: React.FC<CropModalProps> = ({
                   onClick={() => handleRatioSelect(r)}
                   className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
                     aspectRatio === r
-                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                      : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                      ? 'bg-orange-500 text-[var(--aether-text-1)] shadow-md shadow-orange-500/20'
+                      : 'bg-[var(--aether-fill)] text-slate-300 hover:bg-[var(--aether-fill-2)]'
                   }`}
                 >
                   {r}
@@ -105,7 +105,7 @@ export const CropModal: React.FC<CropModalProps> = ({
                 type="number"
                 value={width}
                 onChange={(e) => setWidth(Number(e.target.value))}
-                className="w-full mt-1 bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                className="w-full mt-1 bg-slate-900 border border-[var(--aether-line)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--aether-text-1)] focus:outline-none focus:border-orange-500"
               />
             </div>
             <div>
@@ -114,16 +114,16 @@ export const CropModal: React.FC<CropModalProps> = ({
                 type="number"
                 value={height}
                 onChange={(e) => setHeight(Number(e.target.value))}
-                className="w-full mt-1 bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                className="w-full mt-1 bg-slate-900 border border-[var(--aether-line)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--aether-text-1)] focus:outline-none focus:border-orange-500"
               />
             </div>
           </div>
 
           {/* Footer CTAs */}
-          <div className="flex items-center justify-between pt-2 border-t border-white/5">
+          <div className="flex items-center justify-between pt-2 border-t border-[var(--aether-line-soft)]">
             <button
               onClick={handleReset}
-              className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white flex items-center gap-1 transition"
+              className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-[var(--aether-text-1)] flex items-center gap-1 transition"
             >
               <RotateCcw size={14} />
               <span>Reset</span>
@@ -133,7 +133,7 @@ export const CropModal: React.FC<CropModalProps> = ({
                 onApply(filePath, width, height, aspectRatio);
                 onClose();
               }}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 text-white text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 shadow-lg shadow-orange-500/20 transition"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 text-[var(--aether-text-1)] text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 shadow-lg shadow-orange-500/20 transition"
             >
               <Check size={14} />
               <span>Apply Crop</span>

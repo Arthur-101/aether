@@ -31,20 +31,20 @@ export const NoteListPopover: React.FC<NoteListPopoverProps> = ({
   }, [notes, query]);
 
   return (
-    <div className="absolute left-0 right-0 top-9 z-30 overflow-hidden rounded-lg border border-white/15 bg-[#232323]/98 shadow-2xl backdrop-blur-xl">
-      <div className="flex items-center gap-1.5 border-b border-white/10 px-2 py-1.5">
-        <Search size={12} className="shrink-0 text-[#8b8b8b]" />
+    <div className="absolute left-0 right-0 top-9 z-30 overflow-hidden rounded-lg border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] shadow-2xl backdrop-blur-xl">
+      <div className="flex items-center gap-1.5 border-b border-[var(--aether-line)] px-2 py-1.5">
+        <Search size={12} className="shrink-0 text-[var(--aether-text-3)]" />
         <input
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search notes"
-          className="w-full bg-transparent text-[11px] text-white outline-none placeholder:text-[#7a7a7a]"
+          className="w-full bg-transparent text-[11px] text-[var(--aether-text-1)] outline-none placeholder:text-[var(--aether-text-3)]"
         />
       </div>
       <div className="max-h-[210px] overflow-y-auto p-1">
         {filtered.length === 0 ? (
-          <p className="px-2 py-3 text-center text-[10px] text-[#8b8b8b]">
+          <p className="px-2 py-3 text-center text-[10px] text-[var(--aether-text-3)]">
             {notes.length === 0 ? 'No notes yet' : 'No matches'}
           </p>
         ) : (
@@ -55,17 +55,17 @@ export const NoteListPopover: React.FC<NoteListPopoverProps> = ({
               onClick={() => onSelect(note.id)}
               className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
                 note.id === activeId
-                  ? 'bg-white/15 text-white'
-                  : 'text-[#d7d7d7] hover:bg-white/10'
+                  ? 'bg-[var(--aether-fill-3)] text-[var(--aether-text-1)]'
+                  : 'text-[var(--aether-text-2)] hover:bg-[var(--aether-fill-2)]'
               }`}
             >
               <StickyNote
                 size={12}
-                className={note.id === activeId ? 'shrink-0 text-[#60cdff]' : 'shrink-0 text-[#8b8b8b]'}
+                className={note.id === activeId ? 'shrink-0 text-[var(--aether-accent-text)]' : 'shrink-0 text-[var(--aether-text-3)]'}
               />
               <span className="min-w-0 flex-1 truncate text-[11px]">{note.title}</span>
-              {note.pinned ? <Pin size={10} className="shrink-0 text-[#60cdff]" /> : null}
-              <span className="shrink-0 text-[9px] text-[#8b8b8b]">
+              {note.pinned ? <Pin size={10} className="shrink-0 text-[var(--aether-accent-text)]" /> : null}
+              <span className="shrink-0 text-[9px] text-[var(--aether-text-3)]">
                 {formatDate(note.updated)}
               </span>
             </button>

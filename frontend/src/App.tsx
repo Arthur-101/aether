@@ -18,9 +18,16 @@ import {
 import { openNotesFolder as openNotesFolderFallback } from './lib/notesApi';
 import {
   DEFAULT_CLOCK_CONFIG,
+  appearanceCssVars,
   resolveAppearance,
+  resolveTheme,
 } from './components/Island/appearance';
-import type { ClockConfig, MediaControlAction, TaskbarPinnedApp } from './types/ipc';
+import type {
+  AppearanceConfig,
+  ClockConfig,
+  MediaControlAction,
+  TaskbarPinnedApp,
+} from './types/ipc';
 import type { NotesApi } from './types/notes';
 
 function localIso(date: Date): string {
@@ -58,6 +65,9 @@ export function App() {
     isCircleOpen,
     wifiProfiles,
     bluetoothDevices,
+    audioDevices,
+    displayInfo,
+    speedTest,
     clockAlert,
     lastWheelResult,
     subscribeMouse,
@@ -104,6 +114,9 @@ export function App() {
     connectWifi,
     disconnectWifi,
     refreshBluetoothDevices,
+    refreshAudioDevices,
+    setAudioDevice,
+    runSpeedTest,
     openSettingsPage,
     closeRadialWheel,
     closeCircle,
@@ -125,10 +138,16 @@ export function App() {
   const islandExpandedRef = useRef(false);
   const islandExpandedBeforeSettings = useRef(false);
   const settingsOpenRef = useRef(false);
+  const [previewAppearance, setPreviewAppearance] = useState<AppearanceConfig | null>(
+    null
+  );
   const appearance = useMemo(
     () => resolveAppearance(config?.appearance),
     [config?.appearance]
   );
+  // While Settings is open the draft appearance drives the live surfaces so the
+  // opacity and blur sliders can be previewed before saving.
+  const liveAppearance = previewAppearance ?? appearance;
   const clockConfig = useMemo(
     () => ({ ...DEFAULT_CLOCK_CONFIG, ...(config?.clock || {}) }),
     [config?.clock]
@@ -265,10 +284,26 @@ export function App() {
     onAttach: attachNote,
   };
 
+  const resolvedTheme = resolveTheme(
+    liveAppearance.theme_mode,
+    systemStats?.dark_mode
+  );
+
   return (
-    <main className="relative h-screen w-screen select-none overflow-hidden bg-transparent font-sans">
+    <main
+      // Aether follows the Windows theme by default, so the overlay, the
+      // island, and Settings all flip together with the desktop. An
+      // explicit choice in Settings → Appearance overrides it.
+      data-theme={resolvedTheme}
+      className="relative h-screen w-screen select-none overflow-hidden bg-transparent font-sans"
+      // Root-level appearance vars so surfaces outside the notch shell
+      // (notification pills) share the same grain and pop depth.
+      style={appearanceCssVars(liveAppearance, resolvedTheme) as React.CSSProperties}
+    >
       <DesktopIsland
         systemStats={systemStats}
+        speedTest={speedTest}
+        onRunSpeedTest={runSpeedTest}
         chatHistory={chatHistory}
         chatPending={chatPending}
         attachments={attachments}
@@ -278,6 +313,8 @@ export function App() {
         clockConfig={clockConfig}
         wifiProfiles={wifiProfiles}
         bluetoothDevices={bluetoothDevices}
+        audioDevices={audioDevices}
+        displayInfo={displayInfo}
         notes={notesApi}
         model={{ status: modelStatus, onLoad: loadModel, onRelease: releaseModel }}
         isExpanded={isIslandExpanded}
@@ -309,8 +346,10 @@ export function App() {
         onConnectWifi={connectWifi}
         onDisconnectWifi={disconnectWifi}
         onRefreshBluetoothDevices={refreshBluetoothDevices}
+        onRefreshAudioDevices={refreshAudioDevices}
+        onSelectAudioDevice={setAudioDevice}
         onOpenSettingsPage={handleOpenSettingsPage}
-        appearance={appearance}
+        appearance={liveAppearance}
         peekEnabled={!isSettingsOpen}
         media={media}
         taskbarApps={taskbarApps}
@@ -392,6 +431,7 @@ export function App() {
         taskbarState={taskbarState}
         initialTab={settingsInitialTab}
         onRefreshTaskbar={refreshTaskbarApps}
+        onPreviewAppearance={setPreviewAppearance}
         onClose={closeSettings}
       />
 
@@ -422,3 +462,6 @@ export function App() {
 }
 
 export default App;
+
+
+

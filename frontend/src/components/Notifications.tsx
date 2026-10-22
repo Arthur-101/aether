@@ -71,19 +71,19 @@ export const Notifications: React.FC<NotificationsProps> = ({
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
-          className="glass-pill fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 px-5 py-2.5 text-xs text-white"
+          className="glass-pill aether-grain aether-pop fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-[var(--aether-line)] px-5 py-2.5 text-xs text-[var(--aether-text-1)]"
         >
           <Mic
             size={16}
             className={
               voiceState === 'listening'
-                ? 'animate-pulse text-[#60cdff]'
+                ? 'animate-pulse text-[var(--aether-accent-text)]'
                 : voiceState === 'thinking'
                   ? 'animate-bounce text-[#fce100]'
                   : 'text-[#6ccb5f]'
             }
           />
-          <span className="font-medium text-[#e5e5e5]">
+          <span className="font-medium text-[var(--aether-text-1)]">
             {voiceTranscript ||
               (voiceState === 'listening' ? 'Listening…' : 'Thinking…')}
           </span>
@@ -99,7 +99,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className={`glass-panel pointer-events-auto flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-xs text-white ${
+            className={`glass-panel pointer-events-auto flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-xs text-[var(--aether-text-1)] ${
               isAlarm
                 ? 'border-[#fce100]/45 shadow-[0_0_32px_rgba(252,225,0,0.12)]'
                 : 'border-[var(--aether-accent)]/40'
@@ -119,17 +119,17 @@ export const Notifications: React.FC<NotificationsProps> = ({
                 {isAlarm ? 'Alarm' : 'Task finished'}
               </span>
               {isAlarm ? (
-                <span className="truncate text-[#e5e5e5]">{clockAlert.title}</span>
+                <span className="truncate text-[var(--aether-text-1)]">{clockAlert.title}</span>
               ) : (
                 <>
-                  <span className="truncate text-[#e5e5e5]">{clockAlert.title}</span>
-                  <span className="mt-0.5 line-clamp-2 text-[9px] leading-relaxed text-[#8b8b8b]">
+                  <span className="truncate text-[var(--aether-text-1)]">{clockAlert.title}</span>
+                  <span className="mt-0.5 line-clamp-2 text-[9px] leading-relaxed text-[var(--aether-text-3)]">
                     {clockAlert.event}
                   </span>
                 </>
               )}
               {isAlarm ? (
-                <span className="mt-0.5 text-[9px] text-[#8b8b8b]">
+                <span className="mt-0.5 text-[9px] text-[var(--aether-text-3)]">
                   Tap Snooze or Dismiss to stop the ring.
                 </span>
               ) : null}
@@ -138,13 +138,13 @@ export const Notifications: React.FC<NotificationsProps> = ({
               <div className="flex shrink-0 flex-col gap-1">
                 <button
                   onClick={onSnoozeAlarm}
-                  className="rounded-md bg-white/10 px-2 py-1 text-[9px] font-medium text-white transition hover:bg-white/20"
+                  className="rounded-md bg-[var(--aether-fill-2)] px-2 py-1 text-[9px] font-medium text-[var(--aether-text-1)] transition hover:bg-white/20"
                 >
                   Snooze 5m
                 </button>
                 <button
                   onClick={onClearClock}
-                  className="rounded-md px-2 py-1 text-[9px] text-[#c7c7c7] transition hover:bg-white/10 hover:text-white"
+                  className="rounded-md px-2 py-1 text-[9px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
                 >
                   Dismiss
                 </button>
@@ -152,7 +152,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
             ) : (
               <button
                 onClick={onClearClock}
-                className="ml-auto shrink-0 text-[#8b8b8b] hover:text-white"
+                className="ml-auto shrink-0 text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]"
               >
                 <X size={13} />
               </button>
@@ -166,13 +166,13 @@ export const Notifications: React.FC<NotificationsProps> = ({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="glass-panel pointer-events-auto flex w-full items-center gap-2.5 rounded-lg border border-[#6ccb5f]/35 px-4 py-3 text-xs text-white"
+            className="glass-panel pointer-events-auto flex w-full items-center gap-2.5 rounded-lg border border-[#6ccb5f]/35 px-4 py-3 text-xs text-[var(--aether-text-1)]"
           >
             <CheckCircle2 size={16} className="shrink-0 text-[#6ccb5f]" />
-            <span className="min-w-0 flex-1 break-words text-[#e5e5e5]">{wheelResult}</span>
+            <span className="min-w-0 flex-1 break-words text-[var(--aether-text-1)]">{wheelResult}</span>
             <button
               onClick={onClearWheelResult}
-              className="text-[#8b8b8b] hover:text-white"
+              className="text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]"
             >
               <X size={13} />
             </button>
@@ -189,7 +189,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
           >
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-[#ff99a4]" />
             <span className="min-w-0 flex-1 break-words">{errorMessage}</span>
-            <button onClick={onClearError} className="text-[#c7c7c7] hover:text-white">
+            <button onClick={onClearError} className="text-[var(--aether-text-2)] hover:text-[var(--aether-text-1)]">
               <X size={13} />
             </button>
           </motion.div>

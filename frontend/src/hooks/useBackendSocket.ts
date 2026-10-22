@@ -7,9 +7,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AppConfig,
   AttachmentItem,
+  AudioOutputDevice,
   BluetoothDeviceInfo,
   ChatTurn,
   ClockAlert,
+  DisplayInfo,
   IncomingEnvelope,
   MediaSnapshot,
   ModelStatus,
@@ -19,6 +21,7 @@ import type {
   RadialWheelPayload,
   SessionItem,
   ScheduledTask,
+  SpeedTestResult,
   SystemStats,
   TaskbarAppsState,
   VoiceState,
@@ -61,6 +64,9 @@ export function useBackendSocket() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [taskbarState, setTaskbarState] = useState<TaskbarAppsState | null>(null);
   const [media, setMedia] = useState<MediaSnapshot | null>(null);
+  const [audioDevices, setAudioDevices] = useState<AudioOutputDevice[]>([]);
+  const [displayInfo, setDisplayInfo] = useState<DisplayInfo | null>(null);
+  const [speedTest, setSpeedTest] = useState<SpeedTestResult | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
@@ -209,6 +215,20 @@ export function useBackendSocket() {
             (payload.devices as BluetoothDeviceInfo[] | undefined) || []
           );
           break;
+        case 'AUDIO_DEVICES':
+          setAudioDevices(
+            (payload.devices as AudioOutputDevice[] | undefined) || []
+          );
+          break;
+        case 'DISPLAY_INFO':
+          setDisplayInfo(payload as DisplayInfo);
+          break;
+        case 'SPEED_TEST_STATE':
+          setSpeedTest((prev) => ({ ...(prev ?? { state: 'idle' }), state: payload.state }));
+          break;
+        case 'SPEED_TEST_RESULT':
+          setSpeedTest(payload as SpeedTestResult);
+          break;
         case 'MODEL_STATUS':
           setModelStatus(payload as ModelStatus);
           break;
@@ -262,7 +282,7 @@ export function useBackendSocket() {
   });
   useEffect(() => {
     if (!connected) return;
-    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE'];
+    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE', 'LIST_AUDIO_DEVICES', 'GET_DISPLAY_INFO'];
     bootTypes.forEach((type) => sendEvent({ type, payload: {} } as OutgoingEvent));
     const weatherTimer = window.setInterval(
       () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
@@ -327,6 +347,9 @@ export function useBackendSocket() {
     weather,
     taskbarState,
     media,
+    audioDevices,
+    displayInfo,
+    speedTest,
     lastWheelResult,
     subscribeMouse,
     ...actions,

@@ -80,13 +80,13 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
           initial={{ y: -30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -30, opacity: 0 }}
-          className="fixed top-6 left-1/2 -translate-x-1/2 glass-panel px-4 py-2 rounded-full flex items-center gap-2.5 text-xs text-white shadow-xl pointer-events-auto"
+          className="fixed top-6 left-1/2 -translate-x-1/2 glass-panel px-4 py-2 rounded-full flex items-center gap-2.5 text-xs text-[var(--aether-text-1)] shadow-xl pointer-events-auto"
         >
           <Camera size={14} className="text-cyan-400" />
           <span>Drag to select any area on screen • Press ESC to cancel</span>
           <button
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition"
+            className="p-1 rounded-full hover:bg-[var(--aether-fill-2)] text-slate-400 hover:text-[var(--aether-text-1)] transition"
           >
             <X size={12} />
           </button>

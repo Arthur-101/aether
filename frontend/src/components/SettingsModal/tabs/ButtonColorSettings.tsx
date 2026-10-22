@@ -49,8 +49,8 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
     <section className="flex flex-col gap-3">
       <div className="flex items-start justify-between">
         <div>
-          <h5 className="text-xs font-semibold text-white">Button color</h5>
-          <p className="mt-0.5 text-[10px] text-[#8b8b8b]">
+          <h5 className="text-xs font-semibold text-[var(--aether-text-1)]">Button color</h5>
+          <p className="mt-0.5 text-[10px] text-[var(--aether-text-3)]">
             Applies to buttons and the active tab. Gauges stay semantic.
           </p>
         </div>
@@ -64,7 +64,7 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
               button_gradient: DEFAULT_APPEARANCE.button_gradient,
             })
           }
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[#8b8b8b] transition hover:bg-white/5 hover:text-white"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
         >
           <RotateCcw size={11} />
           Reset
@@ -85,8 +85,8 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
             title={item.label}
             className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] transition ${
               preset?.id === item.id
-                ? 'border-white/30 bg-white/10 text-white'
-                : 'border-white/10 text-[#a8a8a8] hover:border-white/20 hover:text-white'
+                ? 'border-[var(--aether-line-strong)] bg-[var(--aether-fill-2)] text-[var(--aether-text-1)]'
+                : 'border-[var(--aether-line)] text-[var(--aether-text-2)] hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]'
             }`}
           >
             <span
@@ -101,8 +101,8 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <label className="rounded-lg border border-white/10 bg-black/15 p-2">
-          <span className="mb-1 block text-[9px] uppercase tracking-wider text-[#8b8b8b]">
+        <label className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2">
+          <span className="mb-1 block text-[9px] uppercase tracking-wider text-[var(--aether-text-3)]">
             Primary
           </span>
           <div className="flex items-center gap-1.5">
@@ -121,13 +121,13 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
                 if (event.key === 'Enter') event.currentTarget.blur();
               }}
               maxLength={7}
-              className="min-w-0 flex-1 rounded border border-white/10 bg-[#2b2b2b] px-2 py-1 font-mono text-[10px] text-white outline-none focus:border-[#0067c0]"
+              className="min-w-0 flex-1 rounded border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1 font-mono text-[10px] text-[var(--aether-text-1)] outline-none focus:border-[var(--aether-accent)]"
               aria-label="Primary color hex"
             />
           </div>
         </label>
-        <label className="rounded-lg border border-white/10 bg-black/15 p-2">
-          <span className="mb-1 block text-[9px] uppercase tracking-wider text-[#8b8b8b]">
+        <label className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2">
+          <span className="mb-1 block text-[9px] uppercase tracking-wider text-[var(--aether-text-3)]">
             Secondary
           </span>
           <div className="flex items-center gap-1.5">
@@ -146,15 +146,15 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
                 if (event.key === 'Enter') event.currentTarget.blur();
               }}
               maxLength={7}
-              className="min-w-0 flex-1 rounded border border-white/10 bg-[#2b2b2b] px-2 py-1 font-mono text-[10px] text-white outline-none focus:border-[#0067c0]"
+              className="min-w-0 flex-1 rounded border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1 font-mono text-[10px] text-[var(--aether-text-1)] outline-none focus:border-[var(--aether-accent)]"
               aria-label="Secondary color hex"
             />
           </div>
         </label>
       </div>
 
-      <label className="flex cursor-pointer items-center justify-between rounded-lg border border-white/10 bg-black/15 px-2.5 py-2">
-        <span className="text-[11px] text-[#d7d7d7]">Use a gradient</span>
+      <label className="flex cursor-pointer items-center justify-between rounded-lg border border-[var(--aether-line)] bg-black/15 px-2.5 py-2">
+        <span className="text-[11px] text-[var(--aether-text-2)]">Use a gradient</span>
         <input
           type="checkbox"
           checked={appearance.button_gradient}
@@ -163,8 +163,8 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
         />
       </label>
 
-      <div className="rounded-lg border border-white/10 bg-black/15 p-2.5">
-        <p className="mb-2 text-[9px] uppercase tracking-wider text-[#8b8b8b]">
+      <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
+        <p className="mb-2 text-[9px] uppercase tracking-wider text-[var(--aether-text-3)]">
           Preview
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -179,9 +179,9 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold text-[#d7d7d7]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] px-3 py-1.5 text-[10px] font-semibold text-[var(--aether-text-2)]"
           >
-            <Wifi size={12} className="text-[#8b8b8b]" />
+            <Wifi size={12} className="text-[var(--aether-text-3)]" />
             Bluetooth off
             <ChevronRight size={10} />
           </button>
@@ -196,3 +196,4 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
     </section>
   );
 };
+

@@ -9,6 +9,8 @@ from typing import Any, Dict
 
 from .event_router import register_handler
 from .os_hooks import system_controls as controls
+from .os_hooks.audio_devices import list_output_devices, set_default_output_device
+from .os_hooks.display_info import get_display_info
 from .os_hooks.network_controls import get_wifi_details
 from .os_hooks.network_devices import (
     connect_wifi_profile,
@@ -181,6 +183,31 @@ async def _handle_get_system_state(payload: Dict[str, Any]) -> None:
     await ws_manager.broadcast("SYSTEM_STATS", stats)
 
 
+async def _broadcast_audio_devices() -> None:
+    devices = await _run(list_output_devices)
+    await ws_manager.broadcast("AUDIO_DEVICES", {"devices": devices})
+
+
+async def _handle_list_audio_devices(payload: Dict[str, Any]) -> None:
+    await _broadcast_audio_devices()
+
+
+async def _handle_set_audio_device(payload: Dict[str, Any]) -> None:
+    device_id = str(payload.get("device_id") or "").strip()
+    ok = await _run(set_default_output_device, device_id)
+    if not ok:
+        await ws_manager.broadcast(
+            "ERROR", {"message": "Windows refused the audio output change."}
+        )
+    await _broadcast_audio_devices()
+
+
+async def _handle_get_display_info(payload: Dict[str, Any]) -> None:
+    info = await _run(get_display_info)
+    await ws_manager.broadcast("DISPLAY_INFO", info)
+
+
+
 def register_system_events() -> None:
     """Registers all Windows control event handlers."""
     register_handler("SET_VOLUME", _handle_set_volume)
@@ -197,3 +224,10 @@ def register_system_events() -> None:
     register_handler("DISCONNECT_WIFI", _handle_disconnect_wifi)
     register_handler("LIST_BLUETOOTH_DEVICES", _handle_list_bluetooth_devices)
     register_handler("OPEN_SETTINGS_PAGE", _handle_open_settings_page)
+    register_handler("LIST_AUDIO_DEVICES", _handle_list_audio_devices)
+    register_handler("SET_AUDIO_DEVICE", _handle_set_audio_device)
+    register_handler("GET_DISPLAY_INFO", _handle_get_display_info)
+
+    from .stats_events import register_stats_events
+
+    register_stats_events()

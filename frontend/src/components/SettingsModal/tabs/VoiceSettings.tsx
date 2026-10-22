@@ -10,8 +10,8 @@ interface VoiceSettingsProps {
 }
 
 const inputClass =
-  'w-full rounded-md border border-white/10 bg-[#2b2b2b] px-3 py-2 font-mono text-[11px] text-[#f3f3f3] outline-none focus:border-[#0067c0]';
-const labelClass = 'mb-1 block text-[11px] font-medium text-[#c7c7c7]';
+  'w-full rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3 py-2 font-mono text-[11px] text-[var(--aether-text-1)] outline-none focus:border-[var(--aether-accent)]';
+const labelClass = 'mb-1 block text-[11px] font-medium text-[var(--aether-text-2)]';
 
 export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange }) => {
   const browseStt = async () => {
@@ -38,13 +38,13 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
           />
           <button
             onClick={browseStt}
-            className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#0067c0] px-3 text-[11px] font-medium text-white transition hover:bg-[#1976c9]"
+            className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition"
           >
             <FolderOpen size={13} />
             Browse
           </button>
         </div>
-        <p className="mt-1 text-[10px] text-[#8b8b8b]">
+        <p className="mt-1 text-[10px] text-[var(--aether-text-3)]">
           Microphone capture is live. Wire a real Phonon decoder to enable transcription.
         </p>
       </div>
@@ -61,7 +61,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
           />
           <button
             onClick={browseTts}
-            className="flex shrink-0 items-center gap-1.5 rounded-md bg-[#0067c0] px-3 text-[11px] font-medium text-white transition hover:bg-[#1976c9]"
+            className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition"
           >
             <FileSearch size={13} />
             Browse
@@ -72,7 +72,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
       <div>
         <div className="mb-1 flex items-center justify-between">
           <label className={`${labelClass} mb-0`}>Speech Speed</label>
-          <span className="font-mono text-[11px] text-[#9dd5ff]">
+          <span className="font-mono text-[11px] text-[var(--aether-accent-text)]">
             {voice.tts_speed.toFixed(2)}×
           </span>
         </div>
@@ -83,7 +83,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
           step="0.05"
           value={voice.tts_speed}
           onChange={(event) => onChange({ tts_speed: Number(event.target.value) })}
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-white/10 accent-[#0067c0]"
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[var(--aether-fill-2)] accent-[var(--aether-accent)]"
         />
       </div>
 
@@ -99,3 +99,4 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
     </div>
   );
 };
+

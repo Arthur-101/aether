@@ -16,11 +16,11 @@ interface TaskFormProps {
 }
 
 const dateFieldClass =
-  'flex flex-1 items-center gap-1.5 rounded-md border border-white/10 bg-[#2b2b2b] px-2 py-1.5';
+  'flex flex-1 items-center gap-1.5 rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1.5';
 const timeFieldClass =
-  'flex flex-1 items-center gap-1.5 rounded-md border border-white/10 bg-[#2b2b2b] px-2 py-1.5';
+  'flex flex-1 items-center gap-1.5 rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1.5';
 const inputClass =
-  'w-full bg-transparent text-[10px] text-white outline-none [color-scheme:dark]';
+  'w-full bg-transparent text-[10px] text-[var(--aether-text-1)] outline-none [color-scheme:dark]';
 
 export const TaskForm: React.FC<TaskFormProps> = ({
   initial,
@@ -111,7 +111,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   return (
     <form
       onSubmit={submit}
-      className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/[0.025] p-2.5"
+      className="flex flex-col gap-2 rounded-lg border border-[var(--aether-line)] bg-white/[0.025] p-2.5"
     >
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-[var(--aether-accent)]">
@@ -120,7 +120,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded p-0.5 text-[#8b8b8b] transition hover:bg-white/10 hover:text-white"
+          className="rounded p-0.5 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
           title="Cancel"
         >
           <X size={12} />
@@ -131,7 +131,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         value={prompt}
         onChange={(event) => setPrompt(event.target.value)}
         placeholder="What should Aether do?"
-        className="rounded-md border border-white/10 bg-[#2b2b2b] px-2.5 py-1.5 text-[11px] text-white outline-none placeholder:text-[#777168] focus:border-[var(--aether-accent)]"
+        className="rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2.5 py-1.5 text-[11px] text-[var(--aether-text-1)] outline-none placeholder:text-[var(--aether-text-3)] focus:border-[var(--aether-accent)]"
       />
       <div className="flex gap-1 rounded-md bg-black/25 p-0.5">
         {(['once', 'custom', 'daily'] as const).map((type) => (
@@ -141,8 +141,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({
             onClick={() => setScheduleType(type)}
             className={`flex-1 rounded px-2 py-1 text-[10px] transition ${
               scheduleType === type
-                ? 'bg-[#383838] text-white'
-                : 'text-[#8b8b8b] hover:text-white'
+                ? 'bg-[var(--aether-surface-5)] text-[var(--aether-text-1)]'
+                : 'text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]'
             }`}
           >
             {type === 'once' ? 'One-time' : type === 'custom' ? 'Custom' : 'Daily'}
@@ -151,7 +151,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       </div>
       <div className="flex items-center gap-2">
         {scheduleType === 'custom' && (
-          <span className="w-6 shrink-0 text-[9px] uppercase tracking-wide text-[#8b8b8b]">
+          <span className="w-6 shrink-0 text-[9px] uppercase tracking-wide text-[var(--aether-text-3)]">
             From
           </span>
         )}
@@ -179,7 +179,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       </div>
       {scheduleType === 'custom' && (
         <div className="flex items-center gap-2">
-          <span className="w-6 shrink-0 text-[9px] uppercase tracking-wide text-[#8b8b8b]">
+          <span className="w-6 shrink-0 text-[9px] uppercase tracking-wide text-[var(--aether-text-3)]">
             To
           </span>
           <label className={dateFieldClass}>
@@ -204,7 +204,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         </div>
       )}
       {scheduleType === 'custom' && (
-        <p className="text-[9px] text-[#8b8b8b]">
+        <p className="text-[9px] text-[var(--aether-text-3)]">
           Repeats daily at the start time until the end date/time.
         </p>
       )}
@@ -213,7 +213,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-md px-2.5 py-1 text-[10px] text-[#c7c7c7] transition hover:bg-white/10"
+          className="rounded-md px-2.5 py-1 text-[10px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)]"
         >
           Cancel
         </button>

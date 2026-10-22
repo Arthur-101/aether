@@ -9,5 +9,11 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     open: false,
+    // The overlay is a full-window modal, and Aether's window covers the
+    // whole desktop. A transform error would blank the user's screen, so
+    // errors go to the console and the terminal instead.
+    hmr: {
+      overlay: false,
+    },
   },
 })

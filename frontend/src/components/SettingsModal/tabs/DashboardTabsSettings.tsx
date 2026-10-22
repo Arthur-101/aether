@@ -66,15 +66,15 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
     <section>
       <div className="mb-2 flex items-start justify-between">
         <div>
-          <h5 className="text-xs font-semibold text-white">Dashboard tabs</h5>
-          <p className="mt-0.5 text-[10px] text-[#8b8b8b]">
+          <h5 className="text-xs font-semibold text-[var(--aether-text-1)]">Dashboard tabs</h5>
+          <p className="mt-0.5 text-[10px] text-[var(--aether-text-3)]">
             Drag visible tabs to reorder. At least one must stay visible.
           </p>
         </div>
         <button
           type="button"
           onClick={() => onChange([...DEFAULT_TAB_IDS])}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[#8b8b8b] transition hover:bg-white/5 hover:text-white"
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
           title="Reset tab order and visibility"
         >
           <RotateCcw size={11} />
@@ -82,7 +82,7 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-white/10">
+      <div className="overflow-hidden rounded-lg border border-[var(--aether-line)]">
         {[...visible, ...hidden].map((id, index) => {
           const tab = tabDefinition(id);
           const Icon = tab.icon;
@@ -96,16 +96,16 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
               onDragEnd={() => setDragging(null)}
               onDragOver={(event) => dragOver(event, id)}
               onDrop={() => setDragging(null)}
-              className={`flex items-center gap-2 border-b border-white/[0.06] px-2 py-1.5 last:border-b-0 ${
+              className={`flex items-center gap-2 border-b border-[var(--aether-line-soft)] px-2 py-1.5 last:border-b-0 ${
                 isVisible ? 'bg-white/[0.025]' : 'bg-transparent opacity-60'
               }`}
             >
               <GripVertical
                 size={13}
-                className={isVisible ? 'cursor-grab text-[#777]' : 'text-[#444]'}
+                className={isVisible ? 'cursor-grab text-[var(--aether-text-3)]' : 'text-[#444]'}
               />
-              <Icon size={13} className="shrink-0 text-[#c7c7c7]" />
-              <span className="min-w-0 flex-1 truncate text-[11px] text-[#e5e2da]">
+              <Icon size={13} className="shrink-0 text-[var(--aether-text-2)]" />
+              <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--aether-text-1)]">
                 {tab.label}
               </span>
               {isVisible ? (
@@ -114,7 +114,7 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
                     type="button"
                     onClick={() => move(id, -1)}
                     disabled={currentIndex === 0}
-                    className="rounded p-0.5 text-[#777] transition hover:bg-white/10 hover:text-white disabled:opacity-25"
+                    className="rounded p-0.5 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:opacity-25"
                     title="Move tab up"
                   >
                     <ArrowUp size={11} />
@@ -123,7 +123,7 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
                     type="button"
                     onClick={() => move(id, 1)}
                     disabled={currentIndex === visible.length - 1}
-                    className="rounded p-0.5 text-[#777] transition hover:bg-white/10 hover:text-white disabled:opacity-25"
+                    className="rounded p-0.5 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:opacity-25"
                     title="Move tab down"
                   >
                     <ArrowDown size={11} />
@@ -135,7 +135,7 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
                 onClick={() => toggle(id)}
                 disabled={isVisible && !canHide}
                 aria-pressed={isVisible}
-                className="rounded p-1 text-[#8b8b8b] transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+                className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:cursor-not-allowed disabled:opacity-25"
                 title={
                   isVisible
                     ? canHide

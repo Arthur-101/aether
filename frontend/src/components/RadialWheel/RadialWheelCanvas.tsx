@@ -40,8 +40,8 @@ export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
         cx={center}
         cy={center}
         r={WHEEL_RADIUS}
-        fill="rgba(32, 32, 32, 0.94)"
-        stroke="rgba(255,255,255,0.14)"
+        fill="rgb(var(--aether-glass-rgb) / 0.94)"
+        stroke="var(--aether-line-strong)"
         strokeWidth="1.5"
       />
 
@@ -99,8 +99,8 @@ export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
 
       <defs>
         <linearGradient id="activeSliceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0067C0" />
-          <stop offset="100%" stopColor="#005A9E" />
+          <stop offset="0%" stopColor="var(--aether-accent)" />
+          <stop offset="100%" stopColor="var(--aether-accent-secondary)" />
         </linearGradient>
       </defs>
 
@@ -108,8 +108,8 @@ export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
         cx={center}
         cy={center}
         r={WHEEL_INNER_RADIUS - 4}
-        fill={coreHighlighted ? '#0067C0' : '#202020'}
-        stroke={coreHighlighted ? '#FFFFFF' : 'rgba(96, 205, 255, 0.45)'}
+        fill={coreHighlighted ? 'var(--aether-accent)' : 'var(--aether-surface-3)'}
+        stroke={coreHighlighted ? '#FFFFFF' : 'var(--aether-accent-text)'}
         strokeWidth={coreHighlighted ? '2' : '1.5'}
         onClick={onCoreActivate}
         onMouseEnter={() => onCoreHover(true)}
