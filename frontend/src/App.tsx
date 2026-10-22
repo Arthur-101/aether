@@ -11,7 +11,7 @@ import { SettingsModal, type SettingsTab } from './components/SettingsModal/Sett
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { ScreenScale } from './components/Island/ScreenScale';
 import { ColorPickerOverlay } from './components/Island/ColorPickerOverlay';
-import { normalizeHex } from './components/Island/colorUtils';
+import { DEFAULT_COLOR, normalizeHex } from './components/Island/colorUtils';
 import type { ScaleUnit } from './components/Island/scaleUnits';
 import { Notifications } from './components/Notifications';
 import {
@@ -35,7 +35,7 @@ import type {
 import type { NotesApi } from './types/notes';
 
 const PICKED_COLOR_KEY = 'aether.picked_color';
-const DEFAULT_PICKED_COLOR = '#5B8CFF';
+const DEFAULT_PICKED_COLOR = DEFAULT_COLOR;
 
 function readPickedColor(): string {
   try {
@@ -292,19 +292,23 @@ export function App() {
     setIsIslandExpanded(true);
   }, []);
 
+  const setColor = useCallback((hex: string) => {
+    const value = normalizeHex(hex, DEFAULT_PICKED_COLOR);
+    setPickedColor(value);
+    try {
+      window.localStorage.setItem(PICKED_COLOR_KEY, value);
+    } catch {
+      // A locked-down WebView may reject storage; the session still works.
+    }
+  }, []);
+
   const applyPickedColor = useCallback(
     (hex: string) => {
-      const value = normalizeHex(hex, pickedColor);
-      setPickedColor(value);
-      try {
-        window.localStorage.setItem(PICKED_COLOR_KEY, value);
-      } catch {
-        // A locked-down WebView may reject storage; the session still works.
-      }
+      setColor(hex);
       setIsPickingColor(false);
       setIsIslandExpanded(true);
     },
-    [pickedColor]
+    [setColor]
   );
 
   const snoozeAlarm = useCallback(() => {
@@ -407,6 +411,7 @@ export function App() {
         pickedColor={pickedColor}
         colorPickerConnected={connected}
         onOpenColorPicker={openColorPicker}
+        onSetColor={setColor}
         hidden={isPickingColor}
         appearance={liveAppearance}
         peekEnabled={!isSettingsOpen}

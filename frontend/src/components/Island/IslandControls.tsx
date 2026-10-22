@@ -52,6 +52,7 @@ interface IslandControlsProps {
   pickedColor: string;
   colorPickerConnected: boolean;
   onOpenColorPicker: () => void;
+  onSetColor: (hex: string) => void;
   media: MediaSnapshot | null;
   onMediaControl: (action: MediaControlAction) => void;
 }
@@ -83,6 +84,7 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   pickedColor,
   colorPickerConnected,
   onOpenColorPicker,
+  onSetColor,
   media,
   onMediaControl,
 }) => {
@@ -255,6 +257,7 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
             color={pickedColor}
             connected={colorPickerConnected}
             onPick={onOpenColorPicker}
+            onSetColor={onSetColor}
             className="min-h-[136px] flex-1"
           />
         </div>

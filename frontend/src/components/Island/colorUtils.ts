@@ -2,6 +2,8 @@
 
 export type Rgb = [number, number, number];
 
+export const DEFAULT_COLOR = '#5B8CFF';
+
 export interface ColorShade {
   label: string;
   hex: string;
@@ -13,7 +15,7 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 const toHexPart = (value: number) =>
   Math.round(clamp(value, 0, 255)).toString(16).padStart(2, '0').toUpperCase();
 
-export function normalizeHex(value: string, fallback = '#5B8CFF'): string {
+export function normalizeHex(value: string, fallback = DEFAULT_COLOR): string {
   const match = /^#?([0-9a-f]{6})$/i.exec(value.trim());
   return match ? `#${match[1].toUpperCase()}` : fallback;
 }
@@ -66,7 +68,43 @@ export function formatHsl(hex: string): string {
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-function hslToHex(hue: number, saturation: number, lightness: number): string {
+const HEX_INPUT = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
+const RGB_INPUT =
+  /^(?:rgba?\s*\(\s*)?([\d.]+)\s*(?:,|\s)\s*([\d.]+)\s*(?:,|\s)\s*([\d.]+)/i;
+const HSL_INPUT =
+  /^hsla?\s*\(\s*(-?[\d.]+)(?:deg)?\s*(?:,|\s)\s*([\d.]+)%\s*(?:,|\s)\s*([\d.]+)%/i;
+
+/** Parse a pasted HEX, RGB or HSL value into the card's canonical hex form. */
+export function parseColorInput(input: string): string | null {
+  const value = input.trim();
+  if (!value) return null;
+
+  const hex = HEX_INPUT.exec(value);
+  if (hex) {
+    const expanded =
+      hex[1].length === 3
+        ? hex[1]
+            .split('')
+            .map((part) => `${part}${part}`)
+            .join('')
+        : hex[1];
+    return `#${expanded.toUpperCase()}`;
+  }
+
+  const rgb = RGB_INPUT.exec(value);
+  if (rgb) {
+    return rgbToHex(Number(rgb[1]), Number(rgb[2]), Number(rgb[3]));
+  }
+
+  const hsl = HSL_INPUT.exec(value);
+  if (hsl) {
+    return hslToHex(Number(hsl[1]), Number(hsl[2]), Number(hsl[3]));
+  }
+
+  return null;
+}
+
+export function hslToHex(hue: number, saturation: number, lightness: number): string {
   const h = ((hue % 360) + 360) % 360;
   const s = clamp(saturation, 0, 100) / 100;
   const l = clamp(lightness, 0, 100) / 100;

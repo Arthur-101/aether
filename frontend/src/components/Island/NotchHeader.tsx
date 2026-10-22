@@ -1,5 +1,6 @@
 import React from 'react';
 import { Power, Settings, X } from 'lucide-react';
+import { AetherMark } from './AetherMark';
 
 interface NotchHeaderProps {
   now: Date;
@@ -22,15 +23,7 @@ export const NotchHeader: React.FC<NotchHeaderProps> = ({
   return (
     <header className="relative flex h-16 shrink-0 items-center justify-between border-b border-[var(--aether-line-soft)] px-5">
       <div className="flex items-center gap-2.5 text-[var(--aether-text-1)]">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M12 1L23 12L12 23L1 12L12 1Z"
-            fill="var(--aether-accent)"
-            opacity="0.92"
-          />
-          <path d="M12 6L17 12L12 18L7 12L12 6Z" fill="#17140e" opacity="0.72" />
-          <circle cx="12" cy="12" r="1.6" fill="#f9e7ad" />
-        </svg>
+        <AetherMark size={38} className="shrink-0 text-[var(--aether-accent)]" />
         <span className="text-sm font-semibold tracking-[0.01em]">Aether</span>
       </div>
 

@@ -81,6 +81,7 @@ interface DesktopIslandProps {
   pickedColor: string;
   colorPickerConnected: boolean;
   onOpenColorPicker: () => void;
+  onSetColor: (hex: string) => void;
   hidden?: boolean;
   appearance: AppearanceConfig;
   peekEnabled?: boolean;
@@ -144,6 +145,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   pickedColor,
   colorPickerConnected,
   onOpenColorPicker,
+  onSetColor,
   hidden = false,
   appearance,
   peekEnabled = true,
@@ -253,6 +255,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             pickedColor,
             colorPickerConnected,
             onOpenColorPicker,
+            onSetColor,
             media,
             onMediaControl,
           }}

@@ -31,8 +31,8 @@ export const ScalePanel: React.FC<ScalePanelProps> = ({
   const ppi = displayPpi(displayInfo);
   const ppiHint =
     ppi && displayInfo?.width_mm
-      ? `Pixels per inch (PPI) is this panel's physical pixel density: ${displayInfo.width} px ÷ ${displayInfo.width_mm} mm × 25.4 ≈ ${Math.round(ppi)} PPI. The ruler uses it to keep mm, cm and inches physically accurate. It is not the Windows display scaling percentage.`
-      : `Pixels per inch (PPI) is the panel's physical pixel density. This display does not report its active-area size, so the ruler falls back to the Windows baseline of 96 CSS pixels per inch.`;
+      ? `PPI = physical pixels per inch. ${displayInfo.width} px ÷ ${displayInfo.width_mm} mm × 25.4 ≈ ${Math.round(ppi)} PPI; the ruler uses this to stay physically accurate.`
+      : `PPI = physical pixels per inch. The display does not report its active-area size, so the ruler uses the standard 96 DPI fallback.`;
 
   return (
     <ControlPanel

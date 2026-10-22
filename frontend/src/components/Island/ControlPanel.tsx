@@ -85,7 +85,9 @@ export const PanelFooterRow: React.FC<PanelFooterRowProps> = ({
         title={rightTitle}
       >
         {right}
-        {rightTitle ? <Info size={9} className="opacity-55" /> : null}
+        {rightTitle ? (
+          <Info size={9} className="shrink-0 opacity-55" aria-hidden />
+        ) : null}
       </span>
     ) : null}
   </div>
