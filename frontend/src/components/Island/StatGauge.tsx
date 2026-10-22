@@ -25,6 +25,10 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
  * CPU, GPU, and RAM each keep their own colour on purpose: the button accent
  * is a mood, not a metric, and a rose accent must not turn all three rings
  * rose and make them indistinguishable at a glance.
+ *
+ * End caps are square on purpose: a round cap adds half the stroke (~2.6
+ * points at this radius) to each end, so the painted arc overshot every value
+ * and left a dot at zero.
  */
 export const StatGauge: React.FC<StatGaugeProps> = ({
   label,
@@ -70,11 +74,12 @@ export const StatGauge: React.FC<StatGaugeProps> = ({
             fill="none"
             stroke={available ? color : 'var(--aether-line)'}
             strokeWidth={STROKE}
-            strokeLinecap="round"
+            strokeLinecap="butt"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
             style={{
-              transition: 'stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1)',
+              // No transition on purpose: stats arrive every 2 s, and a 700 ms
+              // sweep left the ring visibly behind the number it describes.
               filter: available ? `drop-shadow(0 0 5px ${color}55)` : 'none',
             }}
           />

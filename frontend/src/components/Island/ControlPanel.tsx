@@ -1,4 +1,5 @@
 import React from 'react';
+import { Info } from 'lucide-react';
 
 /**
  * Shared chrome for the Controls panels.
@@ -12,6 +13,8 @@ interface ControlPanelProps {
   label: string;
   icon?: React.ReactNode;
   iconClassName?: string;
+  /** Optional trailing control rendered before the icon. */
+  action?: React.ReactNode;
   className?: string;
   /** Lets the body scroll instead of growing the panel. */
   scroll?: boolean;
@@ -23,6 +26,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   label,
   icon,
   iconClassName = 'text-[var(--aether-accent)]',
+  action,
   className = '',
   scroll = false,
   children,
@@ -35,7 +39,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
       <h2 className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--aether-text-3)]">
         {label}
       </h2>
-      {icon ? <span className={iconClassName}>{icon}</span> : null}
+      <div className="flex shrink-0 items-center gap-2">
+        {action}
+        {icon ? <span className={iconClassName}>{icon}</span> : null}
+      </div>
     </header>
     <div
       className={`mt-3 flex min-w-0 flex-1 flex-col ${
@@ -55,6 +62,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 interface PanelFooterRowProps {
   left: React.ReactNode;
   right?: React.ReactNode;
+  /** Native hover hint for the trailing value, shown with a small info glyph. */
+  rightTitle?: string;
   leftClassName?: string;
   rightClassName?: string;
 }
@@ -62,11 +71,22 @@ interface PanelFooterRowProps {
 export const PanelFooterRow: React.FC<PanelFooterRowProps> = ({
   left,
   right,
+  rightTitle,
   leftClassName = 'text-[9px] text-[var(--aether-text-3)]',
   rightClassName = 'text-[9.5px] font-medium text-[var(--aether-text-1)]',
 }) => (
   <div className="flex items-center justify-between gap-2">
     <span className={leftClassName}>{left}</span>
-    {right ? <span className={rightClassName}>{right}</span> : null}
+    {right ? (
+      <span
+        className={`${rightClassName} ${
+          rightTitle ? 'inline-flex cursor-help items-center gap-1' : ''
+        }`}
+        title={rightTitle}
+      >
+        {right}
+        {rightTitle ? <Info size={9} className="opacity-55" /> : null}
+      </span>
+    ) : null}
   </div>
 );

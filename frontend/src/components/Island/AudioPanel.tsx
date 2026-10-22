@@ -15,6 +15,7 @@ interface AudioPanelProps {
   onToggleMute: (next: boolean) => void;
   onSelectDevice: (device: AudioOutputDevice) => void;
   onOpenSoundSettings: () => void;
+  className?: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
   onToggleMute,
   onSelectDevice,
   onOpenSoundSettings,
+  className = '',
 }) => {
   const percent = Math.round(volume);
   const count = devices.length;
@@ -38,6 +40,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
   return (
     <ControlPanel
       label="Audio"
+      className={className}
       icon={
         <button
           type="button"

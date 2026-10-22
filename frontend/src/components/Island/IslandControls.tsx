@@ -13,11 +13,14 @@ import type {
 import { useLiveControl } from '../../hooks/useLiveControl';
 import { AudioPanel } from './AudioPanel';
 import { BluetoothMenu } from './BluetoothMenu';
+import { ColorPanel } from './ColorPanel';
 import { ConnectivityPanel } from './ConnectivityPanel';
 import { DisplayPanel } from './DisplayPanel';
 import { MediaWidget } from './MediaWidget';
+import { ScalePanel } from './ScalePanel';
 import { WidgetsPanel } from './WidgetsPanel';
 import { WifiMenu } from './WifiMenu';
+import type { ScaleUnit } from './scaleUnits';
 import { CONTROLS_HEIGHT } from './tabSizes';
 
 type ControlMenu = 'wifi' | 'bluetooth' | null;
@@ -45,6 +48,10 @@ interface IslandControlsProps {
   onRefreshAudioDevices: () => void;
   onSelectAudioDevice: (deviceId: string) => void;
   onOpenSettingsPage: (page: string) => void;
+  onOpenScale: (unit: ScaleUnit) => void;
+  pickedColor: string;
+  colorPickerConnected: boolean;
+  onOpenColorPicker: () => void;
   media: MediaSnapshot | null;
   onMediaControl: (action: MediaControlAction) => void;
 }
@@ -72,6 +79,10 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   onRefreshAudioDevices,
   onSelectAudioDevice,
   onOpenSettingsPage,
+  onOpenScale,
+  pickedColor,
+  colorPickerConnected,
+  onOpenColorPicker,
   media,
   onMediaControl,
 }) => {
@@ -160,19 +171,27 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
       <div
         ref={gridRef}
         style={{ height: CONTROLS_HEIGHT }}
-        className="grid grid-cols-[1.12fr_1.02fr_0.86fr] grid-rows-[minmax(0,1fr)] items-stretch gap-3"
+        className="grid grid-cols-3 grid-rows-[minmax(0,1fr)] items-stretch gap-3"
       >
-        <AudioPanel
-          volume={volumeControl.value}
-          muted={muted}
-          devices={audioDevices}
-          onVolumeChange={volumeControl.onChange}
-          onInteractionStart={volumeControl.onInteractionStart}
-          onInteractionEnd={volumeControl.onInteractionEnd}
-          onToggleMute={onSetMuted}
-          onSelectDevice={selectDevice}
-          onOpenSoundSettings={() => onOpenSettingsPage('sound')}
-        />
+        <div className="flex min-w-0 flex-col gap-3">
+          <AudioPanel
+            className="max-h-[250px] shrink-0"
+            volume={volumeControl.value}
+            muted={muted}
+            devices={audioDevices}
+            onVolumeChange={volumeControl.onChange}
+            onInteractionStart={volumeControl.onInteractionStart}
+            onInteractionEnd={volumeControl.onInteractionEnd}
+            onToggleMute={onSetMuted}
+            onSelectDevice={selectDevice}
+            onOpenSoundSettings={() => onOpenSettingsPage('sound')}
+          />
+          <ScalePanel
+            displayInfo={displayInfo}
+            onOpenScale={onOpenScale}
+            className="min-h-0 flex-1"
+          />
+        </div>
         <div className="flex min-w-0 flex-col gap-3">
           <DisplayPanel
             brightness={brightnessControl.value}
@@ -188,6 +207,7 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
         </div>
         <div className="flex min-w-0 flex-col gap-3">
           <ConnectivityPanel
+            className="min-h-0"
             wifi={wifi}
             ssid={currentSsid}
             bluetooth={bluetooth}
@@ -230,6 +250,12 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
                 onClose={() => setMenu(null)}
               />
             }
+          />
+          <ColorPanel
+            color={pickedColor}
+            connected={colorPickerConnected}
+            onPick={onOpenColorPicker}
+            className="min-h-[136px] flex-1"
           />
         </div>
       </div>

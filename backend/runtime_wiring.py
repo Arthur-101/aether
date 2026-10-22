@@ -168,8 +168,10 @@ def wire_clock_scheduler() -> None:
 
 def start_runtime() -> None:
     """Registers OS event handlers and starts hook wiring."""
+    from .color_events import register_color_events
     from .system_events import register_system_events
 
+    register_color_events()
     register_system_events()
     try:
         from .media_events import register_media_events

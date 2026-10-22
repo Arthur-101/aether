@@ -9,7 +9,7 @@ import type { DashboardTabId } from '../../types/ipc';
  */
 
 export const TAB_WIDTH: Record<DashboardTabId, number> = {
-  controls: 1030,
+  controls: 1050,
   chat: 560,
   clock: 940,
   stats: 1120,

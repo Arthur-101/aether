@@ -50,6 +50,9 @@ def test_display_info_reports_resolution_and_refresh():
     assert info["width"] > 0
     assert info["height"] > 0
     assert info["refresh_hz"] >= 0
+    if "width_mm" in info:
+        assert info["width_mm"] > 0
+        assert info["height_mm"] > 0
 
 
 def test_policy_client_slot_points_at_the_device_id_setter():

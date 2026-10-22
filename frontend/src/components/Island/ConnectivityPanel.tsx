@@ -24,6 +24,7 @@ interface ConnectivityPanelProps {
   wifiMenu?: React.ReactNode;
   /** The Bluetooth flyout, rendered inside the panel. */
   bluetoothMenu?: React.ReactNode;
+  className?: string;
 }
 
 /**
@@ -48,9 +49,10 @@ export const ConnectivityPanel: React.FC<ConnectivityPanelProps> = ({
   bluetoothMenuOpen = false,
   wifiMenu,
   bluetoothMenu,
+  className = '',
 }) => {
   return (
-    <ControlPanel label="Connectivity" scroll>
+    <ControlPanel label="Connectivity" scroll className={className}>
       <div className="flex flex-col gap-1.5">
         <ConnectivityRow
           icon={wifi === false ? <WifiOff size={14} /> : <Wifi size={14} />}

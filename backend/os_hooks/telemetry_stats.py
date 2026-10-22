@@ -13,18 +13,28 @@ the app list, both guarded by their own lock.
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from typing import Any, Dict, List, Optional
 
 import psutil
 
+from .app_usage import group_cpu, group_ram, group_vram
+from .process_list import process_usage
+from .process_vram import get_process_vram
+
+logger = logging.getLogger("aether.stats")
+
 _SAMPLE_LOCK = threading.Lock()
 _previous: Dict[str, Any] = {"time": None, "disk": None, "net": None}
 
 _APPS_LOCK = threading.Lock()
 _APPS_TTL = 5.0
-_apps_cache: Dict[str, Any] = {"time": 0.0, "apps": []}
+_APPS_RETRY_SECONDS = 60.0
+_MAX_APPS = 10
+_apps_cache: Dict[str, Any] = {"time": 0.0, "ram": [], "vram": [], "cpu": []}
+_cpu_previous: Dict[str, Any] = {"time": 0.0, "samples": {}}
 
 _GPU_LOCK = threading.Lock()
 _GPU_RETRY_SECONDS = 60.0
@@ -143,45 +153,68 @@ def _io_rates() -> Dict[str, float]:
     return rates
 
 
-def get_top_apps(limit: int = 7) -> List[Dict[str, Any]]:
-    """Aggregates processes by name so a multi-process browser counts once."""
+def _ensure_apps() -> None:
+    """Refreshes the shared RAM/VRAM/CPU rankings at most every few seconds.
+
+    One process query feeds all three lists. CPU needs the previous snapshot to
+    difference cumulative process times, so the first sample after startup has
+    no CPU ranking. VRAM is read from the already-open PDH counter and costs
+    effectively nothing; the expensive part is the one-time counter open.
+    """
+    global _cpu_previous
     now = time.monotonic()
     with _APPS_LOCK:
         if now - _apps_cache["time"] < _APPS_TTL:
-            return list(_apps_cache["apps"])
-
-    grouped: Dict[str, Dict[str, Any]] = {}
-    for process in psutil.process_iter(["name", "memory_info"]):
+            return
         try:
-            info = process.info
-            memory = info.get("memory_info")
-            if memory is None:
-                continue
-            name = (info.get("name") or "Unknown").removesuffix(".exe")
-            key = name.lower()
-            entry = grouped.setdefault(
-                key, {"name": name, "ram_mb": 0.0, "processes": 0}
-            )
-            entry["ram_mb"] += memory.rss / (1024 ** 2)
-            entry["processes"] += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
+            entries = process_usage()
+        except Exception as exc:
+            # Keep the last good sample and try again later rather than
+            # repeating a failing query on every telemetry tick.
+            logger.debug("Process sample failed: %s", exc)
+            _apps_cache["time"] = now - _APPS_TTL + _APPS_RETRY_SECONDS
+            _cpu_previous = {"time": 0.0, "samples": {}}
+            return
 
-    apps = sorted(grouped.values(), key=lambda app: app["ram_mb"], reverse=True)
-    apps = [
-        {
-            "name": app["name"],
-            "ram_mb": round(app["ram_mb"], 1),
-            "processes": app["processes"],
+        previous = _cpu_previous
+        elapsed = (now - previous["time"]) if previous["time"] else 0.0
+        threads = psutil.cpu_count(logical=True) or 1
+
+        _apps_cache.update(
+            {
+                "time": now,
+                "ram": group_ram(entries, _MAX_APPS),
+                "vram": group_vram(entries, get_process_vram(), _MAX_APPS),
+                "cpu": group_cpu(
+                    entries, previous["samples"], elapsed, threads, _MAX_APPS
+                ),
+            }
+        )
+        _cpu_previous = {
+            "time": now,
+            "samples": {pid: cpu for _name, _ws, cpu, pid in entries},
         }
-        for app in apps[: max(1, limit)]
-    ]
 
+
+def _cached_ranking(key: str, limit: int) -> List[Dict[str, Any]]:
+    _ensure_apps()
     with _APPS_LOCK:
-        _apps_cache["time"] = now
-        _apps_cache["apps"] = apps
+        return [dict(app) for app in _apps_cache[key][: max(1, limit)]]
 
-    return list(apps)
+
+def get_top_apps(limit: int = 7) -> List[Dict[str, Any]]:
+    """Apps holding the most RAM, refreshed every few seconds."""
+    return _cached_ranking("ram", limit)
+
+
+def get_top_apps_vram(limit: int = 7) -> List[Dict[str, Any]]:
+    """Apps holding the most dedicated VRAM."""
+    return _cached_ranking("vram", limit)
+
+
+def get_top_apps_cpu(limit: int = 7) -> List[Dict[str, Any]]:
+    """Apps using the most CPU over the last sample window."""
+    return _cached_ranking("cpu", limit)
 
 
 def get_uptime_seconds() -> int:
@@ -196,6 +229,8 @@ def collect_stats_extras(disk: Any = None) -> Dict[str, Any]:
         "disk_total_gb": round(disk.total / (1024 ** 3), 1),
         "uptime_seconds": get_uptime_seconds(),
         "top_apps": get_top_apps(),
+        "top_apps_vram": get_top_apps_vram(),
+        "top_apps_cpu": get_top_apps_cpu(),
         "cpu_cores": psutil.cpu_count(logical=False),
         "cpu_threads": psutil.cpu_count(logical=True),
     }

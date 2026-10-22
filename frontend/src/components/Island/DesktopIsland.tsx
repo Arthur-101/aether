@@ -24,6 +24,7 @@ import { pickNativePath } from '../../lib/system';
 import { IslandBody } from './IslandBody';
 import { NotchShell } from './NotchShell';
 import { visibleTabIds } from './appearance';
+import type { ScaleUnit } from './scaleUnits';
 import { TAB_WIDTH } from './tabSizes';
 import { useClockTools } from './useClockTools';
 
@@ -76,6 +77,11 @@ interface DesktopIslandProps {
   onRefreshAudioDevices: () => void;
   onSelectAudioDevice: (deviceId: string) => void;
   onOpenSettingsPage: (page: string) => void;
+  onOpenScale: (unit: ScaleUnit) => void;
+  pickedColor: string;
+  colorPickerConnected: boolean;
+  onOpenColorPicker: () => void;
+  hidden?: boolean;
   appearance: AppearanceConfig;
   peekEnabled?: boolean;
   media: MediaSnapshot | null;
@@ -134,6 +140,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onRefreshAudioDevices,
   onSelectAudioDevice,
   onOpenSettingsPage,
+  onOpenScale,
+  pickedColor,
+  colorPickerConnected,
+  onOpenColorPicker,
+  hidden = false,
   appearance,
   peekEnabled = true,
   media,
@@ -188,7 +199,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   };
 
   return (
-    <div className="fixed top-0 left-1/2 z-50 -translate-x-1/2">
+    <div
+      className={`fixed top-0 left-1/2 z-50 -translate-x-1/2 ${
+        hidden ? 'invisible' : ''
+      }`}
+    >
       <NotchShell
         isExpanded={isExpanded}
         onExpandedChange={onExpandedChange}
@@ -234,6 +249,10 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             onRefreshAudioDevices,
             onSelectAudioDevice,
             onOpenSettingsPage,
+            onOpenScale,
+            pickedColor,
+            colorPickerConnected,
+            onOpenColorPicker,
             media,
             onMediaControl,
           }}

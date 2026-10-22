@@ -19,6 +19,7 @@ import type {
   RadialWheelCursor,
   RadialWheelDropPayload,
   RadialWheelPayload,
+  ScreenSample,
   SessionItem,
   ScheduledTask,
   SpeedTestResult,
@@ -66,6 +67,7 @@ export function useBackendSocket() {
   const [media, setMedia] = useState<MediaSnapshot | null>(null);
   const [audioDevices, setAudioDevices] = useState<AudioOutputDevice[]>([]);
   const [displayInfo, setDisplayInfo] = useState<DisplayInfo | null>(null);
+  const [screenSample, setScreenSample] = useState<ScreenSample | null>(null);
   const [speedTest, setSpeedTest] = useState<SpeedTestResult | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
@@ -223,6 +225,9 @@ export function useBackendSocket() {
         case 'DISPLAY_INFO':
           setDisplayInfo(payload as DisplayInfo);
           break;
+        case 'SCREEN_SAMPLE':
+          setScreenSample(payload as ScreenSample);
+          break;
         case 'SPEED_TEST_STATE':
           setSpeedTest((prev) => ({ ...(prev ?? { state: 'idle' }), state: payload.state }));
           break;
@@ -300,6 +305,15 @@ export function useBackendSocket() {
     setSessions,
   });
 
+  const requestScreenSample = useCallback(
+    (requestId: string, radius = 10) =>
+      sendEvent({
+        type: 'SAMPLE_SCREEN',
+        payload: { request_id: requestId, radius },
+      }),
+    [sendEvent]
+  );
+
   const closeRadialWheel = useCallback(() => {
     setRadialWheel(null);
     setWheelCursor(null);
@@ -349,10 +363,12 @@ export function useBackendSocket() {
     media,
     audioDevices,
     displayInfo,
+    screenSample,
     speedTest,
     lastWheelResult,
     subscribeMouse,
     ...actions,
+    requestScreenSample,
     refreshWeather,
     closeRadialWheel,
     closeCircle,

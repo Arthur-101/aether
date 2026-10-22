@@ -35,10 +35,19 @@ export const StatsTab: React.FC<StatsTabProps> = ({ stats, speedTest, onRunSpeed
 
   const gpuCaption =
     stats?.gpu_vram_used_gb != null && stats?.gpu_vram_total_gb != null
-      ? `${formatGb(stats.gpu_vram_used_gb)} / ${formatGb(stats.gpu_vram_total_gb, 0)}${
+      ? `${formatGb(stats.gpu_vram_used_gb)} / ${formatGb(stats.gpu_vram_total_gb, 0)} VRAM${
           stats.gpu_temp_c != null ? ` · ${Math.round(stats.gpu_temp_c)}°C` : ''
         }`
       : stats?.gpu_name ?? 'No GPU telemetry';
+
+  // The ring plots the same quantity as the caption. Plotting NVML utilisation
+  // meant an idle dGPU drew an empty ring above "1.0 / 4 GB", which reads as a
+  // broken gauge; utilisation stays in the payload, VRAM is what the card shows.
+  const gpuMemoryPercent =
+    stats?.gpu_vram_used_gb != null && stats?.gpu_vram_total_gb
+      ? Math.min(100, (stats.gpu_vram_used_gb / stats.gpu_vram_total_gb) * 100)
+      : null;
+  const gpuValue = gpuMemoryPercent ?? stats?.gpu_percent ?? null;
 
   const ramCaption =
     stats?.ram_used_gb != null && stats?.ram_total_gb != null
@@ -62,8 +71,8 @@ export const StatsTab: React.FC<StatsTabProps> = ({ stats, speedTest, onRunSpeed
         <StatGauge
           label="GPU"
           icon={<Microchip size={13} />}
-          value={stats?.gpu_percent ?? null}
-          display={`${Math.round(stats?.gpu_percent ?? 0)}%`}
+          value={gpuValue}
+          display={`${Math.round(gpuValue ?? 0)}%`}
           caption={gpuCaption}
           color="#c4b5fd"
         />
@@ -79,7 +88,14 @@ export const StatsTab: React.FC<StatsTabProps> = ({ stats, speedTest, onRunSpeed
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-[1.45fr_1fr_1fr] gap-3">
-        <TopAppsPanel apps={stats?.top_apps ?? []} totalGb={stats?.ram_total_gb} />
+        <TopAppsPanel
+          apps={stats?.top_apps ?? []}
+          vramApps={stats?.top_apps_vram ?? []}
+          cpuApps={stats?.top_apps_cpu ?? []}
+          totalGb={stats?.ram_total_gb}
+          vramTotalGb={stats?.gpu_vram_total_gb}
+          cpuThreads={stats?.cpu_threads}
+        />
         <SystemIoPanel stats={stats} />
         <SpeedTestPanel result={speedTest} onRun={onRunSpeedTest} />
       </div>

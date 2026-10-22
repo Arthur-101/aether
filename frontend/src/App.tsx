@@ -9,6 +9,10 @@ import { CropModal } from './components/MicroModals/CropModal';
 import { AddBgModal } from './components/MicroModals/AddBgModal';
 import { SettingsModal, type SettingsTab } from './components/SettingsModal/SettingsModal';
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
+import { ScreenScale } from './components/Island/ScreenScale';
+import { ColorPickerOverlay } from './components/Island/ColorPickerOverlay';
+import { normalizeHex } from './components/Island/colorUtils';
+import type { ScaleUnit } from './components/Island/scaleUnits';
 import { Notifications } from './components/Notifications';
 import {
   openExternalTarget,
@@ -29,6 +33,20 @@ import type {
   TaskbarPinnedApp,
 } from './types/ipc';
 import type { NotesApi } from './types/notes';
+
+const PICKED_COLOR_KEY = 'aether.picked_color';
+const DEFAULT_PICKED_COLOR = '#5B8CFF';
+
+function readPickedColor(): string {
+  try {
+    return normalizeHex(
+      window.localStorage.getItem(PICKED_COLOR_KEY) || DEFAULT_PICKED_COLOR,
+      DEFAULT_PICKED_COLOR
+    );
+  } catch {
+    return DEFAULT_PICKED_COLOR;
+  }
+}
 
 function localIso(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
@@ -67,10 +85,12 @@ export function App() {
     bluetoothDevices,
     audioDevices,
     displayInfo,
+    screenSample,
     speedTest,
     clockAlert,
     lastWheelResult,
     subscribeMouse,
+    requestScreenSample,
     sendChatMessage,
     newSession,
     switchSession,
@@ -135,6 +155,9 @@ export function App() {
   const [cropFile, setCropFile] = useState<string | null>(null);
   const [addBgFile, setAddBgFile] = useState<string | null>(null);
   const [askRequest, setAskRequest] = useState<{ id: number; filePath: string } | null>(null);
+  const [scaleUnit, setScaleUnit] = useState<ScaleUnit | null>(null);
+  const [pickedColor, setPickedColor] = useState<string>(readPickedColor);
+  const [isPickingColor, setIsPickingColor] = useState(false);
   const islandExpandedRef = useRef(false);
   const islandExpandedBeforeSettings = useRef(false);
   const settingsOpenRef = useRef(false);
@@ -253,6 +276,37 @@ export function App() {
     [attachFile, closeRadialWheel]
   );
 
+  const openScale = useCallback((unit: ScaleUnit) => {
+    setIsIslandExpanded(false);
+    setScaleUnit(unit);
+  }, []);
+
+  const openColorPicker = useCallback(() => {
+    if (!connected) return;
+    setIsIslandExpanded(false);
+    setIsPickingColor(true);
+  }, [connected]);
+
+  const closeColorPicker = useCallback(() => {
+    setIsPickingColor(false);
+    setIsIslandExpanded(true);
+  }, []);
+
+  const applyPickedColor = useCallback(
+    (hex: string) => {
+      const value = normalizeHex(hex, pickedColor);
+      setPickedColor(value);
+      try {
+        window.localStorage.setItem(PICKED_COLOR_KEY, value);
+      } catch {
+        // A locked-down WebView may reject storage; the session still works.
+      }
+      setIsPickingColor(false);
+      setIsIslandExpanded(true);
+    },
+    [pickedColor]
+  );
+
   const snoozeAlarm = useCallback(() => {
     if (!clockAlert) return;
     createTask({
@@ -349,6 +403,11 @@ export function App() {
         onRefreshAudioDevices={refreshAudioDevices}
         onSelectAudioDevice={setAudioDevice}
         onOpenSettingsPage={handleOpenSettingsPage}
+        onOpenScale={openScale}
+        pickedColor={pickedColor}
+        colorPickerConnected={connected}
+        onOpenColorPicker={openColorPicker}
+        hidden={isPickingColor}
         appearance={liveAppearance}
         peekEnabled={!isSettingsOpen}
         media={media}
@@ -444,6 +503,24 @@ export function App() {
         }}
         onClose={closeCircle}
       />
+
+      {scaleUnit ? (
+        <ScreenScale
+          initialUnit={scaleUnit}
+          displayInfo={displayInfo}
+          onClose={() => setScaleUnit(null)}
+        />
+      ) : null}
+
+      {isPickingColor ? (
+        <ColorPickerOverlay
+          sample={screenSample}
+          connected={connected}
+          requestSample={requestScreenSample}
+          onPick={applyPickedColor}
+          onCancel={closeColorPicker}
+        />
+      ) : null}
 
       <Notifications
         connected={connected}

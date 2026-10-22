@@ -42,9 +42,9 @@ _SET_DEFAULT_SLOT = 13
 _ROLE_CONSOLE = 0
 _ROLE_MULTIMEDIA = 1
 
-# DEVICE_STATE_ACTIVE / DEVICE_STATE_UNPLUGGED
+# DEVICE_STATE_ACTIVE. Unplugged, disabled, and not-present endpoints are
+# saved by Windows but cannot be used until the device is connected again.
 _STATE_ACTIVE = 1
-_STATE_UNPLUGGED = 8
 
 # EDataFlow.eRender
 _FLOW_RENDER = 0
@@ -125,7 +125,7 @@ def _set_default_endpoint(device_id: str, role: int) -> bool:
 
 
 def _render_endpoints() -> List[Dict[str, Any]]:
-    """Returns every render endpoint Windows knows about."""
+    """Returns every currently available (active) render endpoint."""
     try:
         from pycaw.api.mmdeviceapi import IMMEndpoint
         from pycaw.pycaw import AudioUtilities
@@ -148,8 +148,9 @@ def _render_endpoints() -> List[Dict[str, Any]]:
         if flow != _FLOW_RENDER:
             continue
         state = int(state or 0)
-        if state not in (_STATE_ACTIVE, _STATE_UNPLUGGED):
-            # Not-present and disabled endpoints are ghosts the user cannot pick.
+        if state != _STATE_ACTIVE:
+            # Unplugged jacks, disconnected Bluetooth headsets, disabled, and
+            # not-present endpoints are saved by Windows but cannot be used.
             continue
         try:
             device_id = device._dev.GetId()
@@ -187,11 +188,14 @@ def _active_device_id() -> str:
 
 
 def list_output_devices() -> List[Dict[str, Any]]:
-    """Lists render endpoints, flagging the one that is active right now.
+    """Lists the output devices the user can switch to right now.
 
-    Windows happily exposes several endpoints under the same friendly name
-    (virtual mixer devices, duplicated headphone jacks), so the list is
-    collapsed by name and the live device is kept.
+    Windows keeps a saved endpoint for every jack and paired headset, even
+    when nothing is plugged in or connected. Offering only active endpoints
+    keeps the card short and every row selectable. Larger setups can still
+    expose several endpoints under one friendly name (virtual mixer devices,
+    duplicated jacks), so the list is collapsed by name and the current
+    default is kept.
     """
     active = _active_device_id()
     devices = _render_endpoints()
@@ -205,7 +209,7 @@ def list_output_devices() -> List[Dict[str, Any]]:
             seen[key] = device
             unique.append(device)
         elif device["active"] and not existing["active"]:
-            # The live device wins the slot over its inactive twin.
+            # The default device wins when two active endpoints share a name.
             unique[unique.index(existing)] = device
             seen[key] = device
     return unique

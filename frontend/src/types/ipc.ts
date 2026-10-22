@@ -134,7 +134,9 @@ export interface MediaSnapshot {
 
 export interface TopAppStat {
   name: string;
-  ram_mb: number;
+  ram_mb?: number;
+  vram_mb?: number;
+  cpu_percent?: number;
   processes: number;
 }
 
@@ -154,6 +156,8 @@ export interface SystemStats {
   cpu_cores?: number | null;
   cpu_threads?: number | null;
   top_apps?: TopAppStat[];
+  top_apps_vram?: TopAppStat[];
+  top_apps_cpu?: TopAppStat[];
   gpu_percent?: number | null;
   gpu_name?: string | null;
   gpu_vram_gb?: number | null;
@@ -196,6 +200,29 @@ export interface DisplayInfo {
   width: number;
   height: number;
   refresh_hz: number;
+  /** Physical active-area size from EDID, when the panel reports it. */
+  width_mm?: number;
+  height_mm?: number;
+}
+
+/** One live screen-color sample from the picker overlay. */
+export interface ScreenSample {
+  request_id: string;
+  available: boolean;
+  message: string;
+  /** Cursor in physical screen coordinates. */
+  x: number;
+  y: number;
+  hex: string;
+  rgb: [number, number, number];
+  /** Small PNG data URL used by the magnifier. */
+  patch: string;
+  patch_width: number;
+  patch_height: number;
+  cursor_x: number;
+  cursor_y: number;
+  screen_width: number;
+  screen_height: number;
 }
 
 export interface SessionItem {
@@ -408,6 +435,10 @@ export type OutgoingEvent =
   | { type: 'LIST_AUDIO_DEVICES'; payload: Record<string, never> }
   | { type: 'SET_AUDIO_DEVICE'; payload: { device_id: string } }
   | { type: 'GET_DISPLAY_INFO'; payload: Record<string, never> }
+  | {
+      type: 'SAMPLE_SCREEN';
+      payload: { request_id: string; radius?: number };
+    }
   | { type: 'RUN_SPEED_TEST'; payload: Record<string, never> }
   | { type: 'OPEN_SETTINGS_PAGE'; payload: { page: string } };
 
