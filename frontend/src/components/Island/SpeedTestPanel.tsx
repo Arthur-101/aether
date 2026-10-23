@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import { Loader2, Timer, Zap } from 'lucide-react';
 import type { SpeedTestPhase, SpeedTestResult, SpeedTestSample } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { ControlPanel, PanelFooterRow } from './ControlPanel';
 import { formatPing, formatSpeed, formatTestedAt } from './statsFormat';
 
@@ -359,6 +360,7 @@ const SpeedChart: React.FC<SpeedChartProps> = ({ samples, max, running }) => {
  * latest window so the card feels live instead of jumping once at the end.
  */
 export const SpeedTestPanel: React.FC<SpeedTestPanelProps> = ({ result, onRun }) => {
+  const timeFormat = useTimeFormat();
   const [duration, setDuration] = useState(() =>
     String(result?.duration_seconds ?? DEFAULT_DURATION_SECONDS)
   );
@@ -408,7 +410,7 @@ export const SpeedTestPanel: React.FC<SpeedTestPanelProps> = ({ result, onRun })
     : result?.state === 'done'
       ? 1
       : 0;
-  const tested = formatTestedAt(result?.tested_at);
+  const tested = formatTestedAt(result?.tested_at, timeFormat);
   const failed = result?.state === 'error';
   const shownValue =
     phase === 'latency' && running ? null : gaugeValue > 0 || phase === 'done' ? gaugeValue : null;

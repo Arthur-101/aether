@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { AlarmClock, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import type { ScheduledTask, TaskInput } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { alarmTimeLabel } from './alarmFormat';
 import { AlarmForm } from './AlarmForm';
 import { CardArt } from './CardArt';
@@ -28,6 +29,7 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
   ) {
     const [formOpen, setFormOpen] = useState(false);
     const [editing, setEditing] = useState<ScheduledTask | null>(null);
+    const timeFormat = useTimeFormat();
 
     const startNew = () => {
       setEditing(null);
@@ -90,7 +92,7 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
         ) : null}
 
         {alarms.length ? (
-          <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+          <div className="no-scrollbar mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
             {alarms.map((alarm) => {
               const paused = alarm.status === 'paused';
               return (
@@ -103,7 +105,7 @@ export const AlarmPanel = forwardRef<AlarmPanelHandle, AlarmPanelProps>(
                   <AlarmClock size={14} className="shrink-0 accent-text" />
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-[14px] font-semibold leading-tight text-[var(--aether-text-1)]">
-                      {alarmTimeLabel(alarm)}
+                      {alarmTimeLabel(alarm, timeFormat)}
                     </p>
                     <p className="truncate text-[9px] text-[var(--aether-text-3)]">
                       {alarm.prompt_to_execute} ·{' '}

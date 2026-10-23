@@ -1,4 +1,5 @@
-import type { ScheduledTask } from '../../types/ipc';
+import type { ScheduledTask, TimeFormat } from '../../types/ipc';
+import { formatClockTime } from './timeFormat';
 
 export function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -56,11 +57,11 @@ export function taskTimeParts(task: ScheduledTask): { date: string; time: string
   };
 }
 
-function displayTime(time: string): string {
+function displayTime(time: string, timeFormat: TimeFormat = '12h'): string {
   const [hour, minute] = time.split(':').map(Number);
   const display = new Date();
   display.setHours(hour, minute, 0, 0);
-  return display.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return formatClockTime(display, timeFormat, false);
 }
 
 function displayDate(raw?: string | null): string {
@@ -70,18 +71,21 @@ function displayDate(raw?: string | null): string {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-export function formatSchedule(task: ScheduledTask): string {
+export function formatSchedule(
+  task: ScheduledTask,
+  timeFormat: TimeFormat = '12h'
+): string {
   if (task.schedule_type === 'custom') {
     const start = taskTimeParts(task);
     const startLabel = displayDate(task.start_at_iso);
     const endLabel = displayDate(task.end_at_iso);
     const range = startLabel && endLabel ? ` · ${startLabel} – ${endLabel}` : '';
-    return `Daily · ${displayTime(start.time)}${range}`;
+    return `Daily · ${displayTime(start.time, timeFormat)}${range}`;
   }
 
   if (task.is_recurring) {
     const { time } = taskTimeParts(task);
-    return `Daily · ${displayTime(time)}`;
+    return `Daily · ${displayTime(time, timeFormat)}`;
   }
 
   const raw = task.run_at_iso || task.cron_or_iso;
@@ -95,7 +99,7 @@ export function formatSchedule(task: ScheduledTask): string {
     value.getFullYear() === today.getFullYear() &&
     value.getMonth() === today.getMonth() &&
     value.getDate() === today.getDate();
-  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const time = formatClockTime(date, timeFormat, false);
   if (sameDay(date)) return `Today · ${time}`;
   if (sameDay(tomorrow)) return `Tomorrow · ${time}`;
   return `${date.toLocaleDateString([], {

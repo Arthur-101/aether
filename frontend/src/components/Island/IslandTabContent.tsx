@@ -3,10 +3,10 @@ import type { DashboardTabId, SpeedTestResult, SystemStats } from '../../types/i
 import type { NotesApi } from '../../types/notes';
 import { ClockTasksTab } from './ClockTasksTab';
 import { IslandControls } from './IslandControls';
-import { PlaceholderPanel } from './PlaceholderPanel';
+import { PowerTab } from './PowerTab';
 import { QuickChat } from './QuickChat';
 import { StatsTab } from './StatsTab';
-import { tabDefinition } from './tabRegistry';
+import { WallpaperTab } from './WallpaperTab';
 
 const NotesTab = React.lazy(() =>
   import('./NotesTab').then((module) => ({ default: module.NotesTab }))
@@ -19,6 +19,8 @@ interface IslandTabContentProps {
   controls: React.ComponentProps<typeof IslandControls>;
   chat: React.ComponentProps<typeof QuickChat>;
   clock: React.ComponentProps<typeof ClockTasksTab>;
+  wallpaper: React.ComponentProps<typeof WallpaperTab>;
+  power: React.ComponentProps<typeof PowerTab>;
   notes: NotesApi;
   onRunSpeedTest: (durationSeconds: number) => void;
 }
@@ -30,6 +32,8 @@ export const IslandTabContent: React.FC<IslandTabContentProps> = ({
   controls,
   chat,
   clock,
+  wallpaper,
+  power,
   notes,
   onRunSpeedTest,
 }) => {
@@ -62,23 +66,7 @@ export const IslandTabContent: React.FC<IslandTabContentProps> = ({
     );
   }
 
-  if (tab === 'wallpaper') {
-    return (
-      <PlaceholderPanel
-        icon={tabDefinition('wallpaper').icon}
-        eyebrow="Personalize"
-        title="Wallpaper carousel"
-        description="Recent and folder-based wallpapers, a tilted preview carousel, and apply-to-desktop controls arrive in Phase 6."
-      />
-    );
-  }
+  if (tab === 'wallpaper') return <WallpaperTab {...wallpaper} />;
 
-  return (
-    <PlaceholderPanel
-      icon={tabDefinition('power').icon}
-      eyebrow="Session"
-      title="Power controls"
-      description="Lock, Sleep, Restart, and Shut down cards with confirmation for destructive actions arrive in Phase 6."
-    />
-  );
+  return <PowerTab {...power} />;
 };

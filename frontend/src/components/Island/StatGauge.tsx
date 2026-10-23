@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock3 } from 'lucide-react';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { bootTime, formatUptime } from './statsFormat';
 
 interface StatGaugeProps {
@@ -91,7 +92,7 @@ export const StatGauge: React.FC<StatGaugeProps> = ({
         </div>
       </div>
 
-      <p className="mt-1.5 w-full truncate text-center text-[9px] text-[var(--aether-text-3)]">
+      <p className="mt-2.5 w-full truncate text-center text-[13px] text-[var(--aether-text-3)]">
         {caption}
       </p>
     </section>
@@ -103,26 +104,28 @@ interface UptimeCardProps {
 }
 
 /** The fourth card in the gauge row: how long this Windows session has run. */
-export const UptimeCard: React.FC<UptimeCardProps> = ({ seconds }) => (
-  <section className="aether-panel flex min-w-0 flex-col rounded-2xl border border-[var(--aether-line-soft)] px-3 pb-2.5 pt-3">
-    <header className="flex w-full items-center justify-between gap-2">
-      <h2 className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--aether-text-3)]">
-        Uptime
-      </h2>
-      <Clock3 size={13} className="text-[var(--aether-text-3)]" />
-    </header>
+export const UptimeCard: React.FC<UptimeCardProps> = ({ seconds }) => {
+  const timeFormat = useTimeFormat();
+  return (
+    <section className="aether-panel flex min-w-0 flex-col rounded-2xl border border-[var(--aether-line-soft)] px-3 pb-2.5 pt-3">
+      <header className="flex w-full items-center justify-between gap-2">
+        <h2 className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--aether-text-3)]">
+          Uptime
+        </h2>
+        <Clock3 size={13} className="text-[var(--aether-text-3)]" />
+      </header>
 
-    <div className="flex flex-1 flex-col items-center justify-center">
-      <span className="font-mono text-[27px] leading-none text-[var(--aether-text-1)]">
-        {formatUptime(seconds)}
-      </span>
-      <span className="mt-2 text-center text-[9px] leading-relaxed text-[var(--aether-text-3)]">
-        Since boot
-      </span>
-    </div>
-
-    <p className="w-full truncate text-center text-[8.5px] text-[var(--aether-text-4)]">
-      {bootTime(seconds)}
-    </p>
-  </section>
-);
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <span className="font-mono text-[27px] leading-none text-[var(--aether-text-1)]">
+          {formatUptime(seconds)}
+        </span>
+        <span className="mt-2 text-center text-[13px] leading-snug text-[var(--aether-text-3)]">
+          Since boot
+        </span>
+        <p className="mt-1.5 w-full truncate text-center text-xs text-[var(--aether-text-4)]">
+          {bootTime(seconds, timeFormat)}
+        </p>
+      </div>
+    </section>
+  );
+};

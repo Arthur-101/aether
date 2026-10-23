@@ -58,7 +58,7 @@ export const ClockTasksTab: React.FC<ClockTasksTabProps> = ({
 
   return (
     <div
-      className="overflow-y-auto pr-0.5"
+      className="no-scrollbar overflow-y-auto pr-0.5"
       style={{ height: CLOCK_HEIGHT }}
     >
       <div className="flex flex-col gap-3">

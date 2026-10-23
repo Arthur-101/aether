@@ -67,6 +67,10 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
     await broadcast_model_status()
     if "taskbar_apps" in updates:
         await _broadcast_taskbar_state()
+    if "wallpaper" in updates:
+        from .wallpaper_events import broadcast_wallpaper_state
+
+        await broadcast_wallpaper_state()
     return current
 
 
@@ -108,6 +112,10 @@ async def _handle_update_config(payload: Dict[str, Any]) -> None:
         clear_weather_cache()
     if section == "taskbar_apps":
         await _broadcast_taskbar_state()
+    if section == "wallpaper":
+        from .wallpaper_events import broadcast_wallpaper_state
+
+        await broadcast_wallpaper_state()
     await ws_manager.broadcast(
         "CONFIG_UPDATED", {"section": section, "key": key, "value": value}
     )

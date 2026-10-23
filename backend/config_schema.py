@@ -19,6 +19,9 @@ DEFAULT_DASHBOARD_TABS: List[str] = [
 ]
 VALID_DASHBOARD_TABS = frozenset(DEFAULT_DASHBOARD_TABS)
 
+DEFAULT_BRAND_NAME = "Aether"
+MAX_BRAND_NAME_LENGTH = 24
+
 DEFAULT_CLOCK: Dict[str, Any] = {
     "weather_mode": "auto",
     "weather_city": "",
@@ -26,6 +29,10 @@ DEFAULT_CLOCK: Dict[str, Any] = {
     "weather_longitude": None,
     "weather_unit": "celsius",
     "weather_label": "",
+}
+
+DEFAULT_WALLPAPER: Dict[str, Any] = {
+    "folder": "",
 }
 
 DEFAULT_APPEARANCE: Dict[str, Any] = {
@@ -43,11 +50,13 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "button_secondary": "#F4DF9A",
     "button_gradient": True,
     "close_on_outside_click": False,
+    "time_format": "12h",
 }
 
 _THEME_MODES = ("system", "light", "dark")
 _GLOW_STYLES = ("off", "soft", "glass", "neon", "pulse")
 _GLOW_COLORS = ("source", "theme")
+_TIME_FORMATS = ("12h", "24h")
 
 DEFAULT_TASKBAR_APPS: Dict[str, Any] = {
     "mode": "mirror",
@@ -70,6 +79,17 @@ def default_taskbar_apps() -> Dict[str, Any]:
 def default_clock() -> Dict[str, Any]:
     """Returns a fresh clock/weather section."""
     return dict(DEFAULT_CLOCK)
+
+
+def default_wallpaper() -> Dict[str, Any]:
+    """Returns a fresh wallpaper section."""
+    return dict(DEFAULT_WALLPAPER)
+
+
+def normalize_brand_name(value: Any) -> str:
+    """Keeps the header label to one readable line and backfills the fallback."""
+    text = " ".join(str(value or "").split())
+    return text[:MAX_BRAND_NAME_LENGTH] or DEFAULT_BRAND_NAME
 
 
 def _migrate_tab_id(tab_id: str) -> str:
@@ -133,6 +153,7 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
     theme_mode = str(raw.get("theme_mode") or "").strip().lower()
     glow_style = str(raw.get("glow_style") or "").strip().lower()
     glow_color = str(raw.get("glow_color") or "").strip().lower()
+    time_format = str(raw.get("time_format") or "").strip().lower()
     return {
         "dashboard_tabs": normalize_dashboard_tabs(raw.get("dashboard_tabs")),
         "theme_mode": (
@@ -174,6 +195,9 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
         "close_on_outside_click": _as_bool(
             raw.get("close_on_outside_click"),
             DEFAULT_APPEARANCE["close_on_outside_click"],
+        ),
+        "time_format": (
+            time_format if time_format in _TIME_FORMATS else DEFAULT_APPEARANCE["time_format"]
         ),
     }
 
@@ -238,10 +262,18 @@ def normalize_clock(value: Any) -> Dict[str, Any]:
     }
 
 
+def normalize_wallpaper(value: Any) -> Dict[str, Any]:
+    """Sanitizes the wallpaper folder. An empty value means no custom folder."""
+    raw = value if isinstance(value, dict) else {}
+    return {"folder": _optional_text(raw.get("folder"), 260)}
+
+
 def normalize_config(config: Any) -> Dict[str, Any]:
-    """Returns the config with valid appearance/clock/taskbar sections."""
+    """Returns the config with valid brand/appearance/clock/taskbar sections."""
     normalized = dict(config) if isinstance(config, dict) else {}
+    normalized["brand_name"] = normalize_brand_name(normalized.get("brand_name"))
     normalized["appearance"] = normalize_appearance(normalized.get("appearance"))
     normalized["clock"] = normalize_clock(normalized.get("clock"))
     normalized["taskbar_apps"] = normalize_taskbar_apps(normalized.get("taskbar_apps"))
+    normalized["wallpaper"] = normalize_wallpaper(normalized.get("wallpaper"))
     return normalized

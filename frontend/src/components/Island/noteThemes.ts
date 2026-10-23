@@ -3,6 +3,12 @@
  * Per-note CSS token presets. Applied only to the notes pane, never the island.
  */
 
+import swatchApp from '../../assets/note-patterns/swatch-app.svg?url';
+import swatchMidnight from '../../assets/note-patterns/swatch-midnight.svg?url';
+import swatchMint from '../../assets/note-patterns/swatch-mint.svg?url';
+import swatchSakura from '../../assets/note-patterns/swatch-sakura.svg?url';
+import swatchSunset from '../../assets/note-patterns/swatch-sunset.svg?url';
+
 export interface NoteTheme {
   id: string;
   label: string;
@@ -16,12 +22,61 @@ export interface NoteTheme {
 export const DEFAULT_NOTE_THEME = 'default';
 
 export const NOTE_THEMES: NoteTheme[] = [
-  { id: 'default', label: 'Windows Dark', swatch: '#3a3a3a', description: 'Fluent dark' },
-  { id: 'paper', label: 'Paper', swatch: '#efe3c8', description: 'Warm and calm' },
-  { id: 'mint', label: 'Mint', swatch: '#c7ecd8', description: 'Fresh and light' },
-  { id: 'sakura', label: 'Sakura', swatch: '#f8cfdd', description: 'Soft pink' },
-  { id: 'sunset', label: 'Sunset', swatch: '#ffd2b3', description: 'Peach glow' },
-  { id: 'midnight', label: 'Midnight', swatch: '#1c2740', description: 'Deep blue' },
+  {
+    id: 'default',
+    label: 'Windows',
+    swatch: '#3a3a3a',
+    description: 'Fluent',
+  },
+  {
+    id: 'app',
+    label: 'App accent',
+    swatch: 'var(--aether-accent)',
+    description: 'Accent doodles',
+    pattern: `url("${swatchApp}")`,
+    patternSize: '100% 100%',
+  },
+  {
+    id: 'paper',
+    label: 'Paper',
+    swatch: '#efe3c8',
+    description: 'Ruled paper',
+    pattern:
+      'repeating-linear-gradient(0deg, rgba(92, 70, 40, 0.32) 0 1px, transparent 1px 4px)',
+    patternSize: '100% 4px',
+  },
+  {
+    id: 'mint',
+    label: 'Mint',
+    swatch: '#c7ecd8',
+    description: 'Botanical doodles',
+    pattern: `url("${swatchMint}")`,
+    patternSize: '100% 100%',
+  },
+  {
+    id: 'sakura',
+    label: 'Sakura',
+    swatch: '#f8cfdd',
+    description: 'Petal doodles',
+    pattern: `url("${swatchSakura}")`,
+    patternSize: '100% 100%',
+  },
+  {
+    id: 'sunset',
+    label: 'Sunset',
+    swatch: '#ffd2b3',
+    description: 'Sunset doodles',
+    pattern: `url("${swatchSunset}")`,
+    patternSize: '100% 100%',
+  },
+  {
+    id: 'midnight',
+    label: 'Midnight',
+    swatch: '#1c2740',
+    description: 'Night doodles',
+    pattern: `url("${swatchMidnight}")`,
+    patternSize: '100% 100%',
+  },
   { id: 'doodle', label: 'Doodle', swatch: '#ddccff', description: 'Playful dots' },
   {
     id: 'starlight',

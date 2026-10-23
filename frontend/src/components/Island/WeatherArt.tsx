@@ -89,6 +89,18 @@ export const WeatherArt: React.FC<WeatherArtProps> = ({
   const moonId = `weather-moon-${scene}-${isDay ? 'day' : 'night'}`;
   const sunX = 194;
   const sunY = 30;
+  // Eight rays at 45° intervals, drawn from the same inner/outer radius so
+  // every ray points straight out from the sun. Hard-coded diagonals used to
+  // leave the bottom two tangent to the disc, which read as stray strokes.
+  const sunRays = Array.from({ length: 8 }, (_, index) => {
+    const angle = (index * Math.PI) / 4;
+    return {
+      x1: sunX + Math.cos(angle) * 17,
+      y1: sunY + Math.sin(angle) * 17,
+      x2: sunX + Math.cos(angle) * 22.5,
+      y2: sunY + Math.sin(angle) * 22.5,
+    };
+  });
 
   return (
     <svg
@@ -124,14 +136,9 @@ export const WeatherArt: React.FC<WeatherArtProps> = ({
           <circle cx={sunX} cy={sunY} r="24" fill={`url(#${sunId})`} />
           <circle cx={sunX} cy={sunY} r="9" fill="#ffe9a8" />
           <g stroke="#ffe9a8" strokeWidth="1.6" strokeLinecap="round" opacity="0.65">
-            <path d={`M ${sunX} 13 V 8`} />
-            <path d={`M ${sunX} 52 V 47`} />
-            <path d={`M ${sunX - 17} 30 H ${sunX - 22}`} />
-            <path d={`M ${sunX + 22} 30 H ${sunX + 17}`} />
-            <path d={`M ${sunX - 12} 18 L ${sunX - 16} 14`} />
-            <path d={`M ${sunX + 16} 42 L ${sunX + 12} 46`} />
-            <path d={`M ${sunX + 12} 18 L ${sunX + 16} 14`} />
-            <path d={`M ${sunX - 16} 42 L ${sunX - 12} 46`} />
+            {sunRays.map((ray, index) => (
+              <line key={index} {...ray} />
+            ))}
           </g>
         </>
       ) : (

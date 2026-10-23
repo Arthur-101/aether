@@ -5,7 +5,9 @@ import { ClockTasksTab } from './ClockTasksTab';
 import { DashboardTabs } from './DashboardTabs';
 import { IslandControls } from './IslandControls';
 import { IslandTabContent } from './IslandTabContent';
+import { PowerTab } from './PowerTab';
 import { QuickChat } from './QuickChat';
+import { WallpaperTab } from './WallpaperTab';
 
 interface IslandBodyProps {
   tabs: DashboardTabId[];
@@ -16,6 +18,8 @@ interface IslandBodyProps {
   controls: React.ComponentProps<typeof IslandControls>;
   chat: React.ComponentProps<typeof QuickChat>;
   clock: React.ComponentProps<typeof ClockTasksTab>;
+  wallpaper: React.ComponentProps<typeof WallpaperTab>;
+  power: React.ComponentProps<typeof PowerTab>;
   notes: NotesApi;
   onRunSpeedTest: (durationSeconds: number) => void;
   /** Reports the natural height of the rendered body so the shell can fit it. */
@@ -41,6 +45,8 @@ export const IslandBody: React.FC<IslandBodyProps> = ({
   controls,
   chat,
   clock,
+  wallpaper,
+  power,
   notes,
   onRunSpeedTest,
   onMeasured,
@@ -82,7 +88,11 @@ export const IslandBody: React.FC<IslandBodyProps> = ({
       <div ref={tabsRef} className="shrink-0">
         <DashboardTabs tabs={tabs} activeTab={activeTab} onSelect={onSelectTab} />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto p-5 ${
+          activeTab === 'clock' ? 'no-scrollbar' : ''
+        }`}
+      >
         <div ref={bodyRef} className="w-full">
           <IslandTabContent
             tab={activeTab}
@@ -91,6 +101,8 @@ export const IslandBody: React.FC<IslandBodyProps> = ({
             controls={controls}
             chat={chat}
             clock={clock}
+            wallpaper={wallpaper}
+            power={power}
             notes={notes}
             onRunSpeedTest={onRunSpeedTest}
           />

@@ -118,6 +118,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onPreviewAppearance?.(appearance);
   };
 
+  const updateBrandName = (brand_name: string) => {
+    setDraft((prev) => (prev ? { ...prev, brand_name } : prev));
+  };
+
   const updateTaskbarApps = (taskbar_apps: TaskbarAppsConfig) => {
     setDraft((prev) => (prev ? { ...prev, taskbar_apps } : prev));
   };
@@ -259,6 +263,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'appearance' && (
                     <AppearanceSettings
                       appearance={resolveAppearance(draft.appearance)}
+                      brandName={draft.brand_name ?? 'Aether'}
+                      onBrandNameChange={updateBrandName}
                       taskbarApps={resolveTaskbarApps(draft.taskbar_apps)}
                       taskbarState={taskbarState}
                       onChange={updateAppearance}

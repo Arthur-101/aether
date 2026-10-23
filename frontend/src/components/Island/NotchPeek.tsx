@@ -1,9 +1,11 @@
 import React from 'react';
 import { Plus } from 'lucide-react';
 import type { TaskbarPinnedApp } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { AppDock } from './AppDock';
 import { MediaBars } from './MediaBars';
 import { CLOCK_GAP, CLOCK_WIDTH, type PeekLayout } from './peekLayout';
+import { formatClockTime } from './timeFormat';
 
 interface NotchPeekProps {
   now: Date;
@@ -26,7 +28,8 @@ export const NotchPeek: React.FC<NotchPeekProps> = ({
   onLaunch,
   onManageApps,
 }) => {
-  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const timeFormat = useTimeFormat();
+  const time = formatClockTime(now, timeFormat);
   const left = apps.slice(0, layout.leftCount);
   const right = apps.slice(layout.leftCount);
 

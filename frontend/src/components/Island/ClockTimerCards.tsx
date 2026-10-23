@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlarmClock, Pause, Play, RotateCcw, Timer } from 'lucide-react';
 import type { ScheduledTask } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { CardArt } from './CardArt';
 import type { ClockTools } from './useClockTools';
 import { TIMER_PRESETS } from './useClockTools';
@@ -200,6 +201,7 @@ export const AlarmCard: React.FC<{
   tasks: ScheduledTask[];
   onNewAlarm: () => void;
 }> = ({ tasks, onNewAlarm }) => {
+  const timeFormat = useTimeFormat();
   const upcoming = upcomingAlarms(tasks, 4);
   const next = upcoming[0] ?? null;
   const alarmCount = tasks.filter((task) => task.kind === 'alarm').length;
@@ -227,13 +229,13 @@ export const AlarmCard: React.FC<{
       {next ? (
         <>
           <span className="relative mt-2 block font-mono text-[30px] font-semibold leading-none text-[var(--aether-text-1)]">
-            {alarmLabel(next)}
+            {alarmLabel(next, timeFormat)}
           </span>
           <p className="relative mt-1.5 line-clamp-2 text-[11px] leading-relaxed text-[var(--aether-text-2)]">
             {next.prompt_to_execute}
           </p>
           <p className="relative text-[10px] text-[var(--aether-text-3)]">
-            {formatSchedule(next)}
+            {formatSchedule(next, timeFormat)}
           </p>
         </>
       ) : (
@@ -262,7 +264,7 @@ export const AlarmCard: React.FC<{
                 {alarm.prompt_to_execute}
               </span>
               <span className="shrink-0 font-mono text-[var(--aether-text-3)]">
-                {alarmLabel(alarm)}
+                {alarmLabel(alarm, timeFormat)}
               </span>
             </div>
           ))}

@@ -11,8 +11,10 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { SessionItem } from '../../types/ipc';
+import type { SessionItem, TimeFormat } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { parseBackendTimestamp } from './backendTime';
+import { formatClockTime } from './timeFormat';
 
 interface ChatSessionMenuProps {
   sessions: SessionItem[];
@@ -26,12 +28,12 @@ interface ChatSessionMenuProps {
   onRefreshSessions: () => void;
 }
 
-function formatSessionTime(value?: string): string {
+function formatSessionTime(value: string | undefined, timeFormat: TimeFormat): string {
   const date = parseBackendTimestamp(value);
   if (!date) return 'Now';
   const today = new Date();
   if (date.toDateString() === today.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatClockTime(date, timeFormat);
   }
   return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
@@ -59,6 +61,7 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
   onDeleteSession,
   onRefreshSessions,
 }) => {
+  const timeFormat = useTimeFormat();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
@@ -267,7 +270,7 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
                         </span>
                         <span className="mt-0.5 flex items-center gap-1.5 text-[9px] text-[var(--aether-text-3)]">
                           <Clock size={9} />
-                          {formatSessionTime(session.updated_at)}
+                          {formatSessionTime(session.updated_at, timeFormat)}
                           {session.turn_count !== undefined ? (
                             <span>· {turnLabel(session.turn_count)}</span>
                           ) : null}

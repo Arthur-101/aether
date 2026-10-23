@@ -163,7 +163,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
             <p className="truncate text-[15px] font-medium text-[var(--aether-text-1)]">
               {weather?.available ? weather.condition : 'Weather offline'}
             </p>
-            <p className="truncate text-[11px] text-[var(--aether-text-2)]">
+            <p className="truncate text-[13px] text-[var(--aether-text-2)]">
               {weather?.location ||
                 (clockConfig.weather_mode === 'auto'
                   ? 'Auto location'

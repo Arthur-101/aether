@@ -1,5 +1,8 @@
 /** Formatting helpers for the Stats tab. */
 
+import type { TimeFormat } from '../../types/ipc';
+import { formatClockTime } from './timeFormat';
+
 export function formatUptime(seconds?: number | null): string {
   if (seconds == null || seconds < 0) return '—';
   const total = Math.floor(seconds);
@@ -11,15 +14,14 @@ export function formatUptime(seconds?: number | null): string {
   return `${minutes}m`;
 }
 
-export function bootTime(seconds?: number | null): string {
+export function bootTime(
+  seconds?: number | null,
+  timeFormat: TimeFormat = '12h'
+): string {
   if (seconds == null) return '—';
   const booted = new Date(Date.now() - seconds * 1000);
-  return booted.toLocaleString([], {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const date = booted.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  return `${date}, ${formatClockTime(booted, timeFormat)}`;
 }
 
 export function formatGb(value?: number | null, digits = 1): string {
@@ -49,9 +51,12 @@ export function formatPing(value?: number | null): string {
   return `${value < 10 ? value.toFixed(1) : Math.round(value)}`;
 }
 
-export function formatTestedAt(testedAt?: string): string {
+export function formatTestedAt(
+  testedAt?: string,
+  timeFormat: TimeFormat = '12h'
+): string {
   if (!testedAt) return '';
   const date = new Date(testedAt);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return formatClockTime(date, timeFormat);
 }

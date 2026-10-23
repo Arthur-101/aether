@@ -19,6 +19,7 @@ import {
 interface NotchShellProps {
   isExpanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
+  brandName: string;
   appearance: AppearanceConfig;
   peekEnabled: boolean;
   apps: TaskbarPinnedApp[];
@@ -39,6 +40,7 @@ interface NotchShellProps {
 export const NotchShell: React.FC<NotchShellProps> = ({
   isExpanded,
   onExpandedChange,
+  brandName,
   appearance,
   peekEnabled,
   apps,
@@ -198,6 +200,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         >
           <NotchHeader
             now={now}
+            brandName={brandName}
             onOpenSettings={onOpenSettings}
             onKill={onKill}
             onClose={close}

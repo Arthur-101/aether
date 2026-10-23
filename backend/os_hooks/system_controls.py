@@ -209,6 +209,18 @@ def media_previous() -> None:
     trigger_media_key(VK_MEDIA_PREV_TRACK)
 
 
+def get_desktop_wallpaper() -> str:
+    """Returns the current desktop wallpaper path, or an empty string."""
+    try:
+        buffer = ctypes.create_unicode_buffer(32768)
+        res = ctypes.windll.user32.SystemParametersInfoW(
+            0x0073, len(buffer), buffer, 0
+        )
+        return buffer.value if res else ""
+    except Exception:
+        return ""
+
+
 def set_desktop_wallpaper(image_path: str) -> bool:
     try:
         res = ctypes.windll.user32.SystemParametersInfoW(20, 0, str(image_path), 3)

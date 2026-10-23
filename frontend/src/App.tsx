@@ -87,6 +87,8 @@ export function App() {
     displayInfo,
     screenSample,
     speedTest,
+    wallpaperState,
+    powerResult,
     clockAlert,
     lastWheelResult,
     subscribeMouse,
@@ -138,6 +140,10 @@ export function App() {
     refreshAudioDevices,
     setAudioDevice,
     runSpeedTest,
+    refreshWallpaper,
+    applyWallpaper,
+    setWallpaperFolder,
+    runPowerAction,
     openSettingsPage,
     closeRadialWheel,
     closeCircle,
@@ -338,6 +344,7 @@ export function App() {
     liveAppearance.theme_mode,
     systemStats?.dark_mode
   );
+  const brandName = (config?.brand_name ?? '').trim() || 'Aether';
 
   return (
     <main
@@ -354,6 +361,12 @@ export function App() {
         systemStats={systemStats}
         speedTest={speedTest}
         onRunSpeedTest={runSpeedTest}
+        wallpaperState={wallpaperState}
+        powerResult={powerResult}
+        onRefreshWallpaper={refreshWallpaper}
+        onApplyWallpaper={applyWallpaper}
+        onSetWallpaperFolder={setWallpaperFolder}
+        onPowerAction={runPowerAction}
         chatHistory={chatHistory}
         chatPending={chatPending}
         attachments={attachments}
@@ -415,6 +428,7 @@ export function App() {
         onOpenColorPicker={openColorPicker}
         onSetColor={setColor}
         hidden={isPickingColor}
+        brandName={brandName}
         appearance={liveAppearance}
         peekEnabled={!isSettingsOpen}
         media={media}

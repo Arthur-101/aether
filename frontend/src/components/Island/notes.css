@@ -10,10 +10,66 @@
   --note-active: rgba(96, 205, 255, 0.22);
   --note-code-bg: rgba(0, 0, 0, 0.28);
   --note-quote: rgba(255, 255, 255, 0.72);
+  --note-pattern-color: transparent;
+  --note-pattern-opacity: 0;
+  position: relative;
+  isolation: isolate;
   background: var(--note-bg);
   border-color: var(--note-border);
   color: var(--note-text);
   transition: background-color 160ms ease, color 160ms ease;
+}
+
+/* A single masked layer keeps the doodles behind the editor text while
+   letting each theme tint the same kind of line art. */
+.note-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-color: var(--note-pattern-color);
+  opacity: var(--note-pattern-opacity);
+  -webkit-mask-image: none;
+  mask-image: none;
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-size: 680px 680px;
+  mask-size: 680px 680px;
+}
+
+/* The default note theme follows the app theme, so light mode gets dark ink
+   instead of the fixed white text used by the dark Fluent surface. */
+[data-theme='light'] .note-surface[data-note-theme='default'] {
+  --note-bg: rgba(255, 255, 255, 0.68);
+  --note-text: #1b1d22;
+  --note-muted: #5b5f66;
+  --note-accent: var(--aether-accent-text);
+  --note-border: rgba(0, 0, 0, 0.12);
+  --note-hover: rgba(0, 0, 0, 0.05);
+  --note-active: color-mix(in srgb, var(--aether-accent) 18%, transparent);
+  --note-code-bg: rgba(0, 0, 0, 0.06);
+  --note-quote: rgba(27, 29, 34, 0.72);
+}
+
+.note-surface[data-note-theme='app'] {
+  --note-bg: color-mix(in srgb, var(--aether-accent) 10%, var(--aether-surface-1));
+  --note-text: var(--aether-text-1);
+  --note-muted: var(--aether-text-3);
+  --note-accent: var(--aether-accent-text);
+  --note-border: color-mix(in srgb, var(--aether-accent) 28%, transparent);
+  --note-hover: color-mix(in srgb, var(--aether-accent) 10%, transparent);
+  --note-active: color-mix(in srgb, var(--aether-accent) 20%, transparent);
+  --note-code-bg: color-mix(in srgb, var(--aether-text-1) 8%, transparent);
+  --note-quote: var(--aether-text-2);
+}
+
+.note-surface[data-note-theme='app']::before {
+  --note-pattern-color: var(--aether-accent-text);
+  --note-pattern-opacity: 0.09;
+  -webkit-mask-image: url('../../assets/note-patterns/app.svg');
+  mask-image: url('../../assets/note-patterns/app.svg');
 }
 
 .note-surface[data-note-theme='paper'] {
@@ -26,6 +82,12 @@
   --note-active: rgba(169, 112, 47, 0.2);
   --note-code-bg: rgba(92, 70, 40, 0.1);
   --note-quote: rgba(53, 46, 36, 0.75);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(92, 70, 40, 0.065) 0 1px,
+    transparent 1px 26px
+  );
+  background-size: 100% 26px;
 }
 
 .note-surface[data-note-theme='mint'] {
@@ -40,6 +102,13 @@
   --note-quote: rgba(23, 53, 42, 0.72);
 }
 
+.note-surface[data-note-theme='mint']::before {
+  --note-pattern-color: #207d56;
+  --note-pattern-opacity: 0.09;
+  -webkit-mask-image: url('../../assets/note-patterns/mint.svg');
+  mask-image: url('../../assets/note-patterns/mint.svg');
+}
+
 .note-surface[data-note-theme='sakura'] {
   --note-bg: #fbe7ee;
   --note-text: #3d2230;
@@ -50,6 +119,13 @@
   --note-active: rgba(201, 93, 140, 0.2);
   --note-code-bg: rgba(201, 93, 140, 0.12);
   --note-quote: rgba(61, 34, 48, 0.72);
+}
+
+.note-surface[data-note-theme='sakura']::before {
+  --note-pattern-color: #b34170;
+  --note-pattern-opacity: 0.08;
+  -webkit-mask-image: url('../../assets/note-patterns/sakura.svg');
+  mask-image: url('../../assets/note-patterns/sakura.svg');
 }
 
 .note-surface[data-note-theme='sunset'] {
@@ -64,6 +140,13 @@
   --note-quote: rgba(69, 40, 26, 0.72);
 }
 
+.note-surface[data-note-theme='sunset']::before {
+  --note-pattern-color: #b64f22;
+  --note-pattern-opacity: 0.08;
+  -webkit-mask-image: url('../../assets/note-patterns/sunset.svg');
+  mask-image: url('../../assets/note-patterns/sunset.svg');
+}
+
 .note-surface[data-note-theme='midnight'] {
   --note-bg: #16213a;
   --note-text: #e8eeff;
@@ -74,6 +157,13 @@
   --note-active: rgba(139, 180, 255, 0.22);
   --note-code-bg: rgba(0, 0, 0, 0.3);
   --note-quote: rgba(232, 238, 255, 0.7);
+}
+
+.note-surface[data-note-theme='midnight']::before {
+  --note-pattern-color: #a8c7ff;
+  --note-pattern-opacity: 0.1;
+  -webkit-mask-image: url('../../assets/note-patterns/midnight.svg');
+  mask-image: url('../../assets/note-patterns/midnight.svg');
 }
 
 .note-surface[data-note-theme='doodle'] {

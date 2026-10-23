@@ -12,6 +12,9 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { NoteMeta } from '../../types/notes';
+import type { TimeFormat } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
+import { formatClockTime } from './timeFormat';
 
 interface NotesSidebarProps {
   notes: NoteMeta[];
@@ -26,12 +29,12 @@ interface NotesSidebarProps {
   onDelete: (note: NoteMeta) => void;
 }
 
-function formatNoteDate(value: string): string {
+function formatNoteDate(value: string, timeFormat: TimeFormat): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const today = new Date();
   if (date.toDateString() === today.toDateString()) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return formatClockTime(date, timeFormat, false);
   }
   return date.toLocaleDateString([], { day: 'numeric', month: 'short' });
 }
@@ -51,6 +54,7 @@ export const NotesSidebar: React.FC<NotesSidebarProps> = ({
   onAttach,
   onDelete,
 }) => {
+  const timeFormat = useTimeFormat();
   const [query, setQuery] = useState('');
   const [menuId, setMenuId] = useState<string | null>(null);
   const [deleteArmedId, setDeleteArmedId] = useState<string | null>(null);
@@ -252,7 +256,7 @@ export const NotesSidebar: React.FC<NotesSidebarProps> = ({
                         ) : null}
                       </span>
                       <span className="mt-0.5 flex items-center gap-1.5 text-[8.5px] text-[var(--aether-text-3)]">
-                        <span>{formatNoteDate(note.updated)}</span>
+                        <span>{formatNoteDate(note.updated, timeFormat)}</span>
                         {active ? (
                           <span className="text-[var(--aether-accent-text)]">· Open</span>
                         ) : null}

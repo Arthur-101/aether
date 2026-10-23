@@ -16,6 +16,7 @@ import type {
   MediaSnapshot,
   ModelStatus,
   OutgoingEvent,
+  PowerActionResult,
   RadialWheelCursor,
   RadialWheelDropPayload,
   RadialWheelPayload,
@@ -26,6 +27,7 @@ import type {
   SystemStats,
   TaskbarAppsState,
   VoiceState,
+  WallpaperState,
   WeatherSnapshot,
   WifiProfile,
 } from '../types/ipc';
@@ -69,6 +71,8 @@ export function useBackendSocket() {
   const [displayInfo, setDisplayInfo] = useState<DisplayInfo | null>(null);
   const [screenSample, setScreenSample] = useState<ScreenSample | null>(null);
   const [speedTest, setSpeedTest] = useState<SpeedTestResult | null>(null);
+  const [wallpaperState, setWallpaperState] = useState<WallpaperState | null>(null);
+  const [powerResult, setPowerResult] = useState<PowerActionResult | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
@@ -225,6 +229,12 @@ export function useBackendSocket() {
         case 'DISPLAY_INFO':
           setDisplayInfo(payload as DisplayInfo);
           break;
+        case 'WALLPAPER_STATE':
+          setWallpaperState(payload as WallpaperState);
+          break;
+        case 'POWER_ACTION_RESULT':
+          setPowerResult(payload as PowerActionResult);
+          break;
         case 'SCREEN_SAMPLE':
           setScreenSample(payload as ScreenSample);
           break;
@@ -307,7 +317,7 @@ export function useBackendSocket() {
   });
   useEffect(() => {
     if (!connected) return;
-    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE', 'LIST_AUDIO_DEVICES', 'GET_DISPLAY_INFO'];
+    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE', 'LIST_AUDIO_DEVICES', 'GET_DISPLAY_INFO', 'GET_WALLPAPER_STATE'];
     bootTypes.forEach((type) => sendEvent({ type, payload: {} } as OutgoingEvent));
     const weatherTimer = window.setInterval(
       () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
@@ -385,6 +395,8 @@ export function useBackendSocket() {
     displayInfo,
     screenSample,
     speedTest,
+    wallpaperState,
+    powerResult,
     lastWheelResult,
     subscribeMouse,
     ...actions,

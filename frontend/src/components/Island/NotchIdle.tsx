@@ -1,5 +1,7 @@
 import React from 'react';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { MediaBars } from './MediaBars';
+import { formatClockTime } from './timeFormat';
 
 interface NotchIdleProps {
   now: Date;
@@ -14,7 +16,8 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
   spotify,
   onOpen,
 }) => {
-  const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const timeFormat = useTimeFormat();
+  const time = formatClockTime(now, timeFormat);
 
   return (
     <button

@@ -25,11 +25,14 @@ import type {
   ChatTurn,
   ModelStatus,
   SessionItem,
+  TimeFormat,
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { AetherMark } from './AetherMark';
 import { ChatSessionMenu } from './ChatSessionMenu';
 import { parseBackendTimestamp } from './backendTime';
+import { formatClockTime } from './timeFormat';
 
 interface QuickChatProps {
   history: ChatTurn[];
@@ -96,10 +99,10 @@ function engineInfo(ai?: AIProviderConfig | null): {
   };
 }
 
-function turnTime(timestamp?: string): string {
+function turnTime(timestamp: string | undefined, timeFormat: TimeFormat): string {
   const date = parseBackendTimestamp(timestamp);
   if (!date) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return formatClockTime(date, timeFormat);
 }
 
 export const QuickChat: React.FC<QuickChatProps> = ({
@@ -124,6 +127,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onSend,
   onDetach,
 }) => {
+  const timeFormat = useTimeFormat();
   const [input, setInput] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
   const [notePickerOpen, setNotePickerOpen] = useState(false);
@@ -309,9 +313,9 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                     <div className="min-w-0 flex-1">
                       <p className="mb-1 flex items-center gap-1.5 text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--aether-text-3)]">
                         Aether
-                        {turnTime(turn.timestamp) ? (
+                        {turnTime(turn.timestamp, timeFormat) ? (
                           <span className="font-normal tracking-normal text-[var(--aether-text-4)]">
-                            · {turnTime(turn.timestamp)}
+                            · {turnTime(turn.timestamp, timeFormat)}
                           </span>
                         ) : null}
                       </p>

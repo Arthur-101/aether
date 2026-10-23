@@ -137,7 +137,7 @@ export const TaskPanel: React.FC<TaskPanelProps> = ({
         </div>
       ) : null}
 
-      <div className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+      <div className="no-scrollbar mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
         {visible.length ? (
           visible.map((task) => (
             <TaskRow

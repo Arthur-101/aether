@@ -1,11 +1,12 @@
 import React from 'react';
-import { Layers, MonitorCog, Moon, Palette, PanelTop, Sparkles, Sun } from 'lucide-react';
+import { Clock3, Layers, MonitorCog, Moon, Palette, PanelTop, Sparkles, Sun, Type } from 'lucide-react';
 import type {
   AppearanceConfig,
   GlowStyle,
   TaskbarAppsConfig,
   TaskbarAppsState,
   ThemeMode,
+  TimeFormat,
 } from '../../../types/ipc';
 import { ButtonColorSettings } from './ButtonColorSettings';
 import { DashboardTabsSettings } from './DashboardTabsSettings';
@@ -36,8 +37,15 @@ const THEME_OPTIONS: {
   { id: 'dark', label: 'Dark', description: 'Always dark', icon: Moon },
 ];
 
+const TIME_FORMAT_OPTIONS: { id: TimeFormat; label: string; example: string }[] = [
+  { id: '12h', label: '12-hour', example: '5:14 pm' },
+  { id: '24h', label: '24-hour', example: '17:14' },
+];
+
 interface AppearanceSettingsProps {
   appearance: AppearanceConfig;
+  brandName: string;
+  onBrandNameChange: (value: string) => void;
   taskbarApps: TaskbarAppsConfig;
   taskbarState: TaskbarAppsState | null;
   onChange: (appearance: AppearanceConfig) => void;
@@ -67,6 +75,8 @@ const Section: React.FC<{
 
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   appearance,
+  brandName,
+  onBrandNameChange,
   taskbarApps,
   taskbarState,
   onChange,
@@ -125,6 +135,56 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         visible={appearance.dashboard_tabs}
         onChange={(dashboard_tabs) => update({ dashboard_tabs })}
       />
+
+      <Section
+        icon={<Type size={14} />}
+        title="Header"
+        description="The name shown beside the mark in the expanded island."
+      >
+        <input
+          value={brandName}
+          maxLength={24}
+          onChange={(event) => onBrandNameChange(event.target.value)}
+          placeholder="Aether"
+          spellCheck={false}
+          className="w-full rounded-md border border-[var(--aether-line)] bg-black/15 px-3 py-2 text-xs text-[var(--aether-text-1)] outline-none transition placeholder:text-[var(--aether-text-3)] focus:border-[var(--aether-accent)]"
+        />
+        <p className="mt-1.5 text-[9px] text-[var(--aether-text-3)]">
+          Leave blank to use the default Aether name.
+        </p>
+      </Section>
+
+      <Section
+        icon={<Clock3 size={14} />}
+        title="Clock"
+        description="How times are shown across the island, alarms, tasks, chat, and notes."
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {TIME_FORMAT_OPTIONS.map((option) => {
+            const active = appearance.time_format === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => update({ time_format: option.id })}
+                className={`flex items-center justify-between rounded-lg border px-2.5 py-2 text-left transition ${
+                  active
+                    ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/12'
+                    : 'border-[var(--aether-line)] bg-black/15 hover:border-[var(--aether-line-strong)]'
+                }`}
+              >
+                <span className="text-[10.5px] font-semibold text-[var(--aether-text-1)]">
+                  {option.label}
+                </span>
+                <span className="font-mono text-[10px] text-[var(--aether-text-3)]">
+                  {option.example}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Section>
 
       <Section
         icon={<Palette size={14} />}

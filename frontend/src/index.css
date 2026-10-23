@@ -61,6 +61,11 @@
   --aether-glass-rgb: 32 32 32;
   --aether-sidebar-rgb: 31 31 31;
   --aether-shadow: rgba(0, 0, 0, 0.34);
+  /* Destructive controls stay red, even when the app accent is pink. */
+  --aether-danger: #ff6b6b;
+  --aether-danger-soft: rgba(255, 107, 107, 0.12);
+  --aether-danger-line: rgba(255, 107, 107, 0.32);
+  --aether-danger-contrast: #1b1114;
   color: var(--aether-text-1);
 }
 
@@ -96,6 +101,10 @@
     rgba(250, 250, 252, 0.34) 100%
   );
   --aether-shadow: rgba(0, 0, 0, 0.16);
+  --aether-danger: #c42b46;
+  --aether-danger-soft: rgba(196, 43, 70, 0.09);
+  --aether-danger-line: rgba(196, 43, 70, 0.26);
+  --aether-danger-contrast: #ffffff;
   color: var(--aether-text-1);
 }
 
@@ -462,4 +471,15 @@ main {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* Keep scrolling available without painting a visible bar. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }

@@ -1,5 +1,6 @@
-import type { ScheduledTask } from '../../types/ipc';
+import type { ScheduledTask, TimeFormat } from '../../types/ipc';
 import { taskTimeParts } from './taskFormat';
+import { formatClockTime } from './timeFormat';
 
 export function formatTimer(ms: number): string {
   const total = Math.max(0, Math.ceil(ms / 1000));
@@ -40,17 +41,17 @@ export function upcomingAlarms(
     .map((entry) => entry.task);
 }
 
-export function alarmLabel(task: ScheduledTask | null): string {
+export function alarmLabel(
+  task: ScheduledTask | null,
+  timeFormat: TimeFormat = '12h'
+): string {
   if (!task) return 'No alarm set';
   if (task.next_run_at) {
-    return new Date(task.next_run_at).toLocaleTimeString([], {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    return formatClockTime(new Date(task.next_run_at), timeFormat, false);
   }
   const { time } = taskTimeParts(task);
   const [hour, minute] = time.split(':').map(Number);
   const display = new Date();
   display.setHours(hour, minute, 0, 0);
-  return display.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return formatClockTime(display, timeFormat, false);
 }

@@ -1,8 +1,11 @@
 """Tests for the notch/appearance config normalization."""
 
 from backend.config_schema import (
+    DEFAULT_BRAND_NAME,
     DEFAULT_DASHBOARD_TABS,
+    MAX_BRAND_NAME_LENGTH,
     normalize_appearance,
+    normalize_brand_name,
     normalize_clock,
     normalize_config,
     normalize_dashboard_tabs,
@@ -82,6 +85,14 @@ def test_theme_mode_defaults_to_system_and_rejects_nonsense():
     assert normalize_appearance({"theme_mode": None})["theme_mode"] == "system"
 
 
+def test_time_format_defaults_to_12h_and_accepts_24h():
+    assert normalize_appearance({})["time_format"] == "12h"
+    assert normalize_appearance({"time_format": "12h"})["time_format"] == "12h"
+    assert normalize_appearance({"time_format": "24h"})["time_format"] == "24h"
+    assert normalize_appearance({"time_format": "military"})["time_format"] == "12h"
+    assert normalize_appearance({"time_format": None})["time_format"] == "12h"
+
+
 def test_taskbar_mode_and_pins_are_normalized():
     taskbar = normalize_taskbar_apps(
         {
@@ -119,9 +130,17 @@ def test_clock_config_is_sanitized_and_backfilled():
     assert clock["weather_unit"] == "celsius"
 
 
+def test_brand_name_is_trimmed_limited_and_backfilled():
+    assert normalize_brand_name("  Studio   Aether  ") == "Studio Aether"
+    assert normalize_brand_name("") == DEFAULT_BRAND_NAME
+    assert normalize_brand_name(None) == DEFAULT_BRAND_NAME
+    assert len(normalize_brand_name("x" * 80)) == MAX_BRAND_NAME_LENGTH
+
+
 def test_normalize_config_adds_sections_without_losing_existing_data():
     config = normalize_config({"storage": {"notes_theme": "meadow"}})
     assert config["storage"]["notes_theme"] == "meadow"
+    assert config["brand_name"] == DEFAULT_BRAND_NAME
     assert "appearance" in config
     assert config["clock"]["weather_mode"] == "auto"
     assert config["taskbar_apps"]["mode"] == "mirror"

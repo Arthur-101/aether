@@ -12,12 +12,15 @@ import type {
   MediaControlAction,
   MediaSnapshot,
   ModelStatus,
+  PowerAction,
+  PowerActionResult,
   ScheduledTask,
   SessionItem,
   SpeedTestResult,
   SystemStats,
   TaskInput,
   TaskbarPinnedApp,
+  WallpaperState,
   WeatherSnapshot,
   WifiProfile,
 } from '../../types/ipc';
@@ -26,6 +29,7 @@ import { pickNativePath } from '../../lib/system';
 import { IslandBody } from './IslandBody';
 import { NotchShell } from './NotchShell';
 import { visibleTabIds } from './appearance';
+import { TimeFormatContext } from '../../hooks/useTimeFormat';
 import type { ScaleUnit } from './scaleUnits';
 import { TAB_WIDTH } from './tabSizes';
 import { useClockTools } from './useClockTools';
@@ -34,6 +38,12 @@ interface DesktopIslandProps {
   systemStats: SystemStats | null;
   speedTest: SpeedTestResult | null;
   onRunSpeedTest: (durationSeconds: number) => void;
+  wallpaperState: WallpaperState | null;
+  powerResult: PowerActionResult | null;
+  onRefreshWallpaper: () => void;
+  onApplyWallpaper: (path: string) => void;
+  onSetWallpaperFolder: (folder: string) => void;
+  onPowerAction: (action: PowerAction, confirm?: boolean) => void;
   chatHistory: ChatTurn[];
   chatPending: string | null;
   attachments: AttachmentItem[];
@@ -95,6 +105,7 @@ interface DesktopIslandProps {
   onOpenColorPicker: () => void;
   onSetColor: (hex: string) => void;
   hidden?: boolean;
+  brandName: string;
   appearance: AppearanceConfig;
   peekEnabled?: boolean;
   media: MediaSnapshot | null;
@@ -108,6 +119,12 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   systemStats,
   speedTest,
   onRunSpeedTest,
+  wallpaperState,
+  powerResult,
+  onRefreshWallpaper,
+  onApplyWallpaper,
+  onSetWallpaperFolder,
+  onPowerAction,
   chatHistory,
   chatPending,
   attachments,
@@ -169,6 +186,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onOpenColorPicker,
   onSetColor,
   hidden = false,
+  brandName,
   appearance,
   peekEnabled = true,
   media,
@@ -215,6 +233,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
       onRefreshTasks();
       onRefreshWeather();
     }
+    if (tab === 'wallpaper') {
+      onRefreshWallpaper();
+    }
   };
 
   const askAether = (prompt: string) => {
@@ -223,108 +244,121 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   };
 
   return (
-    <div
-      className={`fixed top-0 left-1/2 z-50 -translate-x-1/2 ${
-        hidden ? 'invisible' : ''
-      }`}
-    >
-      <NotchShell
-        isExpanded={isExpanded}
-        onExpandedChange={onExpandedChange}
-        appearance={appearance}
-        peekEnabled={peekEnabled}
-        apps={taskbarApps}
-        media={media}
-        onLaunchApp={onLaunchTaskbarApp}
-        onManageApps={onManageTaskbarApps}
-        onOpenSettings={onOpenSettings}
-        onKill={onKillApp}
-        tabWidth={TAB_WIDTH[effectiveTab] ?? 960}
-        tabsWidth={tabsWidth}
-        contentHeight={contentHeight}
+    <TimeFormatContext.Provider value={appearance.time_format}>
+      <div
+        className={`fixed top-0 left-1/2 z-50 -translate-x-1/2 ${
+          hidden ? 'invisible' : ''
+        }`}
       >
-        <IslandBody
-          tabs={tabs}
-          activeTab={effectiveTab}
-          onSelectTab={selectTab}
-          systemStats={systemStats}
-          speedTest={speedTest}
-          onRunSpeedTest={onRunSpeedTest}
-          controls={{
-            stats: systemStats,
-            wifiProfiles,
-            bluetoothDevices,
-            audioDevices,
-            displayInfo,
-            glowStyle: appearance.glow_style,
-            glowColor: appearance.glow_color,
-            onSetVolume,
-            onSetMuted,
-            onSetBrightness,
-            onToggleWifi,
-            onToggleBluetooth,
-            onToggleAirplaneMode,
-            onToggleHotspot,
-            onToggleDarkMode,
-            onRefreshWifiProfiles,
-            onConnectWifi,
-            onDisconnectWifi,
-            onRefreshBluetoothDevices,
-            onRefreshAudioDevices,
-            onSelectAudioDevice,
-            onOpenSettingsPage,
-            onOpenScale,
-            pickedColor,
-            colorPickerConnected,
-            onOpenColorPicker,
-            onSetColor,
-            media,
-            onMediaControl,
-          }}
-          chat={{
-            history: chatHistory,
-            pending: chatPending,
-            attachments,
-            focusToken: askRequest?.id ?? 0,
-            model,
-            notes,
-            ai: aiConfig,
-            thinkingMode,
-            onToggleThinking,
-            sessions,
-            activeSessionId,
-            activeSessionTitle,
-            vectorReady,
-            onSelectSession,
-            onNewSession,
-            onDeleteSession,
-            onRefreshSessions,
-            onBrowseFiles: browseForAsk,
-            onSend: onSendMessage,
-            onDetach: onDetachFile,
-          }}
-          clock={{
-            tasks,
-            weather,
-            clockConfig,
-            clockTools,
-            onRefreshTasks,
-            onCreateTask,
-            onUpdateTask,
-            onDeleteTask,
-            onCompleteTask,
-            onPauseTask,
-            onResumeTask,
-            onSaveWeather,
-            onRefreshWeather,
-            onAskAether: askAether,
-          }}
-          notes={tabNotes}
-          onMeasured={handleMeasured}
-          onTabsWidth={handleTabsWidth}
-        />
-      </NotchShell>
-    </div>
+        <NotchShell
+          isExpanded={isExpanded}
+          onExpandedChange={onExpandedChange}
+          brandName={brandName}
+          appearance={appearance}
+          peekEnabled={peekEnabled}
+          apps={taskbarApps}
+          media={media}
+          onLaunchApp={onLaunchTaskbarApp}
+          onManageApps={onManageTaskbarApps}
+          onOpenSettings={onOpenSettings}
+          onKill={onKillApp}
+          tabWidth={TAB_WIDTH[effectiveTab] ?? 960}
+          tabsWidth={tabsWidth}
+          contentHeight={contentHeight}
+        >
+          <IslandBody
+            tabs={tabs}
+            activeTab={effectiveTab}
+            onSelectTab={selectTab}
+            systemStats={systemStats}
+            speedTest={speedTest}
+            onRunSpeedTest={onRunSpeedTest}
+            wallpaper={{
+              state: wallpaperState,
+              onRefresh: onRefreshWallpaper,
+              onApply: onApplyWallpaper,
+              onSetFolder: onSetWallpaperFolder,
+            }}
+            power={{
+              result: powerResult,
+              onAction: onPowerAction,
+            }}
+            controls={{
+              stats: systemStats,
+              wifiProfiles,
+              bluetoothDevices,
+              audioDevices,
+              displayInfo,
+              glowStyle: appearance.glow_style,
+              glowColor: appearance.glow_color,
+              onSetVolume,
+              onSetMuted,
+              onSetBrightness,
+              onToggleWifi,
+              onToggleBluetooth,
+              onToggleAirplaneMode,
+              onToggleHotspot,
+              onToggleDarkMode,
+              onRefreshWifiProfiles,
+              onConnectWifi,
+              onDisconnectWifi,
+              onRefreshBluetoothDevices,
+              onRefreshAudioDevices,
+              onSelectAudioDevice,
+              onOpenSettingsPage,
+              onOpenScale,
+              pickedColor,
+              colorPickerConnected,
+              onOpenColorPicker,
+              onSetColor,
+              media,
+              onMediaControl,
+            }}
+            chat={{
+              history: chatHistory,
+              pending: chatPending,
+              attachments,
+              focusToken: askRequest?.id ?? 0,
+              model,
+              notes,
+              ai: aiConfig,
+              thinkingMode,
+              onToggleThinking,
+              sessions,
+              activeSessionId,
+              activeSessionTitle,
+              vectorReady,
+              onSelectSession,
+              onNewSession,
+              onDeleteSession,
+              onRefreshSessions,
+              onBrowseFiles: browseForAsk,
+              onSend: onSendMessage,
+              onDetach: onDetachFile,
+            }}
+            clock={{
+              tasks,
+              weather,
+              clockConfig,
+              clockTools,
+              onRefreshTasks,
+              onCreateTask,
+              onUpdateTask,
+              onDeleteTask,
+              onCompleteTask,
+              onPauseTask,
+              onResumeTask,
+              onSaveWeather,
+              onRefreshWeather,
+              onAskAether: askAether,
+            }}
+            notes={tabNotes}
+            onMeasured={handleMeasured}
+            onTabsWidth={handleTabsWidth}
+          />
+        </NotchShell>
+      </div>
+    </TimeFormatContext.Provider>
   );
 };
 

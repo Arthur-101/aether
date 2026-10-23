@@ -9,6 +9,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ScheduledTask } from '../../types/ipc';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { formatSchedule } from './taskFormat';
 
 interface TaskRowProps {
@@ -31,6 +32,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
   onPause,
   onResume,
 }) => {
+  const timeFormat = useTimeFormat();
   const paused = task.status === 'paused';
   const recurring = task.is_recurring;
 
@@ -70,7 +72,7 @@ export const TaskRow: React.FC<TaskRowProps> = ({
         </p>
         <p className="mt-0.5 flex items-center gap-1 truncate text-[9px] text-[var(--aether-text-3)]">
           {recurring ? <Repeat2 size={9} /> : <CalendarClock size={9} />}
-          {formatSchedule(task)}
+          {formatSchedule(task, timeFormat)}
           {paused ? <span className="text-[var(--aether-text-1)]">· Paused</span> : null}
         </p>
       </div>

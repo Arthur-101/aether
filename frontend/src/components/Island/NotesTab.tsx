@@ -341,7 +341,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
                           <span
                             className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/25"
                             style={{
-                              backgroundColor: option.swatch,
+                              background: option.swatch,
                               backgroundImage: option.pattern,
                               backgroundSize: option.patternSize,
                             }}

@@ -157,7 +157,8 @@ export const StorageSettings: React.FC<StorageSettingsProps> = ({
           ))}
         </select>
         <p className="mt-1.5 text-[10px] text-[var(--aether-text-3)]">
-          Used for new notes. Every note can switch its own theme from the palette button.
+          Used for new notes. Every note can switch its own theme from the palette button;
+          App accent follows the button colour chosen in Appearance.
         </p>
       </div>
 

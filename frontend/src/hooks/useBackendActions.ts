@@ -10,6 +10,7 @@ import type {
   ChatTurn,
   MediaControlAction,
   OutgoingEvent,
+  PowerAction,
   SessionItem,
   TaskInput,
 } from '../types/ipc';
@@ -332,6 +333,31 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshWallpaper = useCallback(
+    () => sendEvent({ type: 'GET_WALLPAPER_STATE', payload: {} }),
+    [sendEvent]
+  );
+
+  const applyWallpaper = useCallback(
+    (path: string) => sendEvent({ type: 'SET_WALLPAPER', payload: { path } }),
+    [sendEvent]
+  );
+
+  const setWallpaperFolder = useCallback(
+    (folder: string) =>
+      sendEvent({
+        type: 'UPDATE_CONFIG',
+        payload: { section: 'wallpaper', key: 'folder', value: folder },
+      }),
+    [sendEvent]
+  );
+
+  const runPowerAction = useCallback(
+    (action: PowerAction, confirm = false) =>
+      sendEvent({ type: 'POWER_ACTION', payload: { action, confirm } }),
+    [sendEvent]
+  );
+
   return {
     sendChatMessage,
     newSession,
@@ -382,6 +408,10 @@ export function useBackendActions(
     setAudioDevice,
     refreshDisplayInfo,
     runSpeedTest,
+    refreshWallpaper,
+    applyWallpaper,
+    setWallpaperFolder,
+    runPowerAction,
   };
 }
 

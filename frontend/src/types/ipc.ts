@@ -37,9 +37,13 @@ export interface AppearanceConfig {
   button_secondary: string;
   button_gradient: boolean;
   close_on_outside_click: boolean;
+  time_format: TimeFormat;
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark';
+
+/** How times of day are displayed across the island. */
+export type TimeFormat = '12h' | '24h';
 
 /** How the media widget's glow is drawn. */
 export type GlowStyle = 'off' | 'soft' | 'glass' | 'neon' | 'pulse';
@@ -54,6 +58,36 @@ export interface ClockConfig {
   weather_longitude?: number | null;
   weather_unit: 'celsius' | 'fahrenheit';
   weather_label?: string;
+}
+
+export interface WallpaperConfig {
+  folder: string;
+}
+
+export interface WallpaperItem {
+  path: string;
+  name: string;
+  thumbnail: string;
+  modified: number;
+  is_current: boolean;
+}
+
+export interface WallpaperState {
+  current: string;
+  current_name: string;
+  recent: WallpaperItem[];
+  folder: WallpaperItem[];
+  folder_path: string;
+  available: boolean;
+  message: string;
+}
+
+export type PowerAction = 'lock' | 'sleep' | 'restart' | 'shutdown';
+
+export interface PowerActionResult {
+  ok: boolean;
+  action: PowerAction | string;
+  message: string;
 }
 
 export interface WeatherSnapshot {
@@ -381,6 +415,7 @@ export interface HotkeysConfig {
 
 export interface AppConfig {
   first_run_completed?: boolean;
+  brand_name?: string;
   ai_provider: AIProviderConfig;
   voice: VoiceConfig;
   hotkeys: HotkeysConfig;
@@ -393,6 +428,7 @@ export interface AppConfig {
   appearance?: AppearanceConfig;
   clock?: ClockConfig;
   taskbar_apps?: TaskbarAppsConfig;
+  wallpaper?: WallpaperConfig;
 }
 
 export type OutgoingEvent =
@@ -454,6 +490,12 @@ export type OutgoingEvent =
   | { type: 'LIST_AUDIO_DEVICES'; payload: Record<string, never> }
   | { type: 'SET_AUDIO_DEVICE'; payload: { device_id: string } }
   | { type: 'GET_DISPLAY_INFO'; payload: Record<string, never> }
+  | { type: 'GET_WALLPAPER_STATE'; payload: Record<string, never> }
+  | { type: 'SET_WALLPAPER'; payload: { path: string } }
+  | {
+      type: 'POWER_ACTION';
+      payload: { action: PowerAction; confirm?: boolean };
+    }
   | {
       type: 'SAMPLE_SCREEN';
       payload: { request_id: string; radius?: number };

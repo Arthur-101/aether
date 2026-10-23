@@ -7,6 +7,7 @@ import type {
   GlowStyle,
   TaskbarAppsConfig,
   ThemeMode,
+  TimeFormat,
 } from '../../types/ipc';
 import { normalizeHex, accentBackground, accentTextColor } from './contrast';
 import { normalizeDashboardTabs } from './tabRegistry';
@@ -46,6 +47,7 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   button_secondary: GOLD_SECONDARY,
   button_gradient: true,
   close_on_outside_click: false,
+  time_format: '12h',
 };
 
 export interface AccentPreset {
@@ -91,6 +93,10 @@ export function normalizeGlowStyle(value: unknown): GlowStyle {
 export function normalizeGlowColor(value: unknown): GlowColor {
   const color = String(value ?? '').trim().toLowerCase();
   return color === 'theme' ? 'theme' : 'source';
+}
+
+export function normalizeTimeFormat(value: unknown): TimeFormat {
+  return String(value ?? '').trim().toLowerCase() === '24h' ? '24h' : '12h';
 }
 
 export const GLOW_STYLES: GlowStyle[] = [
@@ -147,6 +153,7 @@ export function resolveAppearance(
       typeof raw.close_on_outside_click === 'boolean'
         ? raw.close_on_outside_click
         : DEFAULT_APPEARANCE.close_on_outside_click,
+    time_format: normalizeTimeFormat(raw.time_format),
   };
 }
 
