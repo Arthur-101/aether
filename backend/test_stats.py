@@ -156,32 +156,86 @@ def test_extras_carry_every_stats_field(monkeypatch):
 
 
 def test_speed_test_success(monkeypatch):
-    monkeypatch.setattr(speed_test, "_measure_latency", lambda: 11.5)
+    monkeypatch.setattr(
+        speed_test, "_measure_latency", lambda: {"ping_ms": 11.5, "jitter_ms": 1.8}
+    )
     monkeypatch.setattr(speed_test, "_measure_download", lambda size: 240.25)
     monkeypatch.setattr(speed_test, "_measure_upload", lambda size: 21.5)
+    monkeypatch.setattr(speed_test, "_sleep", lambda seconds: None)
 
-    result = speed_test.run_speed_test()
+    result = speed_test.run_speed_test(duration_seconds=5)
 
     assert result["state"] == "done"
     assert result["ping_ms"] == 11.5
+    assert result["jitter_ms"] == 1.8
     assert result["download_mbps"] == 240.25
     assert result["upload_mbps"] == 21.5
     assert result["server"] == "Cloudflare"
     assert result["tested_at"]
+    assert result["duration_seconds"] == 5
+    assert {sample["phase"] for sample in result["samples"]} == {"download", "upload"}
+    assert len(result["samples"]) >= 6
+
+
+def test_speed_test_streams_progress(monkeypatch):
+    events = []
+    monkeypatch.setattr(
+        speed_test, "_measure_latency", lambda: {"ping_ms": 9.0, "jitter_ms": 0.7}
+    )
+    monkeypatch.setattr(speed_test, "_measure_download", lambda size: 84.5)
+    monkeypatch.setattr(speed_test, "_measure_upload", lambda size: 12.25)
+    monkeypatch.setattr(speed_test, "_sleep", lambda seconds: None)
+
+    result = speed_test.run_speed_test(events.append, duration_seconds=5)
+
+    assert result["state"] == "done"
+    phases = [event["phase"] for event in events]
+    assert phases[0] == "latency"
+    assert "download" in phases
+    assert "upload" in phases
+    progress = [event["progress"] for event in events]
+    assert all(0 <= value <= 1 for value in progress)
+    assert progress == sorted(progress)
+    assert all(event["duration_seconds"] == 5 for event in events)
+    assert events[-1]["samples"] == result["samples"]
+    assert events[-1]["samples"][0]["t"] >= 0
+    assert result["download_mbps"] == 84.5
+
+
+def test_speed_test_clamps_duration_and_scales_sample_count(monkeypatch):
+    monkeypatch.setattr(
+        speed_test, "_measure_latency", lambda: {"ping_ms": 8.0, "jitter_ms": 0.5}
+    )
+    monkeypatch.setattr(speed_test, "_measure_download", lambda size: 100.0)
+    monkeypatch.setattr(speed_test, "_measure_upload", lambda size: 10.0)
+    monkeypatch.setattr(speed_test, "_sleep", lambda seconds: None)
+
+    short = speed_test.run_speed_test(duration_seconds=1)
+    long = speed_test.run_speed_test(duration_seconds=90)
+
+    assert speed_test.clamp_duration(None) == speed_test.DEFAULT_DURATION_SECONDS
+    assert speed_test.clamp_duration("not a number") == speed_test.DEFAULT_DURATION_SECONDS
+    assert short["duration_seconds"] == speed_test.MIN_DURATION_SECONDS
+    assert long["duration_seconds"] == speed_test.MAX_DURATION_SECONDS
+    assert len(long["samples"]) > len(short["samples"])
 
 
 def test_speed_test_reports_failure_without_raising(monkeypatch):
-    monkeypatch.setattr(speed_test, "_measure_latency", lambda: 9.0)
+    monkeypatch.setattr(
+        speed_test, "_measure_latency", lambda: {"ping_ms": 9.0, "jitter_ms": 1.0}
+    )
 
     def offline(size):
         raise RuntimeError("network unreachable")
 
     monkeypatch.setattr(speed_test, "_measure_download", offline)
+    monkeypatch.setattr(speed_test, "_sleep", lambda seconds: None)
 
     result = speed_test.run_speed_test()
 
     assert result["state"] == "error"
     assert "network unreachable" in result["message"]
+    assert result["duration_seconds"] == speed_test.DEFAULT_DURATION_SECONDS
 
 
 def test_speed_test_tolerates_latency_failure(monkeypatch):
@@ -191,8 +245,10 @@ def test_speed_test_tolerates_latency_failure(monkeypatch):
     monkeypatch.setattr(speed_test, "_measure_latency", no_ping)
     monkeypatch.setattr(speed_test, "_measure_download", lambda size: 100.0)
     monkeypatch.setattr(speed_test, "_measure_upload", lambda size: 10.0)
+    monkeypatch.setattr(speed_test, "_sleep", lambda seconds: None)
 
     result = speed_test.run_speed_test()
 
     assert result["state"] == "done"
     assert result["ping_ms"] is None
+    assert result["jitter_ms"] is None

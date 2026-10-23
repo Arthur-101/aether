@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, LocateFixed, RefreshCw, X } from 'lucide-react';
+import { Check, Droplets, LocateFixed, RefreshCw, Sun, Wind, X } from 'lucide-react';
 import type { ClockConfig, WeatherSnapshot } from '../../types/ipc';
 import { WeatherArt, isDaytime, sceneFor } from './WeatherArt';
 
@@ -169,22 +169,25 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({
                   ? 'Auto location'
                   : clockConfig.weather_city || 'Set a city')}
             </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
-              <span className="text-[var(--aether-text-3)]">
-                Sky{' '}
-                <span className="font-mono text-[var(--aether-text-1)]">
+            <div className="mt-2 grid grid-cols-3 gap-2 border-t border-white/10 pt-2 text-[12px]">
+              <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[var(--aether-text-2)]">
+                <Sun size={12} className="shrink-0" />
+                Sky
+                <span className="font-mono font-medium text-[var(--aether-text-1)]">
                   {day ? 'Day' : 'Night'}
                 </span>
               </span>
-              <span className="text-[var(--aether-text-3)]">
-                Humidity{' '}
-                <span className="font-mono text-[var(--aether-text-1)]">
+              <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[var(--aether-text-2)]">
+                <Droplets size={12} className="shrink-0" />
+                Humidity
+                <span className="font-mono font-medium text-[var(--aether-text-1)]">
                   {weather?.humidity != null ? `${weather.humidity}%` : '—'}
                 </span>
               </span>
-              <span className="text-[var(--aether-text-3)]">
-                Wind{' '}
-                <span className="font-mono text-[var(--aether-text-1)]">
+              <span className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[var(--aether-text-2)]">
+                <Wind size={12} className="shrink-0" />
+                Wind
+                <span className="font-mono font-medium text-[var(--aether-text-1)]">
                   {weather?.wind_kph != null ? `${weather.wind_kph} km/h` : '—'}
                 </span>
               </span>

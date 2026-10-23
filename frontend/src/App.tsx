@@ -4,7 +4,6 @@ import { useClickThrough } from './hooks/useClickThrough';
 import { useTauriFileDrop } from './hooks/useTauriFileDrop';
 import { DesktopIsland } from './components/Island/DesktopIsland';
 import { RadialWheel } from './components/RadialWheel/RadialWheel';
-import { SessionDrawer } from './components/SessionDrawer/SessionDrawer';
 import { CropModal } from './components/MicroModals/CropModal';
 import { AddBgModal } from './components/MicroModals/AddBgModal';
 import { SettingsModal, type SettingsTab } from './components/SettingsModal/SettingsModal';
@@ -59,6 +58,7 @@ export function App() {
     voiceState,
     voiceTranscript,
     activeSessionId,
+    activeSessionTitle,
     chatHistory,
     chatPending,
     sessions,
@@ -113,6 +113,7 @@ export function App() {
     refreshNotes,
     readNote,
     saveNote,
+    setNotePinned,
     deleteNote,
     attachNote,
     triggerWheelAction,
@@ -148,7 +149,6 @@ export function App() {
 
   useClickThrough(subscribeMouse, connected);
 
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab | null>(null);
   const [isIslandExpanded, setIsIslandExpanded] = useState(false);
@@ -234,15 +234,6 @@ export function App() {
     }
     islandExpandedBeforeSettings.current = false;
   }, [clearConfigError, refreshNotes]);
-
-  const openSessions = useCallback(() => {
-    if (isDrawerOpen) {
-      setIsDrawerOpen(false);
-      return;
-    }
-    refreshSessions();
-    setIsDrawerOpen(true);
-  }, [isDrawerOpen, refreshSessions]);
 
   const handleOpenSettingsPage = useCallback(
     (page: string) => {
@@ -338,6 +329,7 @@ export function App() {
     onList: refreshNotes,
     onRead: readNote,
     onSave: saveNote,
+    onSetPinned: setNotePinned,
     onDelete: deleteNote,
     onAttach: attachNote,
   };
@@ -365,6 +357,9 @@ export function App() {
         chatHistory={chatHistory}
         chatPending={chatPending}
         attachments={attachments}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        activeSessionTitle={activeSessionTitle}
         askRequest={askRequest}
         tasks={tasks}
         weather={weather}
@@ -375,9 +370,16 @@ export function App() {
         displayInfo={displayInfo}
         notes={notesApi}
         model={{ status: modelStatus, onLoad: loadModel, onRelease: releaseModel }}
+        aiConfig={config?.ai_provider}
+        thinkingMode={thinkingMode}
+        vectorReady={connected}
         isExpanded={isIslandExpanded}
         onExpandedChange={setIsIslandExpanded}
-        onOpenSessions={openSessions}
+        onSelectSession={switchSession}
+        onNewSession={newSession}
+        onDeleteSession={deleteSession}
+        onRefreshSessions={refreshSessions}
+        onToggleThinking={toggleThinking}
         onOpenSettings={openSettings}
         onKillApp={killApp}
         onSendMessage={sendChatMessage}
@@ -443,24 +445,6 @@ export function App() {
           onClose={closeRadialWheel}
         />
       )}
-
-      <SessionDrawer
-        isOpen={isDrawerOpen}
-        sessions={sessions}
-        activeSessionId={activeSessionId}
-        attachments={attachments}
-        vectorReady={connected}
-        onSelectSession={(id) => {
-          switchSession(id);
-          setIsDrawerOpen(false);
-        }}
-        onNewSession={() => {
-          newSession();
-          setIsDrawerOpen(false);
-        }}
-        onDeleteSession={deleteSession}
-        onClose={() => setIsDrawerOpen(false)}
-      />
 
       <CropModal
         isOpen={Boolean(cropFile)}

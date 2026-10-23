@@ -163,6 +163,12 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const setNotePinned = useCallback(
+    (noteId: string, pinned: boolean) =>
+      sendEvent({ type: 'SET_NOTE_PIN', payload: { note_id: noteId, pinned } }),
+    [sendEvent]
+  );
+
   const deleteNote = useCallback(
     (noteId: string) =>
       sendEvent({ type: 'DELETE_NOTE', payload: { note_id: noteId } }),
@@ -318,7 +324,11 @@ export function useBackendActions(
   );
 
   const runSpeedTest = useCallback(
-    () => sendEvent({ type: 'RUN_SPEED_TEST', payload: {} }),
+    (durationSeconds: number) =>
+      sendEvent({
+        type: 'RUN_SPEED_TEST',
+        payload: { duration_seconds: durationSeconds },
+      }),
     [sendEvent]
   );
 
@@ -344,6 +354,7 @@ export function useBackendActions(
     refreshNotes,
     readNote,
     saveNote,
+    setNotePinned,
     deleteNote,
     attachNote,
     triggerWheelAction,

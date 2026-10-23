@@ -116,7 +116,10 @@ export const WeatherArt: React.FC<WeatherArtProps> = ({
 
       <rect width="240" height="120" fill={`url(#${gradientId})`} />
 
-      {/* Overcast hides the sun or moon behind the cloud deck. */}
+      {/* The card crops a slice of this wide scene, so the artwork is nudged
+          left to keep the sun, moons, and weather clear of the right edge. */}
+      <g transform="translate(-16 0)">
+        {/* Overcast hides the sun or moon behind the cloud deck. */}
       {overcast ? null : isDay ? (        <>
           <circle cx={sunX} cy={sunY} r="24" fill={`url(#${sunId})`} />
           <circle cx={sunX} cy={sunY} r="9" fill="#ffe9a8" />
@@ -223,6 +226,7 @@ export const WeatherArt: React.FC<WeatherArtProps> = ({
           <path d="M 168 62 L 154 88 H 164 L 156 110 L 180 78 H 168 Z" fill="#ffd166" />
         </>
       ) : null}
+      </g>
     </svg>
   );
 };

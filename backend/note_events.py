@@ -53,6 +53,17 @@ async def _handle_save_note(payload: Dict[str, Any]) -> None:
     await _broadcast_list()
 
 
+async def _handle_set_note_pin(payload: Dict[str, Any]) -> None:
+    note_id = str(payload.get("note_id", ""))
+    pinned = bool(payload.get("pinned"))
+    result = await _run(notes_store.set_note_pinned, note_id, pinned)
+    if result is None:
+        await ws_manager.broadcast("ERROR", {"message": "Note was not found."})
+        return
+    await ws_manager.broadcast("NOTE_SAVED", result)
+    await _broadcast_list()
+
+
 async def _handle_delete_note(payload: Dict[str, Any]) -> None:
     note_id = str(payload.get("note_id", ""))
     deleted = await _run(notes_store.delete_note, note_id)
@@ -79,5 +90,6 @@ def register_note_events() -> None:
     register_handler("LIST_NOTES", _handle_list_notes)
     register_handler("READ_NOTE", _handle_read_note)
     register_handler("SAVE_NOTE", _handle_save_note)
+    register_handler("SET_NOTE_PIN", _handle_set_note_pin)
     register_handler("DELETE_NOTE", _handle_delete_note)
     register_handler("ATTACH_NOTE", _handle_attach_note)

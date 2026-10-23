@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import type {
+  AIProviderConfig,
   AppearanceConfig,
   AttachmentItem,
   AudioOutputDevice,
@@ -12,6 +13,7 @@ import type {
   MediaSnapshot,
   ModelStatus,
   ScheduledTask,
+  SessionItem,
   SpeedTestResult,
   SystemStats,
   TaskInput,
@@ -31,10 +33,13 @@ import { useClockTools } from './useClockTools';
 interface DesktopIslandProps {
   systemStats: SystemStats | null;
   speedTest: SpeedTestResult | null;
-  onRunSpeedTest: () => void;
+  onRunSpeedTest: (durationSeconds: number) => void;
   chatHistory: ChatTurn[];
   chatPending: string | null;
   attachments: AttachmentItem[];
+  sessions: SessionItem[];
+  activeSessionId: string;
+  activeSessionTitle: string;
   askRequest: { id: number; filePath: string } | null;
   tasks: ScheduledTask[];
   weather: WeatherSnapshot | null;
@@ -45,9 +50,16 @@ interface DesktopIslandProps {
   displayInfo: DisplayInfo | null;
   notes: NotesApi;
   model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
+  aiConfig?: AIProviderConfig | null;
+  thinkingMode: boolean;
+  vectorReady: boolean;
   isExpanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
-  onOpenSessions: () => void;
+  onSelectSession: (id: string) => void;
+  onNewSession: () => void;
+  onDeleteSession: (id: string) => void;
+  onRefreshSessions: () => void;
+  onToggleThinking: (enabled: boolean) => void;
   onOpenSettings: () => void;
   onKillApp: () => void;
   onSendMessage: (msg: string) => void;
@@ -99,6 +111,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   chatHistory,
   chatPending,
   attachments,
+  sessions,
+  activeSessionId,
+  activeSessionTitle,
   askRequest,
   tasks,
   weather,
@@ -109,9 +124,16 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   displayInfo,
   notes,
   model,
+  aiConfig,
+  thinkingMode,
+  vectorReady,
   isExpanded,
   onExpandedChange,
-  onOpenSessions,
+  onSelectSession,
+  onNewSession,
+  onDeleteSession,
+  onRefreshSessions,
+  onToggleThinking,
   onOpenSettings,
   onKillApp,
   onSendMessage,
@@ -266,10 +288,20 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             focusToken: askRequest?.id ?? 0,
             model,
             notes,
+            ai: aiConfig,
+            thinkingMode,
+            onToggleThinking,
+            sessions,
+            activeSessionId,
+            activeSessionTitle,
+            vectorReady,
+            onSelectSession,
+            onNewSession,
+            onDeleteSession,
+            onRefreshSessions,
             onBrowseFiles: browseForAsk,
             onSend: onSendMessage,
             onDetach: onDetachFile,
-            onOpenSessions,
           }}
           clock={{
             tasks,

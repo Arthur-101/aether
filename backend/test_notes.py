@@ -46,6 +46,18 @@ def test_pinned_sorts_first(vault):
     assert [note["id"] for note in listed] == [second["id"], first["id"]]
 
 
+def test_pin_only_keeps_body(vault):
+    created = notes_store.save_note(None, "Pinned later", "keep me", "mint", False)["note"]
+    result = notes_store.set_note_pinned(created["id"], True)
+    assert result is not None
+    pinned = result["note"]
+    assert pinned["pinned"] is True
+    assert pinned["title"] == "Pinned later"
+    assert pinned["theme"] == "mint"
+    assert pinned["content"].rstrip() == "keep me"
+    assert notes_store.set_note_pinned("missing", True) is None
+
+
 def test_delete(vault):
     note = notes_store.save_note(None, "Temp", "", None, False)["note"]
     assert notes_store.delete_note(note["id"]) is True

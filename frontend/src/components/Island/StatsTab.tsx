@@ -11,7 +11,7 @@ import { STATS_HEIGHT } from './tabSizes';
 interface StatsTabProps {
   stats: SystemStats | null;
   speedTest: SpeedTestResult | null;
-  onRunSpeedTest: () => void;
+  onRunSpeedTest: (durationSeconds: number) => void;
 }
 
 /** Fixed so the ring, the cards, and the app list share one steady frame. */

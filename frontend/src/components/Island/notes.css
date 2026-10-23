@@ -166,6 +166,17 @@
   color: var(--note-text);
 }
 
+.note-surface .note-action-btn {
+  color: var(--note-muted);
+  border-color: var(--note-border);
+  background: var(--note-hover);
+}
+
+.note-surface .note-action-btn:hover:not(:disabled) {
+  background: var(--note-active);
+  color: var(--note-text);
+}
+
 .note-surface .note-title-input::placeholder {
   color: var(--note-muted);
   opacity: 0.65;
@@ -194,10 +205,17 @@
   color: var(--note-text);
 }
 
+.note-editor {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
 .note-body-scroll {
   position: relative;
-  min-height: 190px;
-  max-height: 270px;
+  min-height: 0;
+  flex: 1 1 auto;
   overflow-y: auto;
 }
 

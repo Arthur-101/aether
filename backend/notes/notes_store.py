@@ -228,6 +228,20 @@ def save_note(
         return {"note": note, "created": created}
 
 
+def set_note_pinned(note_id: str, pinned: bool) -> Optional[Dict[str, Any]]:
+    """Pins or unpins a note without touching its body or title."""
+    note = read_note(note_id)
+    if note is None:
+        return None
+    return save_note(
+        note_id,
+        str(note.get("title") or "Untitled note"),
+        str(note.get("content") or ""),
+        note.get("theme"),
+        pinned,
+    )
+
+
 def delete_note(note_id: str) -> bool:
     with _write_lock:
         path = _find_path(note_id)

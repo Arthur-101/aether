@@ -229,7 +229,27 @@ export function useBackendSocket() {
           setScreenSample(payload as ScreenSample);
           break;
         case 'SPEED_TEST_STATE':
-          setSpeedTest((prev) => ({ ...(prev ?? { state: 'idle' }), state: payload.state }));
+          setSpeedTest((prev) => {
+            if (payload.state !== 'running') {
+              return { ...(prev ?? { state: 'idle' }), state: payload.state };
+            }
+            if (prev?.state === 'running') return prev;
+            return {
+              state: 'running',
+              phase: 'latency',
+              progress: 0,
+              samples: [],
+              server: 'Cloudflare',
+              duration_seconds: payload.duration_seconds,
+            };
+          });
+          break;
+        case 'SPEED_TEST_PROGRESS':
+          setSpeedTest((prev) => ({
+            ...(prev ?? { state: 'running' }),
+            ...(payload as Partial<SpeedTestResult>),
+            state: 'running',
+          }));
           break;
         case 'SPEED_TEST_RESULT':
           setSpeedTest(payload as SpeedTestResult);

@@ -1,21 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Check,
-  ChevronDown,
-  Loader2,
-  MessageSquarePlus,
-  MoreHorizontal,
-  Palette,
-  Pin,
-  PinOff,
-  Plus,
-  StickyNote,
-  Trash2,
-} from 'lucide-react';
+import { Check, Loader2, Palette, Pin, Plus, StickyNote } from 'lucide-react';
 
-import type { NotesApi } from '../../types/notes';
+import type { NoteMeta, NotesApi } from '../../types/notes';
 import { NoteEditor } from './NoteEditor';
-import { NoteListPopover } from './NoteListPopover';
+import { NotesSidebar } from './NotesSidebar';
 import { DEFAULT_NOTE_THEME, NOTE_THEMES } from './noteThemes';
 
 interface NotesTabProps {
@@ -33,7 +21,7 @@ interface Draft {
 type SaveStatus = 'idle' | 'saving' | 'saved';
 
 const ICON_BUTTON =
-  'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--aether-line)] bg-[var(--aether-fill)] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:cursor-default disabled:opacity-40';
+  'note-action-btn flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border transition disabled:cursor-default disabled:opacity-40';
 
 export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
   const apiRef = useRef(notes);
@@ -45,12 +33,10 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
 
   const [title, setTitle] = useState('');
   const [theme, setTheme] = useState(fallbackTheme);
-  const [listOpen, setListOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
-  const [deleteArmed, setDeleteArmed] = useState(false);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [awaitingContent, setAwaitingContent] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const draftRef = useRef<Draft>({
     id: '',
@@ -149,7 +135,6 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
     setTitle(note.title);
     setTheme(noteTheme);
     setStatus('idle');
-    setDeleteArmed(false);
   }, [currentId, notes.contentSeq]);
 
   // Wait for the fresh body before mounting TipTap, so it never initialises
@@ -182,21 +167,16 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
     };
   }, [flush]);
 
-  // Close popovers on outside click or Escape.
+  // Close the theme picker on outside click or Escape.
   useEffect(() => {
-    if (!listOpen && !menuOpen && !themeOpen) return;
+    if (!themeOpen) return;
     const handlePointer = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.closest('.notes-menu-area')) return;
-      setListOpen(false);
-      setMenuOpen(false);
       setThemeOpen(false);
     };
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      setListOpen(false);
-      setMenuOpen(false);
-      setThemeOpen(false);
+      if (event.key === 'Escape') setThemeOpen(false);
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('keydown', handleKey);
@@ -204,7 +184,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
       document.removeEventListener('mousedown', handlePointer);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [listOpen, menuOpen, themeOpen]);
+  }, [themeOpen]);
 
   const handleTitle = (value: string) => {
     setTitle(value);
@@ -229,8 +209,6 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
 
   const createNote = () => {
     flush();
-    setListOpen(false);
-    setMenuOpen(false);
     setThemeOpen(false);
     apiRef.current.onSave({
       title: 'Untitled note',
@@ -240,240 +218,218 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
   };
 
   const openNote = (id: string) => {
-    setListOpen(false);
     if (id === draftRef.current.id) return;
     flush();
+    setThemeOpen(false);
     apiRef.current.onRead(id);
   };
 
-  const togglePin = () => {
-    const draft = draftRef.current;
-    if (!draft.id) return;
-    draft.pinned = !draft.pinned;
-    lastSavedRef.current = '';
-    flush();
-    setMenuOpen(false);
-  };
-
-  const attachCurrent = () => {
-    const id = draftRef.current.id;
-    if (!id) return;
-    flush();
-    apiRef.current.onAttach(id);
-    setMenuOpen(false);
-  };
-
-  const deleteCurrent = () => {
-    const id = draftRef.current.id;
-    if (!id) return;
-    if (!deleteArmed) {
-      setDeleteArmed(true);
-      window.setTimeout(() => setDeleteArmed(false), 3000);
+  const toggleNotePin = (note: NoteMeta) => {
+    if (note.id === draftRef.current.id) {
+      const draft = draftRef.current;
+      draft.pinned = !draft.pinned;
+      lastSavedRef.current = '';
+      flush();
       return;
     }
-    if (saveTimerRef.current !== null) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
+    apiRef.current.onSetPinned(note.id, !note.pinned);
+  };
+
+  const attachNote = (note: NoteMeta) => {
+    if (note.id === draftRef.current.id) flush();
+    apiRef.current.onAttach(note.id);
+  };
+
+  const deleteNote = (note: NoteMeta) => {
+    if (note.id === draftRef.current.id) {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      lastSavedRef.current = '';
+      draftRef.current = { id: '', title: '', content: '', theme: fallbackTheme, pinned: false };
     }
-    lastSavedRef.current = '';
-    draftRef.current = { id: '', title: '', content: '', theme: fallbackTheme, pinned: false };
-    apiRef.current.onDelete(id);
-    setDeleteArmed(false);
-    setMenuOpen(false);
+    apiRef.current.onDelete(note.id);
   };
 
   const hasNotes = notes.items.length > 0;
 
   return (
-    <div className="flex flex-col gap-2 pt-1">
-      <div className="notes-menu-area relative flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => {
-            setMenuOpen(false);
-            setThemeOpen(false);
-            setListOpen((open) => !open);
-          }}
-          disabled={!current && !hasNotes}
-          className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2 text-[11px] text-[var(--aether-text-1)] transition hover:bg-[var(--aether-fill-2)] disabled:cursor-default disabled:opacity-50"
-        >
-          <StickyNote size={12} className="shrink-0 text-[var(--aether-text-3)]" />
-          <span className="truncate">{current ? title || 'Untitled note' : 'Notes'}</span>
-          <ChevronDown size={12} className="ml-auto shrink-0 text-[var(--aether-text-3)]" />
-        </button>
-        <button type="button" onClick={createNote} title="New note" className={ICON_BUTTON}>
-          <Plus size={14} />
-        </button>
-        <button
-          type="button"
-          title="Note theme"
-          disabled={!current}
-          onClick={() => {
-            setListOpen(false);
-            setMenuOpen(false);
-            setThemeOpen((open) => !open);
-          }}
-          className={ICON_BUTTON}
-        >
-          <Palette size={14} />
-        </button>
-        <div className="relative">
-          <button
-            type="button"
-            title="Note actions"
-            disabled={!current}
-            onClick={() => {
-              setListOpen(false);
-              setThemeOpen(false);
-              setDeleteArmed(false);
-              setMenuOpen((open) => !open);
-            }}
-            className={ICON_BUTTON}
+    <div
+      className="grid gap-3"
+      style={{
+        height: 430,
+        gridTemplateColumns: sidebarCollapsed ? '44px minmax(0, 1fr)' : '248px minmax(0, 1fr)',
+        transition: 'grid-template-columns 200ms ease',
+      }}
+    >
+      <NotesSidebar
+        notes={notes.items}
+        activeId={currentId}
+        directory={notes.directory}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
+        onCreate={createNote}
+        onSelect={openNote}
+        onTogglePin={toggleNotePin}
+        onAttach={attachNote}
+        onDelete={deleteNote}
+      />
+
+      <section className="flex min-h-0 min-w-0 flex-col">
+        {current ? (
+          <div
+            className="note-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border"
+            data-note-theme={theme}
           >
-            <MoreHorizontal size={14} />
-          </button>
-          {menuOpen && current ? (
-            <div className="absolute right-0 top-9 z-30 w-44 rounded-lg border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] p-1 shadow-2xl backdrop-blur-xl">
-              <button
-                type="button"
-                onClick={togglePin}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
-              >
-                {draftRef.current.pinned ? <PinOff size={12} /> : <Pin size={12} />}
-                {draftRef.current.pinned ? 'Unpin note' : 'Pin note'}
-              </button>
-              <button
-                type="button"
-                onClick={attachCurrent}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
-              >
-                <MessageSquarePlus size={12} />
-                Attach to chat
-              </button>
-              <div className="my-1 h-px bg-[var(--aether-fill-2)]" />
-              <button
-                type="button"
-                onClick={deleteCurrent}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] text-[#ff99a4] transition hover:bg-[#ff99a4]/10"
-              >
-                <Trash2 size={12} />
-                {deleteArmed ? 'Click again to delete' : 'Delete note'}
-              </button>
-            </div>
-          ) : null}
-        </div>
-        {listOpen ? (
-          <NoteListPopover
-            notes={notes.items}
-            activeId={draftRef.current.id}
-            onSelect={openNote}
-          />
-        ) : null}
-        {themeOpen && current ? (
-          <div className="absolute right-0 top-9 z-30 max-h-[330px] w-48 overflow-y-auto rounded-lg border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] p-1 shadow-2xl backdrop-blur-xl">
-            <p className="px-2 py-1 text-[9px] uppercase tracking-wider text-[var(--aether-text-3)]">
-              Note theme
-            </p>
-            {NOTE_THEMES.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => handleTheme(option.id)}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] transition ${
-                  option.id === theme
-                    ? 'bg-[var(--aether-fill-3)] text-[var(--aether-text-1)]'
-                    : 'text-[var(--aether-text-2)] hover:bg-[var(--aether-fill-2)]'
-                }`}
-              >
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full border border-black/25"
-                  style={{
-                    backgroundColor: option.swatch,
-                    backgroundImage: option.pattern,
-                    backgroundSize: option.patternSize,
-                  }}
+            <div
+              className="notes-menu-area relative flex shrink-0 items-start gap-2 border-b px-3.5 pb-2 pt-2.5"
+              style={{ borderColor: 'var(--note-border)' }}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  {current.pinned ? (
+                    <Pin
+                      size={9}
+                      className="shrink-0"
+                      style={{ color: 'var(--note-accent)' }}
+                    />
+                  ) : null}
+                  <span
+                    className="text-[8.5px] font-semibold uppercase tracking-[0.18em]"
+                    style={{ color: 'var(--note-muted)' }}
+                  >
+                    Note
+                  </span>
+                </div>
+                <input
+                  value={title}
+                  onChange={(event) => handleTitle(event.target.value)}
+                  placeholder="Note title"
+                  spellCheck={false}
+                  readOnly={awaitingContent}
+                  className="note-title-input w-full bg-transparent pt-0.5 text-[15px] font-semibold outline-none"
                 />
-                <span className="truncate">{option.label}</span>
-                {option.id === theme ? (
-                  <Check size={11} className="ml-auto shrink-0 text-[var(--aether-accent-text)]" />
-                ) : null}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+              </div>
 
-      {current ? (
-        <div
-          className="note-surface overflow-hidden rounded-lg border"
-          data-note-theme={theme}
-        >
-          <input
-            value={title}
-            onChange={(event) => handleTitle(event.target.value)}
-            placeholder="Note title"
-            spellCheck={false}
-            readOnly={awaitingContent}
-            className="note-title-input w-full bg-transparent px-3 pt-2.5 pb-1 text-[13px] font-semibold outline-none"
-          />
-          {awaitingContent ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-10 text-[var(--aether-text-3)]">
-              <Loader2 size={16} className="animate-spin" />
-              <p className="text-[10px]">Opening note…</p>
+              <div className="flex shrink-0 items-center gap-1">
+                <div className="relative">
+                  <button
+                    type="button"
+                    title="Note theme"
+                    onClick={() => setThemeOpen((open) => !open)}
+                    className={ICON_BUTTON}
+                  >
+                    <Palette size={14} />
+                  </button>
+                  {themeOpen ? (
+                    <div className="absolute right-0 top-9 z-30 max-h-[330px] w-52 overflow-y-auto rounded-xl border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] p-1 shadow-2xl">
+                      <p className="px-2 py-1 text-[9px] uppercase tracking-wider text-[var(--aether-text-3)]">
+                        Note theme
+                      </p>
+                      {NOTE_THEMES.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => handleTheme(option.id)}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[10.5px] transition ${
+                            option.id === theme
+                              ? 'bg-[var(--aether-fill-3)] text-[var(--aether-text-1)]'
+                              : 'text-[var(--aether-text-2)] hover:bg-[var(--aether-fill-2)]'
+                          }`}
+                        >
+                          <span
+                            className="h-3.5 w-3.5 shrink-0 rounded-full border border-black/25"
+                            style={{
+                              backgroundColor: option.swatch,
+                              backgroundImage: option.pattern,
+                              backgroundSize: option.patternSize,
+                            }}
+                          />
+                          <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                          {option.id === theme ? (
+                            <Check
+                              size={11}
+                              className="ml-auto shrink-0 text-[var(--aether-accent-text)]"
+                            />
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
-          ) : (
-            <NoteEditor
-              key={current.id}
-              content={current.content}
-              onChange={handleContent}
-            />
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--aether-line)] px-4 py-8 text-center">
-          {hasNotes ? (
-            <>
-              <Loader2 size={16} className="animate-spin text-[var(--aether-text-3)]" />
-              <p className="text-[10px] text-[var(--aether-text-3)]">Opening note…</p>
-            </>
-          ) : (
-            <>
-              <StickyNote size={20} className="text-[var(--aether-text-3)]" />
-              <p className="text-[11px] text-[var(--aether-text-2)]">No notes yet</p>
-              <p className="text-[10px] text-[var(--aether-text-3)]">
-                Notes are plain Markdown files in your vault.
-              </p>
-              <button
-                type="button"
-                onClick={createNote}
-                className="accent-fill mt-1 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[10px] font-medium transition"
-              >
-                <Plus size={11} />
-                New note
-              </button>
-            </>
-          )}
-        </div>
-      )}
 
-      <div className="flex items-center justify-end gap-3 px-0.5 text-[9px] text-[var(--aether-text-3)]">
-        <span className="flex items-center gap-1">
-          {status === 'saving' ? (
-            <>
-              <Loader2 size={9} className="animate-spin" />
-              Saving…
-            </>
-          ) : status === 'saved' ? (
-            <>
-              <Check size={9} />
-              Saved
-            </>
-          ) : null}
-        </span>
-        <span>
-          {notes.items.length} {notes.items.length === 1 ? 'note' : 'notes'}
-        </span>
-      </div>
+            {awaitingContent ? (
+              <div
+                className="flex flex-1 flex-col items-center justify-center gap-2"
+                style={{ color: 'var(--note-muted)' }}
+              >
+                <Loader2 size={16} className="animate-spin" />
+                <p className="text-[10px]">Opening note…</p>
+              </div>
+            ) : (
+              <NoteEditor key={current.id} content={current.content} onChange={handleContent} />
+            )}
+
+            <div
+              className="flex shrink-0 items-center justify-between gap-2 border-t px-3.5 py-2 text-[9px]"
+              style={{ borderColor: 'var(--note-border)', color: 'var(--note-muted)' }}
+            >
+              <span className="flex items-center gap-1">
+                {status === 'saving' ? (
+                  <>
+                    <Loader2 size={9} className="animate-spin" />
+                    Saving…
+                  </>
+                ) : status === 'saved' ? (
+                  <>
+                    <Check size={9} />
+                    Saved
+                  </>
+                ) : (
+                  'Autosaves as you type'
+                )}
+              </span>
+              <span>
+                {notes.items.length} {notes.items.length === 1 ? 'note' : 'notes'} · Markdown
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="aether-panel flex min-h-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--aether-line)] px-4 py-8 text-center">
+            {hasNotes ? (
+              <>
+                <Loader2 size={18} className="animate-spin text-[var(--aether-text-3)]" />
+                <p className="text-[10px] text-[var(--aether-text-3)]">Opening note…</p>
+              </>
+            ) : (
+              <>
+                <span className="grid h-11 w-11 place-items-center rounded-2xl border border-[var(--aether-accent)]/25 bg-[var(--aether-accent)]/10 text-[var(--aether-accent-text)]">
+                  <StickyNote size={20} />
+                </span>
+                <div>
+                  <p className="text-[12px] font-semibold text-[var(--aether-text-1)]">
+                    No notes yet
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-[var(--aether-text-3)]">
+                    Notes are plain Markdown files in your vault.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={createNote}
+                  className="accent-fill mt-1 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold transition"
+                >
+                  <Plus size={11} />
+                  New note
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </section>
     </div>
   );
 };

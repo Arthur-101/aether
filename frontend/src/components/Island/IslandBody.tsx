@@ -17,7 +17,7 @@ interface IslandBodyProps {
   chat: React.ComponentProps<typeof QuickChat>;
   clock: React.ComponentProps<typeof ClockTasksTab>;
   notes: NotesApi;
-  onRunSpeedTest: () => void;
+  onRunSpeedTest: (durationSeconds: number) => void;
   /** Reports the natural height of the rendered body so the shell can fit it. */
   onMeasured: (height: number) => void;
   /** Reports the width the tab strip needs, so the shell never clips a label. */

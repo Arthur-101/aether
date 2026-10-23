@@ -20,7 +20,7 @@ interface IslandTabContentProps {
   chat: React.ComponentProps<typeof QuickChat>;
   clock: React.ComponentProps<typeof ClockTasksTab>;
   notes: NotesApi;
-  onRunSpeedTest: () => void;
+  onRunSpeedTest: (durationSeconds: number) => void;
 }
 
 export const IslandTabContent: React.FC<IslandTabContentProps> = ({

@@ -177,12 +177,30 @@ export interface SystemStats {
 }
 
 export type SpeedTestState = 'idle' | 'running' | 'done' | 'error';
+export type SpeedTestPhase = 'latency' | 'download' | 'upload';
+
+/** One measured window inside the live throughput trace. */
+export interface SpeedTestSample {
+  phase: 'download' | 'upload';
+  mbps: number;
+  /** Seconds from the start of the run, when supplied by the backend. */
+  t?: number;
+}
 
 export interface SpeedTestResult {
   state: SpeedTestState;
+  phase?: SpeedTestPhase;
+  /** Overall run progress, from 0 to 1. */
+  progress?: number;
+  /** Latest window speed, used by the live gauge. */
+  current_mbps?: number | null;
+  jitter_ms?: number | null;
   ping_ms?: number | null;
   download_mbps?: number | null;
   upload_mbps?: number | null;
+  samples?: SpeedTestSample[];
+  /** Requested wall-clock length of the run, in seconds. */
+  duration_seconds?: number;
   message?: string;
   server?: string;
   tested_at?: string;
@@ -405,6 +423,7 @@ export type OutgoingEvent =
   | { type: 'LIST_NOTES'; payload: Record<string, never> }
   | { type: 'READ_NOTE'; payload: { note_id: string } }
   | { type: 'SAVE_NOTE'; payload: NoteSaveInput }
+  | { type: 'SET_NOTE_PIN'; payload: { note_id: string; pinned: boolean } }
   | { type: 'DELETE_NOTE'; payload: { note_id: string } }
   | { type: 'ATTACH_NOTE'; payload: { note_id: string } }
   | { type: 'TOGGLE_THINKING_MODE'; payload: { enabled: boolean } }
@@ -439,7 +458,7 @@ export type OutgoingEvent =
       type: 'SAMPLE_SCREEN';
       payload: { request_id: string; radius?: number };
     }
-  | { type: 'RUN_SPEED_TEST'; payload: Record<string, never> }
+  | { type: 'RUN_SPEED_TEST'; payload: { duration_seconds?: number } }
   | { type: 'OPEN_SETTINGS_PAGE'; payload: { page: string } };
 
 export interface IncomingEnvelope<T = any> {

@@ -36,6 +36,7 @@ export interface NotesApi {
   onList: () => void;
   onRead: (id: string) => void;
   onSave: (input: NoteSaveInput) => void;
+  onSetPinned: (id: string, pinned: boolean) => void;
   onDelete: (id: string) => void;
   onAttach: (id: string) => void;
 }
