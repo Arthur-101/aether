@@ -76,24 +76,63 @@ export const ScreenScale: React.FC<ScreenScaleProps> = ({
   const indicatorReading = readScale(indicatorPx, unit, mmPerCssPx);
   const indicatorPosition = indicatorPx;
 
-  const widgetWidth =
-    orientation === 'horizontal' ? lengthPx : TOOLBAR_WIDTH;
+  const rulerWidth =
+    orientation === 'horizontal' ? lengthPx : BAR_THICKNESS;
+  const rulerHeight =
+    orientation === 'horizontal' ? BAR_THICKNESS : lengthPx;
+  // Horizontal mode mirrors the whole stack so the toolbar sits opposite the
+  // tick face: unflipped has the toolbar above, flipped has it below.
+  const widgetWidth = rulerWidth;
   const widgetHeight =
     orientation === 'horizontal'
-      ? TOOLBAR_HEIGHT + TOOLBAR_GAP + BAR_THICKNESS
-      : TOOLBAR_HEIGHT + TOOLBAR_GAP + lengthPx;
-  const toolbarTop =
-    orientation === 'horizontal' && flipped
-      ? BAR_THICKNESS + TOOLBAR_GAP
-      : 0;
+      ? rulerHeight + TOOLBAR_HEIGHT + TOOLBAR_GAP
+      : rulerHeight;
   const barTop =
-    orientation === 'horizontal' && flipped
-      ? 0
-      : TOOLBAR_HEIGHT + TOOLBAR_GAP;
-  const barLeft =
-    orientation === 'vertical' && flipped
-      ? widgetWidth - BAR_THICKNESS
+    orientation === 'horizontal' && !flipped
+      ? TOOLBAR_HEIGHT + TOOLBAR_GAP
       : 0;
+
+  // The toolbar docks to the far end of the ruler and mirrors to the side
+  // opposite the tick face, keeping the measured edge clear.
+  const toolbarPosition = (() => {
+    if (orientation === 'vertical') {
+      const right = origin.x + BAR_THICKNESS + TOOLBAR_GAP;
+      const left = origin.x - TOOLBAR_WIDTH - TOOLBAR_GAP;
+      const canUseRight = right + TOOLBAR_WIDTH <= window.innerWidth - 8;
+      const canUseLeft = left >= 8;
+      const preferRight = !flipped;
+      const x = clamp(
+        preferRight
+          ? canUseRight
+            ? right
+            : left
+          : canUseLeft
+            ? left
+            : right,
+        8,
+        window.innerWidth - TOOLBAR_WIDTH - 8
+      );
+      const y = clamp(
+        origin.y + lengthPx - TOOLBAR_HEIGHT,
+        8,
+        window.innerHeight - TOOLBAR_HEIGHT - 8
+      );
+      return { x, y };
+    }
+
+    const x = clamp(
+      origin.x + lengthPx - TOOLBAR_WIDTH,
+      8,
+      window.innerWidth - TOOLBAR_WIDTH - 8
+    );
+    const y = flipped
+      ? origin.y + BAR_THICKNESS + TOOLBAR_GAP
+      : origin.y;
+    return {
+      x,
+      y: clamp(y, 8, window.innerHeight - TOOLBAR_HEIGHT - 8),
+    };
+  })();
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -147,11 +186,7 @@ export const ScreenScale: React.FC<ScreenScaleProps> = ({
       const maximum =
         drag.orientation === 'horizontal'
           ? window.innerWidth - drag.originX - 8
-          : window.innerHeight -
-            drag.originY -
-            TOOLBAR_HEIGHT -
-            TOOLBAR_GAP -
-            8;
+          : window.innerHeight - drag.originY - 8;
       const nextLength = Math.round(
         clamp(drag.baseLength + delta, minimum, maximum)
       );
@@ -233,11 +268,11 @@ export const ScreenScale: React.FC<ScreenScaleProps> = ({
   const rotate = () => {
     const next: Orientation =
       orientation === 'horizontal' ? 'vertical' : 'horizontal';
-    const nextWidth = next === 'horizontal' ? lengthPx : TOOLBAR_WIDTH;
+    const nextWidth = next === 'horizontal' ? lengthPx : BAR_THICKNESS;
     const nextHeight =
       next === 'horizontal'
-        ? TOOLBAR_HEIGHT + TOOLBAR_GAP + BAR_THICKNESS
-        : TOOLBAR_HEIGHT + TOOLBAR_GAP + lengthPx;
+        ? BAR_THICKNESS + TOOLBAR_HEIGHT + TOOLBAR_GAP
+        : lengthPx;
     setOrientation(next);
     setOrigin((current) => ({
       x: clamp(current.x, 8, window.innerWidth - nextWidth - 8),
@@ -267,26 +302,18 @@ export const ScreenScale: React.FC<ScreenScaleProps> = ({
 
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-[70] select-none"
+      className="pointer-events-none fixed inset-0 z-[100] select-none"
       aria-label="On-screen scale"
     >
       <div
-        className="absolute"
+        data-aether-interactive
+        className="glass-panel aether-pop pointer-events-auto absolute z-10 flex items-center gap-1 rounded-none px-1.5 py-1"
         style={{
-          left: origin.x,
-          top: origin.y,
-          width: widgetWidth,
-          height: widgetHeight,
+          left: toolbarPosition.x,
+          top: toolbarPosition.y,
+          width: TOOLBAR_WIDTH,
         }}
       >
-        <div
-          data-aether-interactive
-          className="glass-panel aether-pop pointer-events-auto absolute left-0 flex items-center gap-1 rounded-none px-1.5 py-1"
-          style={{
-            top: toolbarTop,
-            width: orientation === 'horizontal' ? lengthPx : TOOLBAR_WIDTH,
-          }}
-        >
           <button
             type="button"
             onPointerDown={beginMove}
@@ -357,29 +384,29 @@ export const ScreenScale: React.FC<ScreenScaleProps> = ({
               <X size={12} />
             </button>
           </div>
-        </div>
+      </div>
 
+      <div
+        className="absolute z-20"
+        style={{
+          left: origin.x,
+          top: origin.y,
+          width: widgetWidth,
+          height: widgetHeight,
+        }}
+      >
         <div
           data-aether-interactive
           onPointerDown={beginMove}
           className={`glass-panel aether-pop pointer-events-auto absolute overflow-hidden rounded-none ${
             dragging ? 'cursor-grabbing' : 'cursor-grab'
           }`}
-          style={
-            orientation === 'horizontal'
-              ? {
-                  top: barTop,
-                  left: barLeft,
-                  width: lengthPx,
-                  height: BAR_THICKNESS,
-                }
-              : {
-                  top: barTop,
-                  left: barLeft,
-                  width: BAR_THICKNESS,
-                  height: lengthPx,
-                }
-          }
+          style={{
+            top: barTop,
+            left: 0,
+            width: rulerWidth,
+            height: rulerHeight,
+          }}
         >
           <RulerFace
             lengthPx={lengthPx}
