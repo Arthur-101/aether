@@ -39,6 +39,7 @@ def test_appearance_is_clamped_and_sanitized():
             "button_secondary": "not-a-color",
             "button_gradient": "yes",
             "close_on_outside_click": True,
+            "auto_hide_pill": True,
         }
     )
     assert appearance["pill_opacity"] == 0.3
@@ -47,6 +48,7 @@ def test_appearance_is_clamped_and_sanitized():
     assert appearance["button_secondary"] == "#f4df9a"
     assert appearance["button_gradient"] is True
     assert appearance["close_on_outside_click"] is True
+    assert appearance["auto_hide_pill"] is True
 
 
 def test_appearance_grain_and_pop_are_clamped_and_backfilled():
@@ -91,6 +93,12 @@ def test_time_format_defaults_to_12h_and_accepts_24h():
     assert normalize_appearance({"time_format": "24h"})["time_format"] == "24h"
     assert normalize_appearance({"time_format": "military"})["time_format"] == "12h"
     assert normalize_appearance({"time_format": None})["time_format"] == "12h"
+
+
+def test_auto_hide_pill_defaults_off_and_requires_a_boolean():
+    assert normalize_appearance({})["auto_hide_pill"] is False
+    assert normalize_appearance({"auto_hide_pill": True})["auto_hide_pill"] is True
+    assert normalize_appearance({"auto_hide_pill": "yes"})["auto_hide_pill"] is False
 
 
 def test_taskbar_mode_and_pins_are_normalized():

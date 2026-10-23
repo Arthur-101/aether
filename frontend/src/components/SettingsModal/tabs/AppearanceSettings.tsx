@@ -129,6 +129,31 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
             onChange={(island_pop) => update({ island_pop })}
           />
         </div>
+        <label className="mt-3 flex cursor-pointer items-center justify-between rounded-lg border border-[var(--aether-line)] bg-black/15 px-2.5 py-2">
+          <span className="pr-3">
+            <span className="block text-[11px] text-[var(--aether-text-2)]">Auto-hide pill</span>
+            <span className="mt-0.5 block text-[9px] leading-snug text-[var(--aether-text-3)]">
+              Tuck the pill into the top bezel; touch its centre band to reveal it.
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={appearance.auto_hide_pill}
+            onClick={() => update({ auto_hide_pill: !appearance.auto_hide_pill })}
+            className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+              appearance.auto_hide_pill
+                ? 'bg-[var(--aether-accent)]'
+                : 'bg-[var(--aether-fill-3)]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
+                appearance.auto_hide_pill ? 'left-[18px]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </label>
       </Section>
 
       <DashboardTabsSettings

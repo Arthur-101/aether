@@ -428,6 +428,9 @@ export function App() {
         onOpenColorPicker={openColorPicker}
         onSetColor={setColor}
         hidden={isPickingColor}
+        autoHideSuspended={isSettingsOpen}
+        connected={connected}
+        subscribeMouse={subscribeMouse}
         brandName={brandName}
         appearance={liveAppearance}
         peekEnabled={!isSettingsOpen}

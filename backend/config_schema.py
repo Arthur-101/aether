@@ -50,6 +50,7 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "button_secondary": "#F4DF9A",
     "button_gradient": True,
     "close_on_outside_click": False,
+    "auto_hide_pill": False,
     "time_format": "12h",
 }
 
@@ -195,6 +196,10 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
         "close_on_outside_click": _as_bool(
             raw.get("close_on_outside_click"),
             DEFAULT_APPEARANCE["close_on_outside_click"],
+        ),
+        "auto_hide_pill": _as_bool(
+            raw.get("auto_hide_pill"),
+            DEFAULT_APPEARANCE["auto_hide_pill"],
         ),
         "time_format": (
             time_format if time_format in _TIME_FORMATS else DEFAULT_APPEARANCE["time_format"]

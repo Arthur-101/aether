@@ -37,6 +37,7 @@ export interface AppearanceConfig {
   button_secondary: string;
   button_gradient: boolean;
   close_on_outside_click: boolean;
+  auto_hide_pill: boolean;
   time_format: TimeFormat;
 }
 

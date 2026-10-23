@@ -44,11 +44,17 @@ export function useClickThrough(
       for (const region of regions) {
         const rect = region.getBoundingClientRect();
         if (rect.width < 1 || rect.height < 1) continue;
+        // The auto-hide sensor occupies only the top bezel. It must release
+        // input immediately when the cursor exits rather than inheriting the
+        // shell's 8px hysteresis, which would otherwise create a tiny trap.
+        const regionPad = region.hasAttribute('data-aether-interactive-strict')
+          ? 0
+          : pad;
         if (
-          x >= rect.left - pad &&
-          x <= rect.right + pad &&
-          y >= rect.top - pad &&
-          y <= rect.bottom + pad
+          x >= rect.left - regionPad &&
+          x <= rect.right + regionPad &&
+          y >= rect.top - regionPad &&
+          y <= rect.bottom + regionPad
         ) {
           return true;
         }

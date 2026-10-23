@@ -47,6 +47,7 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   button_secondary: GOLD_SECONDARY,
   button_gradient: true,
   close_on_outside_click: false,
+  auto_hide_pill: false,
   time_format: '12h',
 };
 
@@ -153,6 +154,10 @@ export function resolveAppearance(
       typeof raw.close_on_outside_click === 'boolean'
         ? raw.close_on_outside_click
         : DEFAULT_APPEARANCE.close_on_outside_click,
+    auto_hide_pill:
+      typeof raw.auto_hide_pill === 'boolean'
+        ? raw.auto_hide_pill
+        : DEFAULT_APPEARANCE.auto_hide_pill,
     time_format: normalizeTimeFormat(raw.time_format),
   };
 }

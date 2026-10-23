@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { AppearanceConfig, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
+import type { AutoHidePillMetrics } from '../../hooks/useAutoHidePill';
 import { appearanceCssVars } from './appearance';
 import { NotchHeader } from './NotchHeader';
 import { NotchIdle } from './NotchIdle';
@@ -34,6 +35,8 @@ interface NotchShellProps {
   tabsWidth: number;
   /** Height of the rendered tab body, in pixels. */
   contentHeight: number;
+  tucked: boolean;
+  onMetricsChange: (metrics: AutoHidePillMetrics) => void;
   children: React.ReactNode;
 }
 
@@ -52,6 +55,8 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   tabWidth,
   tabsWidth,
   contentHeight,
+  tucked,
+  onMetricsChange,
   children,
 }) => {
   const [now, setNow] = useState(() => new Date());
@@ -64,6 +69,19 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   const leaveTimer = useRef<number | null>(null);
   const mediaActive = Boolean(media?.is_playing);
   const spotify = Boolean(media?.is_spotify);
+  // Expanding must win immediately, even before the auto-hide controller's
+  // suspension effect runs, so the island can never animate above the screen.
+  const isTucked = tucked && !isExpanded;
+  const clearTimers = useCallback(() => {
+    if (enterTimer.current !== null) {
+      window.clearTimeout(enterTimer.current);
+      enterTimer.current = null;
+    }
+    if (leaveTimer.current !== null) {
+      window.clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -80,37 +98,41 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   useEffect(() => {
     if (!isExpanded) return;
     setPeek(false);
-    if (enterTimer.current) window.clearTimeout(enterTimer.current);
-    if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-  }, [isExpanded]);
+    clearTimers();
+  }, [clearTimers, isExpanded]);
 
   useEffect(() => {
-    if (!peekEnabled) setPeek(false);
-  }, [peekEnabled]);
+    if (peekEnabled) return;
+    clearTimers();
+    setPeek(false);
+  }, [clearTimers, peekEnabled]);
 
-  useEffect(
-    () => () => {
-      if (enterTimer.current) window.clearTimeout(enterTimer.current);
-      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-    },
-    []
-  );
+  useEffect(() => {
+    return clearTimers;
+  }, [clearTimers]);
 
-  const clearTimers = () => {
-    if (enterTimer.current) window.clearTimeout(enterTimer.current);
-    if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-  };
+  useEffect(() => {
+    if (!isTucked) return;
+    clearTimers();
+    setPeek(false);
+  }, [clearTimers, isTucked]);
 
   const handlePointerEnter = () => {
-    if (isExpanded || !peekEnabled) return;
+    if (isTucked || isExpanded || !peekEnabled) return;
     clearTimers();
-    enterTimer.current = window.setTimeout(() => setPeek(true), 180);
+    enterTimer.current = window.setTimeout(() => {
+      enterTimer.current = null;
+      setPeek(true);
+    }, 180);
   };
 
   const handlePointerLeave = () => {
-    if (isExpanded) return;
+    if (isTucked || isExpanded) return;
     clearTimers();
-    leaveTimer.current = window.setTimeout(() => setPeek(false), 280);
+    leaveTimer.current = window.setTimeout(() => {
+      leaveTimer.current = null;
+      setPeek(false);
+    }, 280);
   };
 
   const open = () => onExpandedChange(true);
@@ -120,6 +142,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   };
 
   const compactWidth = mediaActive ? 176 : 140;
+  const showPeek = peek && !isTucked;
   // The peek grows with the number of apps rather than scrolling.
   const peekLayout = useMemo(
     () => computePeekLayout(apps.length, viewport.width),
@@ -149,29 +172,47 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   );
   const width = isExpanded
     ? expandedWidth
-    : peek
+    : showPeek
       ? peekLayout.width
       : compactWidth;
   const height = isExpanded
     ? expandedHeight
-    : peek
+    : showPeek
       ? 48
       : 36;
+
+  useEffect(() => {
+    onMetricsChange({
+      compactWidth,
+      activeWidth: width,
+      activeHeight: height,
+    });
+  }, [compactWidth, height, onMetricsChange, width]);
 
   return (
     <motion.div
       data-aether-interactive
       data-notch-shell
       initial={false}
-      animate={{ width, height, borderRadius: '0px 0px 20px 20px' }}
-      transition={{ type: 'spring', stiffness: 380, damping: 30, mass: 0.8 }}
+      animate={{
+        width,
+        height,
+        y: isTucked ? -(height + 2) : 0,
+        borderRadius: '0px 0px 20px 20px',
+      }}
+      transition={{
+        width: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
+        height: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
+        borderRadius: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
+        y: { duration: 0.18, ease: 'easeOut' },
+      }}
       onClick={() => {
         if (!isExpanded) open();
       }}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onFocusCapture={() => {
-        if (!isExpanded && peekEnabled) setPeek(true);
+        if (!isTucked && !isExpanded && peekEnabled) setPeek(true);
       }}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -209,13 +250,13 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         </motion.div>
       ) : (
         <motion.div
-          key={peek ? 'peek' : 'idle'}
+          key={showPeek ? 'peek' : 'idle'}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.14 }}
           className="h-full w-full"
         >
-          {peek ? (
+          {showPeek ? (
             <NotchPeek
               now={now}
               layout={peekLayout}

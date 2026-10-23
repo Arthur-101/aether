@@ -30,6 +30,11 @@ import { IslandBody } from './IslandBody';
 import { NotchShell } from './NotchShell';
 import { visibleTabIds } from './appearance';
 import { TimeFormatContext } from '../../hooks/useTimeFormat';
+import {
+  useAutoHidePill,
+  type AutoHidePillMetrics,
+  type MouseSubscriber,
+} from '../../hooks/useAutoHidePill';
 import type { ScaleUnit } from './scaleUnits';
 import { TAB_WIDTH } from './tabSizes';
 import { useClockTools } from './useClockTools';
@@ -105,6 +110,9 @@ interface DesktopIslandProps {
   onOpenColorPicker: () => void;
   onSetColor: (hex: string) => void;
   hidden?: boolean;
+  autoHideSuspended?: boolean;
+  connected: boolean;
+  subscribeMouse: MouseSubscriber;
   brandName: string;
   appearance: AppearanceConfig;
   peekEnabled?: boolean;
@@ -186,6 +194,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onOpenColorPicker,
   onSetColor,
   hidden = false,
+  autoHideSuspended = false,
+  connected,
+  subscribeMouse,
   brandName,
   appearance,
   peekEnabled = true,
@@ -201,12 +212,34 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   const effectiveTab = tabs.includes(activeTab) ? activeTab : tabs[0] ?? 'controls';
   const [contentHeight, setContentHeight] = useState(0);
   const [tabsWidth, setTabsWidth] = useState(0);
+  const [shellMetrics, setShellMetrics] = useState<AutoHidePillMetrics>({
+    compactWidth: 140,
+    activeWidth: 140,
+    activeHeight: 36,
+  });
   const handleMeasured = useCallback((height: number) => {
     setContentHeight((previous) => (Math.abs(previous - height) > 0.5 ? height : previous));
   }, []);
   const handleTabsWidth = useCallback((width: number) => {
     setTabsWidth((previous) => (Math.abs(previous - width) > 0.5 ? width : previous));
   }, []);
+  const handleShellMetrics = useCallback((next: AutoHidePillMetrics) => {
+    setShellMetrics((previous) =>
+      previous.compactWidth === next.compactWidth &&
+      previous.activeWidth === next.activeWidth &&
+      previous.activeHeight === next.activeHeight
+        ? previous
+        : next
+    );
+  }, []);
+  const suspendAutoHide = hidden || autoHideSuspended || isExpanded;
+  const { tucked } = useAutoHidePill({
+    enabled: appearance.auto_hide_pill && connected,
+    suspended: suspendAutoHide,
+    subscribeMouse,
+    metrics: shellMetrics,
+  });
+  const showRevealSensor = tucked && appearance.auto_hide_pill && connected && !suspendAutoHide;
 
   useEffect(() => {
     if (!askRequest) return;
@@ -245,6 +278,15 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
 
   return (
     <TimeFormatContext.Provider value={appearance.time_format}>
+      {showRevealSensor ? (
+        <div
+          data-aether-interactive
+          data-aether-interactive-strict
+          aria-hidden="true"
+          className="aether-interactive fixed top-0 left-1/2 z-[51] h-[6px] -translate-x-1/2"
+          style={{ width: shellMetrics.compactWidth }}
+        />
+      ) : null}
       <div
         className={`fixed top-0 left-1/2 z-50 -translate-x-1/2 ${
           hidden ? 'invisible' : ''
@@ -265,6 +307,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
           tabWidth={TAB_WIDTH[effectiveTab] ?? 960}
           tabsWidth={tabsWidth}
           contentHeight={contentHeight}
+          tucked={tucked}
+          onMetricsChange={handleShellMetrics}
         >
           <IslandBody
             tabs={tabs}
@@ -361,5 +405,4 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
     </TimeFormatContext.Provider>
   );
 };
-
 
