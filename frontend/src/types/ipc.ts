@@ -493,6 +493,7 @@ export type OutgoingEvent =
   | { type: 'GET_DISPLAY_INFO'; payload: Record<string, never> }
   | { type: 'GET_WALLPAPER_STATE'; payload: Record<string, never> }
   | { type: 'SET_WALLPAPER'; payload: { path: string } }
+  | { type: 'CLEAR_WALLPAPER_HISTORY'; payload: Record<string, never> }
   | {
       type: 'POWER_ACTION';
       payload: { action: PowerAction; confirm?: boolean };

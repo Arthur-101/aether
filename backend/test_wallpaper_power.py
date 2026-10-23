@@ -94,6 +94,17 @@ def test_build_wallpaper_state_lists_recent_and_folder(monkeypatch, tmp_path: Pa
     assert state["recent"][0]["is_current"] is True
 
 
+def test_clear_wallpaper_history_empties_the_trail(monkeypatch):
+    written = []
+    monkeypatch.setattr(
+        wallpaper_service, "_write_history", lambda paths: written.append(paths)
+    )
+
+    wallpaper_service.clear_history()
+
+    assert written == [[]]
+
+
 def test_destructive_power_actions_require_confirmation(monkeypatch):
     called = []
     monkeypatch.setattr(power_controls, "_spawn_shutdown", lambda args: called.append(args) or True)

@@ -143,6 +143,7 @@ export function App() {
     refreshWallpaper,
     applyWallpaper,
     setWallpaperFolder,
+    clearWallpaperRecent,
     runPowerAction,
     openSettingsPage,
     closeRadialWheel,
@@ -366,6 +367,7 @@ export function App() {
         onRefreshWallpaper={refreshWallpaper}
         onApplyWallpaper={applyWallpaper}
         onSetWallpaperFolder={setWallpaperFolder}
+        onClearWallpaperRecent={clearWallpaperRecent}
         onPowerAction={runPowerAction}
         chatHistory={chatHistory}
         chatPending={chatPending}

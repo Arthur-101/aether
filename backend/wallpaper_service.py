@@ -69,6 +69,15 @@ def _remember(path: str) -> None:
     _write_history(history[:MAX_RECENT])
 
 
+def clear_history() -> None:
+    """Empties the applied-wallpaper history.
+
+    The live desktop wallpaper is not history, so ``_recent_items`` still
+    surfaces it after this; only the applied-wallpaper trail is dropped.
+    """
+    _write_history([])
+
+
 def _same_path(left: str, right: str) -> bool:
     if not left or not right:
         return False

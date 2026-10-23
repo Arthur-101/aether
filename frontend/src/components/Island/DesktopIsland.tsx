@@ -48,6 +48,7 @@ interface DesktopIslandProps {
   onRefreshWallpaper: () => void;
   onApplyWallpaper: (path: string) => void;
   onSetWallpaperFolder: (folder: string) => void;
+  onClearWallpaperRecent: () => void;
   onPowerAction: (action: PowerAction, confirm?: boolean) => void;
   chatHistory: ChatTurn[];
   chatPending: string | null;
@@ -132,6 +133,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onRefreshWallpaper,
   onApplyWallpaper,
   onSetWallpaperFolder,
+  onClearWallpaperRecent,
   onPowerAction,
   chatHistory,
   chatPending,
@@ -322,6 +324,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               onRefresh: onRefreshWallpaper,
               onApply: onApplyWallpaper,
               onSetFolder: onSetWallpaperFolder,
+              onClearRecent: onClearWallpaperRecent,
             }}
             power={{
               result: powerResult,

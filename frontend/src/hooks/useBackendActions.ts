@@ -352,6 +352,11 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const clearWallpaperRecent = useCallback(
+    () => sendEvent({ type: 'CLEAR_WALLPAPER_HISTORY', payload: {} }),
+    [sendEvent]
+  );
+
   const runPowerAction = useCallback(
     (action: PowerAction, confirm = false) =>
       sendEvent({ type: 'POWER_ACTION', payload: { action, confirm } }),
@@ -411,6 +416,7 @@ export function useBackendActions(
     refreshWallpaper,
     applyWallpaper,
     setWallpaperFolder,
+    clearWallpaperRecent,
     runPowerAction,
   };
 }

@@ -6,7 +6,7 @@ import asyncio
 from typing import Any, Dict
 
 from .event_router import register_handler
-from .wallpaper_service import apply_wallpaper, build_wallpaper_state
+from .wallpaper_service import apply_wallpaper, build_wallpaper_state, clear_history
 from .ws_manager import ws_manager
 
 
@@ -33,6 +33,12 @@ async def _handle_set_wallpaper(payload: Dict[str, Any]) -> None:
         )
 
 
+async def _handle_clear_wallpaper_history(payload: Dict[str, Any]) -> None:
+    await asyncio.to_thread(clear_history)
+    await broadcast_wallpaper_state()
+
+
 def register_wallpaper_events() -> None:
     register_handler("GET_WALLPAPER_STATE", _handle_get_wallpaper_state)
     register_handler("SET_WALLPAPER", _handle_set_wallpaper)
+    register_handler("CLEAR_WALLPAPER_HISTORY", _handle_clear_wallpaper_history)
