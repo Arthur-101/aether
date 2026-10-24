@@ -11,6 +11,7 @@ import type {
   WifiProfile,
 } from '../../types/ipc';
 import { useLiveControl } from '../../hooks/useLiveControl';
+import type { DesktopWidgetsApi } from '../../hooks/useDesktopWidgets';
 import { AudioPanel } from './AudioPanel';
 import { BluetoothMenu } from './BluetoothMenu';
 import { ColorPanel } from './ColorPanel';
@@ -55,6 +56,7 @@ interface IslandControlsProps {
   onSetColor: (hex: string) => void;
   media: MediaSnapshot | null;
   onMediaControl: (action: MediaControlAction) => void;
+  widgets: DesktopWidgetsApi;
 }
 
 export const IslandControls: React.FC<IslandControlsProps> = ({
@@ -87,6 +89,7 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
   onSetColor,
   media,
   onMediaControl,
+  widgets,
 }) => {
   const [menu, setMenu] = useState<ControlMenu>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -205,7 +208,12 @@ export const IslandControls: React.FC<IslandControlsProps> = ({
             onToggleDarkMode={(next) => onToggleDarkMode(next)}
             onOpenDisplaySettings={() => onOpenSettingsPage('display')}
           />
-          <WidgetsPanel />
+          <WidgetsPanel
+            widgets={widgets.widgets}
+            onAddWidget={widgets.addWidget}
+            onRemoveWidget={widgets.removeWidget}
+            onToggleWidgetOnTop={widgets.setWidgetAlwaysOnTop}
+          />
         </div>
         <div className="flex min-w-0 flex-col gap-3">
           <ConnectivityPanel

@@ -14,6 +14,7 @@ from backend.os_hooks.media_snapshot import (
 from backend.os_hooks.taskbar_apps import _running_state, split_icon_location
 from backend.os_hooks.taskbar_launch import launch_entry, normalize_path
 from backend.os_hooks.taskbar_order import pinned_shortcut_order
+from backend.os_hooks import taskbar_state, window_rules
 from backend.os_hooks.taskbar_state import _open_entries, find_app
 from backend.os_hooks.window_apps import (
     app_id_from_arguments,
@@ -196,6 +197,42 @@ def test_open_app_entries_skip_windows_already_represented_by_pins(tmp_path):
     ) == []
 
 
+def test_custom_taskbar_keeps_unpinned_open_apps(monkeypatch, tmp_path):
+    """Custom ordering must not hide open taskbar windows.
+
+    Windows appends an unpinned running item after its pinned items.  Aether
+    must do the same even when its pinned portion has been custom ordered.
+    """
+    pinned = [{"id": "pin:brave", "name": "Brave"}]
+    opened = [
+        {
+            "id": "open:token-harbor",
+            "name": "Token Harbor",
+            "app_id": "token-harbor-id",
+            "running": True,
+        }
+    ]
+    snapshot = {"windows": [], "by_app_id": {}, "by_exe": {}, "pwa_ids": set()}
+
+    monkeypatch.setattr(
+        taskbar_state.config_manager,
+        "get",
+        lambda section: {"mode": "custom", "pinned": []}
+        if section == "taskbar_apps"
+        else {},
+    )
+    monkeypatch.setattr(taskbar_state, "pinned_folder", lambda: tmp_path)
+    monkeypatch.setattr(taskbar_state, "running_snapshot", lambda: (set(), set()))
+    monkeypatch.setattr(taskbar_state, "window_snapshot", lambda: snapshot)
+    monkeypatch.setattr(taskbar_state, "resolve_custom", lambda *args, **kwargs: pinned)
+    monkeypatch.setattr(taskbar_state, "_open_entries", lambda *args, **kwargs: opened)
+
+    state = taskbar_state.build_taskbar_state(with_icons=False)
+
+    assert state["mode"] == "custom"
+    assert state["apps"] == [*pinned, *opened]
+
+
 def test_taskbar_window_filter_rejects_tool_and_aether_windows():
     assert is_taskbar_window(
         10, 100, "Document", "Chrome_WidgetWin_1", 0, 0, r"C:\Apps\App.exe"
@@ -209,6 +246,33 @@ def test_taskbar_window_filter_rejects_tool_and_aether_windows():
     assert is_taskbar_window(
         10, 100, "Unowned child", "Chrome_WidgetWin_1", 0, 99, r"C:\Apps\App.exe"
     ) is False
+
+
+def test_pwa_classification_is_not_stuck_after_startup(monkeypatch):
+    """A transient Chromium renderer child must not permanently mark a PWA.
+
+    A PWA can briefly expose a renderer child as it starts.  The following
+    snapshot has no such child, so it must be read as app-mode rather than
+    being remembered forever as a browser window.
+    """
+
+    class FakeGui:
+        renderer_visible = True
+
+        @staticmethod
+        def GetClassName(_hwnd):
+            return window_rules.RENDER_WIDGET_CLASS
+
+        @classmethod
+        def EnumChildWindows(cls, _hwnd, visit, _extra):
+            if cls.renderer_visible:
+                visit(1, None)
+
+    monkeypatch.setattr(window_rules, "win32gui", FakeGui)
+
+    assert window_rules.is_app_mode_window(42, "Chrome_WidgetWin_1") is False
+    FakeGui.renderer_visible = False
+    assert window_rules.is_app_mode_window(42, "Chrome_WidgetWin_1") is True
 
 
 def test_find_app_matches_stable_id():

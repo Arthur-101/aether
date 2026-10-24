@@ -38,10 +38,6 @@ _EX_TOOLWINDOW = 0x00000080
 _EX_APPWINDOW = 0x00040000
 _DWMWA_CLOAKED = 14
 
-# Windows already seen with a tab strip, so they are normal browser windows.
-_BROWSER_WINDOWS: set[int] = set()
-
-
 def is_taskbar_window(
     hwnd: int,
     pid: int,
@@ -99,9 +95,6 @@ def is_app_mode_window(hwnd: int, window_class: str) -> bool:
         return False
     if win32gui is None:
         return False
-    if hwnd in _BROWSER_WINDOWS:
-        # Seen with a tab strip before, so it is a normal browser window.
-        return False
     render_widgets = 0
 
     def visit(child: int, _extra: Any) -> bool:
@@ -117,10 +110,9 @@ def is_app_mode_window(hwnd: int, window_class: str) -> bool:
         win32gui.EnumChildWindows(hwnd, visit, None)
     except Exception:
         return False
-    if render_widgets > 0:
-        # Remember it, so a window caught mid-creation is not misread later.
-        if len(_BROWSER_WINDOWS) > 256:
-            _BROWSER_WINDOWS.clear()
-        _BROWSER_WINDOWS.add(hwnd)
-        return False
-    return True
+    # Do not cache this result. Chromium rearranges child windows while a PWA
+    # is starting; caching an early tab-strip observation permanently turns a
+    # PWA into a browser entry, which lights the browser's running dot and
+    # hides the PWA's own shortcut/icon. The taskbar poller already takes a
+    # fresh snapshot, so the current child hierarchy is the right signal.
+    return render_widgets == 0

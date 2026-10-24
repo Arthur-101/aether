@@ -82,3 +82,28 @@ export const PopSlider: React.FC<{
     />
   </div>
 );
+
+export const RadiusSlider: React.FC<{
+  label: string;
+  value: number;
+  max?: number;
+  onChange: (value: number) => void;
+}> = ({ label, value, max = 32, onChange }) => (
+  <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
+    <div className="mb-1.5 flex items-center justify-between text-[10px]">
+      <span className="text-[var(--aether-text-2)]">{label}</span>
+      <span className="font-mono text-[var(--aether-text-1)]">{value}px</span>
+    </div>
+    <input
+      type="range"
+      min={0}
+      max={max}
+      step={1}
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value))}
+      style={{ '--fill': `${(value / max) * 100}%` } as React.CSSProperties}
+      className="win-slider h-4 w-full cursor-pointer"
+      aria-label={label}
+    />
+  </div>
+);

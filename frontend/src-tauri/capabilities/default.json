@@ -1,13 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Aether overlay permissions: click-through cursor control",
+  "description": "Aether overlay and desktop widget window permissions",
   "windows": [
-    "main"
+    "main",
+    "widget-*"
   ],
   "permissions": [
     "core:default",
     "core:window:allow-set-ignore-cursor-events",
-    "core:window:allow-set-focus"
+    "core:window:allow-set-focus",
+    "core:window:allow-set-position"
   ]
 }

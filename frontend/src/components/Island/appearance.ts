@@ -43,6 +43,10 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   island_grain: 5,
   pill_pop: 60,
   island_pop: 60,
+  widget_opacity: 0.9,
+  widget_grain: 5,
+  widget_pop: 60,
+  widget_radius: 16,
   button_primary: GOLD_PRIMARY,
   button_secondary: GOLD_SECONDARY,
   button_gradient: true,
@@ -77,6 +81,13 @@ function clampPercent(value: unknown, fallback: number): number {
   const number = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.round(Math.max(0, Math.min(100, number)));
+}
+
+/** Clamps a pixel length, used for the widget corner radius. */
+function clampPixels(value: unknown, fallback: number, limit: number): number {
+  const number = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.round(Math.max(0, Math.min(limit, number)));
 }
 
 export function normalizeThemeMode(value: unknown): ThemeMode {
@@ -138,6 +149,17 @@ export function resolveAppearance(
     island_grain: clampPercent(raw.island_grain, DEFAULT_APPEARANCE.island_grain),
     pill_pop: clampPercent(raw.pill_pop, DEFAULT_APPEARANCE.pill_pop),
     island_pop: clampPercent(raw.island_pop, DEFAULT_APPEARANCE.island_pop),
+    widget_opacity: clampOpacity(
+      raw.widget_opacity,
+      DEFAULT_APPEARANCE.widget_opacity
+    ),
+    widget_grain: clampPercent(raw.widget_grain, DEFAULT_APPEARANCE.widget_grain),
+    widget_pop: clampPercent(raw.widget_pop, DEFAULT_APPEARANCE.widget_pop),
+    widget_radius: clampPixels(
+      raw.widget_radius,
+      DEFAULT_APPEARANCE.widget_radius,
+      32
+    ),
     button_primary: normalizeHex(
       String(raw.button_primary ?? ''),
       GOLD_PRIMARY

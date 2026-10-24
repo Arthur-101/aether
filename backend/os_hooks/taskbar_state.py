@@ -184,11 +184,16 @@ def build_taskbar_state(with_icons: bool = True) -> Dict[str, Any]:
         names=names,
     )
     apps = pinned if mode == "custom" else discovered
-    if mode == "mirror":
-        apps = [
-            *apps,
-            *_open_entries(apps, snapshot, with_icons, paths, names),
-        ]
+    # Match the Windows taskbar in both modes: the configured/pinned deck
+    # stays first, while currently open apps that have no corresponding entry
+    # are appended after it.  This is especially important for Chromium PWAs:
+    # an installed Brave web app shares brave.exe with the browser, but its
+    # app-id and shortcut let _open_entries keep it as its own named/iconed
+    # item instead of conflating it with the Brave browser entry.
+    apps = [
+        *apps,
+        *_open_entries(apps, snapshot, with_icons, paths, names),
+    ]
     if not folder_exists:
         message = "Windows pinned taskbar folder was not found."
     elif mode == "custom" and not apps:

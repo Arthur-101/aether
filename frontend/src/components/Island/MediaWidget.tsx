@@ -88,6 +88,12 @@ interface MediaWidgetProps {
   glowStyle?: GlowStyle;
   /** Whether the glow follows the source colour or the app accent. */
   glowColor?: GlowColor;
+  /**
+   * Drops the widget's own card so it can sit inside another surface, such as a
+   * popped-out desktop widget's frame, without a doubled border or radius. The
+   * glow is skipped in that mode because the hosting frame paints the surface.
+   */
+  frameless?: boolean;
 }
 
 export const MediaWidget: React.FC<MediaWidgetProps> = ({
@@ -96,6 +102,7 @@ export const MediaWidget: React.FC<MediaWidgetProps> = ({
   compact = false,
   glowStyle = 'glass',
   glowColor = 'source',
+  frameless = false,
 }) => {
   const position = usePosition(media);
   if (!media || !media.available || !media.has_session) return null;
@@ -114,12 +121,14 @@ export const MediaWidget: React.FC<MediaWidgetProps> = ({
 
   return (
     <div
-      className={`media-glow-surface rounded-xl border border-[var(--aether-line)] bg-[var(--aether-fill)] ${
-        compact ? 'px-2.5 py-2' : 'p-3.5'
-      } media-glow-${glowStyle}`}
+      className={`${
+        frameless
+          ? 'rounded-none'
+          : `media-glow-surface rounded-xl border border-[var(--aether-line)] bg-[var(--aether-fill)] media-glow-${glowStyle}`
+      } ${compact ? 'px-2.5 py-2' : 'p-3.5'}`}
       style={{ '--glow-color': glow } as React.CSSProperties}
     >
-      {glowStyle !== 'off' ? (
+      {!frameless && glowStyle !== 'off' ? (
         <>
           <div className="media-glow-wash" />
           <div className="media-glow-sheen" />

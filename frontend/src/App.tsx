@@ -9,6 +9,7 @@ import { AddBgModal } from './components/MicroModals/AddBgModal';
 import { SettingsModal, type SettingsTab } from './components/SettingsModal/SettingsModal';
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { ScreenScale } from './components/Island/ScreenScale';
+import { useDesktopWidgets } from './hooks/useDesktopWidgets';
 import { ColorPickerOverlay } from './components/Island/ColorPickerOverlay';
 import { DEFAULT_COLOR, normalizeHex } from './components/Island/colorUtils';
 import type { ScaleUnit } from './components/Island/scaleUnits';
@@ -347,6 +348,16 @@ export function App() {
   );
   const brandName = (config?.brand_name ?? '').trim() || 'Aether';
 
+  // Desktop widgets live in their own native windows; this hook owns the list,
+  // the windows that mirror it, and the state those windows render from.
+  const desktopWidgets = useDesktopWidgets({
+    appearance: liveAppearance,
+    theme: resolvedTheme,
+    timeFormat: liveAppearance.time_format,
+    media,
+    onMediaControl: handleMediaControl,
+  });
+
   return (
     <main
       // Aether follows the Windows theme by default, so the overlay, the
@@ -441,6 +452,7 @@ export function App() {
         onLaunchTaskbarApp={handleLaunchTaskbarApp}
         onManageTaskbarApps={openTaskbarSettings}
         onMediaControl={handleMediaControl}
+        widgets={desktopWidgets}
       />
 
       {isIslandExpanded && appearance.close_on_outside_click ? (

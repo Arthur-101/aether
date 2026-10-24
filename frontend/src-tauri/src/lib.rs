@@ -1,11 +1,15 @@
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 mod external_window;
+mod widgets;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![external_window::open_external])
+    .invoke_handler(tauri::generate_handler![
+      external_window::open_external,
+      widgets::sync_widgets
+    ])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

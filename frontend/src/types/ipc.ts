@@ -33,6 +33,12 @@ export interface AppearanceConfig {
   island_grain: number;
   pill_pop: number;
   island_pop: number;
+  /** Surface settings for the popped-out desktop widgets. */
+  widget_opacity: number;
+  widget_grain: number;
+  widget_pop: number;
+  /** Corner radius of the widget card, in pixels. */
+  widget_radius: number;
   button_primary: string;
   button_secondary: string;
   button_gradient: boolean;

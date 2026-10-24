@@ -8,6 +8,7 @@ import {
   Mic,
   Keyboard,
   HardDrive,
+  LayoutGrid,
   Palette,
   Save,
   Check,
@@ -24,6 +25,7 @@ import { AppearanceSettings } from './tabs/AppearanceSettings';
 import { VoiceSettings } from './tabs/VoiceSettings';
 import { HotkeySettings } from './tabs/HotkeySettings';
 import { StorageSettings } from './tabs/StorageSettings';
+import { WidgetSettings } from './tabs/WidgetSettings';
 import { useSettingsDrag } from './useSettingsDrag';
 
 interface SettingsModalProps {
@@ -43,7 +45,13 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-export type SettingsTab = 'ai' | 'voice' | 'hotkeys' | 'storage' | 'appearance';
+export type SettingsTab =
+  | 'ai'
+  | 'voice'
+  | 'hotkeys'
+  | 'storage'
+  | 'appearance'
+  | 'widgets';
 type Tab = SettingsTab;
 
 const tabs = [
@@ -52,6 +60,7 @@ const tabs = [
   { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
   { id: 'storage' as const, label: 'Storage & Files', icon: HardDrive },
   { id: 'appearance' as const, label: 'Appearance', icon: Palette },
+  { id: 'widgets' as const, label: 'Widgets', icon: LayoutGrid },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -218,6 +227,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'hotkeys' && 'Global System Hotkeys'}
                   {activeTab === 'storage' && 'Output & Session Storage'}
                   {activeTab === 'appearance' && 'Notch Appearance'}
+                  {activeTab === 'widgets' && 'Desktop Widgets'}
                 </h4>
                 <button
                   onClick={onClose}
@@ -270,6 +280,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={updateAppearance}
                       onTaskbarChange={updateTaskbarApps}
                       onRefreshTaskbar={onRefreshTaskbar}
+                    />
+                  )}
+                  {activeTab === 'widgets' && (
+                    <WidgetSettings
+                      appearance={resolveAppearance(draft.appearance)}
+                      onChange={updateAppearance}
                     />
                   )}
                 </>

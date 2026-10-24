@@ -57,7 +57,7 @@ export const AppDock: React.FC<AppDockProps> = ({ apps, side, step = 18, onLaunc
   return (
     <div
       className={`flex items-center ${side === 'left' ? 'justify-end' : 'justify-start'}`}
-      aria-label={side === 'left' ? 'Pinned apps' : 'More pinned apps'}
+      aria-label={side === 'left' ? 'App deck' : 'More apps'}
     >
       {apps.map((app, index) => {
         const isHovered = hovered === index;

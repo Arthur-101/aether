@@ -36,6 +36,7 @@ import {
   type MouseSubscriber,
 } from '../../hooks/useAutoHidePill';
 import type { ScaleUnit } from './scaleUnits';
+import type { DesktopWidgetsApi } from '../../hooks/useDesktopWidgets';
 import { TAB_WIDTH } from './tabSizes';
 import { useClockTools } from './useClockTools';
 
@@ -122,6 +123,7 @@ interface DesktopIslandProps {
   onLaunchTaskbarApp: (app: TaskbarPinnedApp) => void;
   onManageTaskbarApps: () => void;
   onMediaControl: (action: MediaControlAction) => void;
+  widgets: DesktopWidgetsApi;
 }
 
 export const DesktopIsland: React.FC<DesktopIslandProps> = ({
@@ -207,6 +209,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onLaunchTaskbarApp,
   onManageTaskbarApps,
   onMediaControl,
+  widgets,
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTabId>('controls');
   const clockTools = useClockTools();
@@ -360,6 +363,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               onSetColor,
               media,
               onMediaControl,
+              widgets,
             }}
             chat={{
               history: chatHistory,

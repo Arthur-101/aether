@@ -46,6 +46,10 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "island_grain": 5,
     "pill_pop": 60,
     "island_pop": 60,
+    "widget_opacity": 0.9,
+    "widget_grain": 5,
+    "widget_pop": 60,
+    "widget_radius": 16,
     "button_primary": "#E8C56B",
     "button_secondary": "#F4DF9A",
     "button_gradient": True,
@@ -144,6 +148,15 @@ def _clamp_percent(value: Any, fallback: int) -> int:
     return int(round(max(0.0, min(100.0, number))))
 
 
+def _clamp_pixels(value: Any, fallback: int, limit: int) -> int:
+    """Clamps a pixel length, used for the widget corner radius."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return int(round(max(0.0, min(float(limit), number))))
+
+
 def _as_bool(value: Any, fallback: bool) -> bool:
     return value if isinstance(value, bool) else fallback
 
@@ -183,6 +196,18 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
         ),
         "island_pop": _clamp_percent(
             raw.get("island_pop"), DEFAULT_APPEARANCE["island_pop"]
+        ),
+        "widget_opacity": _clamp_opacity(
+            raw.get("widget_opacity"), DEFAULT_APPEARANCE["widget_opacity"]
+        ),
+        "widget_grain": _clamp_percent(
+            raw.get("widget_grain"), DEFAULT_APPEARANCE["widget_grain"]
+        ),
+        "widget_pop": _clamp_percent(
+            raw.get("widget_pop"), DEFAULT_APPEARANCE["widget_pop"]
+        ),
+        "widget_radius": _clamp_pixels(
+            raw.get("widget_radius"), DEFAULT_APPEARANCE["widget_radius"], 32
         ),
         "button_primary": normalize_hex(
             raw.get("button_primary"), DEFAULT_APPEARANCE["button_primary"]
