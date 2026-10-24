@@ -10,6 +10,7 @@ import { SettingsModal, type SettingsTab } from './components/SettingsModal/Sett
 import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
 import { ScreenScale } from './components/Island/ScreenScale';
 import { useDesktopWidgets } from './hooks/useDesktopWidgets';
+import { useIslandOnTop } from './hooks/useIslandOnTop';
 import { ColorPickerOverlay } from './components/Island/ColorPickerOverlay';
 import { DEFAULT_COLOR, normalizeHex } from './components/Island/colorUtils';
 import type { ScaleUnit } from './components/Island/scaleUnits';
@@ -355,8 +356,14 @@ export function App() {
     theme: resolvedTheme,
     timeFormat: liveAppearance.time_format,
     media,
+    audioDevices,
     onMediaControl: handleMediaControl,
   });
+
+  // Re-asserts the island's topmost-band placement every few seconds, since
+  // activating another topmost window re-orders within the band and can bury
+  // everything.
+  useIslandOnTop();
 
   return (
     <main
@@ -508,6 +515,10 @@ export function App() {
         onHotkeyCapture={setHotkeyCapture}
         onOpenNotesFolder={handleOpenNotesFolder}
         taskbarState={taskbarState}
+        widgets={desktopWidgets.widgets}
+        onWidgetAppearanceChange={desktopWidgets.setWidgetAppearance}
+        onResetWidgetAppearance={desktopWidgets.resetWidgetAppearance}
+        onWidgetAlwaysOnTopChange={desktopWidgets.setWidgetAlwaysOnTop}
         initialTab={settingsInitialTab}
         onRefreshTaskbar={refreshTaskbarApps}
         onPreviewAppearance={setPreviewAppearance}

@@ -50,6 +50,10 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "widget_grain": 5,
     "widget_pop": 60,
     "widget_radius": 16,
+    "widget_clock_seconds": True,
+    "widget_clock_daydate": True,
+    "widget_theme": "default",
+    "widget_text_color": "",
     "button_primary": "#E8C56B",
     "button_secondary": "#F4DF9A",
     "button_gradient": True,
@@ -62,6 +66,7 @@ _THEME_MODES = ("system", "light", "dark")
 _GLOW_STYLES = ("off", "soft", "glass", "neon", "pulse")
 _GLOW_COLORS = ("source", "theme")
 _TIME_FORMATS = ("12h", "24h")
+_WIDGET_THEMES = ("default", "cozy")
 
 DEFAULT_TASKBAR_APPS: Dict[str, Any] = {
     "mode": "mirror",
@@ -132,12 +137,12 @@ def normalize_hex(value: Any, fallback: str) -> str:
     return raw.lower()
 
 
-def _clamp_opacity(value: Any, fallback: float) -> float:
+def _clamp_opacity(value: Any, fallback: float, minimum: float = 0.3) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError):
         return fallback
-    return round(max(0.3, min(1.0, number)), 2)
+    return round(max(minimum, min(1.0, number)), 2)
 
 
 def _clamp_percent(value: Any, fallback: int) -> int:
@@ -161,6 +166,16 @@ def _as_bool(value: Any, fallback: bool) -> bool:
     return value if isinstance(value, bool) else fallback
 
 
+def _optional_hex(value: Any) -> str:
+    """Accepts a #RGB/#RRGGBB colour, or an empty value for "follow theme"."""
+    if not isinstance(value, str):
+        return ""
+    raw = value.strip()
+    if not raw:
+        return ""
+    return normalize_hex(raw, "")
+
+
 def normalize_appearance(value: Any) -> Dict[str, Any]:
     """Backfills, clamps, and sanitizes the appearance section."""
     raw = value if isinstance(value, dict) else {}
@@ -168,6 +183,7 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
     glow_style = str(raw.get("glow_style") or "").strip().lower()
     glow_color = str(raw.get("glow_color") or "").strip().lower()
     time_format = str(raw.get("time_format") or "").strip().lower()
+    widget_theme = str(raw.get("widget_theme") or "").strip().lower()
     return {
         "dashboard_tabs": normalize_dashboard_tabs(raw.get("dashboard_tabs")),
         "theme_mode": (
@@ -198,7 +214,9 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
             raw.get("island_pop"), DEFAULT_APPEARANCE["island_pop"]
         ),
         "widget_opacity": _clamp_opacity(
-            raw.get("widget_opacity"), DEFAULT_APPEARANCE["widget_opacity"]
+            raw.get("widget_opacity"),
+            DEFAULT_APPEARANCE["widget_opacity"],
+            minimum=0.0,
         ),
         "widget_grain": _clamp_percent(
             raw.get("widget_grain"), DEFAULT_APPEARANCE["widget_grain"]
@@ -209,6 +227,18 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
         "widget_radius": _clamp_pixels(
             raw.get("widget_radius"), DEFAULT_APPEARANCE["widget_radius"], 32
         ),
+        "widget_clock_seconds": _as_bool(
+            raw.get("widget_clock_seconds"),
+            DEFAULT_APPEARANCE["widget_clock_seconds"],
+        ),
+        "widget_clock_daydate": _as_bool(
+            raw.get("widget_clock_daydate"),
+            DEFAULT_APPEARANCE["widget_clock_daydate"],
+        ),
+        "widget_theme": (
+            widget_theme if widget_theme in _WIDGET_THEMES else "default"
+        ),
+        "widget_text_color": _optional_hex(raw.get("widget_text_color")),
         "button_primary": normalize_hex(
             raw.get("button_primary"), DEFAULT_APPEARANCE["button_primary"]
         ),

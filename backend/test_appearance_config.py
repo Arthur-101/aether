@@ -72,6 +72,60 @@ def test_appearance_grain_and_pop_are_clamped_and_backfilled():
     assert defaults["island_pop"] == 60
 
 
+def test_widget_opacity_can_reach_zero_but_pill_cannot():
+    assert normalize_appearance({})["widget_opacity"] == 0.9
+    assert normalize_appearance({"widget_opacity": 0})["widget_opacity"] == 0.0
+    assert normalize_appearance({"widget_opacity": -1})["widget_opacity"] == 0.0
+    assert normalize_appearance({"widget_opacity": 2})["widget_opacity"] == 1.0
+    # The pill and island keep a readable minimum.
+    assert normalize_appearance({"pill_opacity": 0})["pill_opacity"] == 0.3
+    assert normalize_appearance({"island_opacity": 0})["island_opacity"] == 0.3
+
+
+def test_widget_clock_switches_default_on_and_require_booleans():
+    defaults = normalize_appearance({})
+    assert defaults["widget_clock_seconds"] is True
+    assert defaults["widget_clock_daydate"] is True
+    assert (
+        normalize_appearance(
+            {"widget_clock_seconds": False, "widget_clock_daydate": False}
+        )["widget_clock_seconds"]
+        is False
+    )
+    assert (
+        normalize_appearance({"widget_clock_seconds": "no"})[
+            "widget_clock_seconds"
+        ]
+        is True
+    )
+
+
+def test_widget_theme_defaults_and_accepts_cozy():
+    assert normalize_appearance({})["widget_theme"] == "default"
+    assert normalize_appearance({"widget_theme": "default"})["widget_theme"] == "default"
+    assert normalize_appearance({"widget_theme": "cozy"})["widget_theme"] == "cozy"
+    assert normalize_appearance({"widget_theme": " COZY "})["widget_theme"] == "cozy"
+    assert normalize_appearance({"widget_theme": "neon"})["widget_theme"] == "default"
+    assert normalize_appearance({"widget_theme": None})["widget_theme"] == "default"
+
+
+def test_widget_text_color_accepts_hex_or_auto():
+    assert normalize_appearance({})["widget_text_color"] == ""
+    assert normalize_appearance({"widget_text_color": ""})["widget_text_color"] == ""
+    assert (
+        normalize_appearance({"widget_text_color": "#FFF"})["widget_text_color"]
+        == "#ffffff"
+    )
+    assert (
+        normalize_appearance({"widget_text_color": "#123456"})["widget_text_color"]
+        == "#123456"
+    )
+    assert (
+        normalize_appearance({"widget_text_color": "nope"})["widget_text_color"]
+        == ""
+    )
+
+
 def test_appearance_no_longer_carries_blur_fields():
     appearance = normalize_appearance({"pill_blur": 30, "island_blur": 30})
     assert "pill_blur" not in appearance

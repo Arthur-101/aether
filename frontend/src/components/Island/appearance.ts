@@ -8,6 +8,7 @@ import type {
   TaskbarAppsConfig,
   ThemeMode,
   TimeFormat,
+  WidgetTheme,
 } from '../../types/ipc';
 import { normalizeHex, accentBackground, accentTextColor } from './contrast';
 import { normalizeDashboardTabs } from './tabRegistry';
@@ -47,6 +48,10 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   widget_grain: 5,
   widget_pop: 60,
   widget_radius: 16,
+  widget_clock_seconds: true,
+  widget_clock_daydate: true,
+  widget_theme: 'default',
+  widget_text_color: '',
   button_primary: GOLD_PRIMARY,
   button_secondary: GOLD_SECONDARY,
   button_gradient: true,
@@ -71,16 +76,22 @@ export const ACCENT_PRESETS: AccentPreset[] = [
   { id: 'rose', label: 'Rose', primary: '#E792A8', secondary: '#F4BCCB' },
 ];
 
-function clampOpacity(value: unknown, fallback: number): number {
+function clampOpacity(value: unknown, fallback: number, minimum = 0.3): number {
   const number = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(number)) return fallback;
-  return Math.round(Math.max(0.3, Math.min(1, number)) * 100) / 100;
+  return Math.round(Math.max(minimum, Math.min(1, number)) * 100) / 100;
 }
 
 function clampPercent(value: unknown, fallback: number): number {
   const number = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.round(Math.max(0, Math.min(100, number)));
+}
+
+/** Empty means "follow the theme"; otherwise a #RGB/#RRGGBB colour. */
+function normalizeWidgetTextColor(value: unknown): string {
+  const raw = typeof value === 'string' ? value.trim() : '';
+  return raw ? normalizeHex(raw, '') : '';
 }
 
 /** Clamps a pixel length, used for the widget corner radius. */
@@ -109,6 +120,11 @@ export function normalizeGlowColor(value: unknown): GlowColor {
 
 export function normalizeTimeFormat(value: unknown): TimeFormat {
   return String(value ?? '').trim().toLowerCase() === '24h' ? '24h' : '12h';
+}
+
+/** Unknown or stale values fall back to the original glass media card. */
+export function normalizeWidgetTheme(value: unknown): WidgetTheme {
+  return String(value ?? '').trim().toLowerCase() === 'cozy' ? 'cozy' : 'default';
 }
 
 export const GLOW_STYLES: GlowStyle[] = [
@@ -149,9 +165,12 @@ export function resolveAppearance(
     island_grain: clampPercent(raw.island_grain, DEFAULT_APPEARANCE.island_grain),
     pill_pop: clampPercent(raw.pill_pop, DEFAULT_APPEARANCE.pill_pop),
     island_pop: clampPercent(raw.island_pop, DEFAULT_APPEARANCE.island_pop),
+    // The widget surface may be taken all the way to transparent so the text
+    // can sit directly on the wallpaper.
     widget_opacity: clampOpacity(
       raw.widget_opacity,
-      DEFAULT_APPEARANCE.widget_opacity
+      DEFAULT_APPEARANCE.widget_opacity,
+      0
     ),
     widget_grain: clampPercent(raw.widget_grain, DEFAULT_APPEARANCE.widget_grain),
     widget_pop: clampPercent(raw.widget_pop, DEFAULT_APPEARANCE.widget_pop),
@@ -160,6 +179,16 @@ export function resolveAppearance(
       DEFAULT_APPEARANCE.widget_radius,
       32
     ),
+    widget_clock_seconds:
+      typeof raw.widget_clock_seconds === 'boolean'
+        ? raw.widget_clock_seconds
+        : DEFAULT_APPEARANCE.widget_clock_seconds,
+    widget_clock_daydate:
+      typeof raw.widget_clock_daydate === 'boolean'
+        ? raw.widget_clock_daydate
+        : DEFAULT_APPEARANCE.widget_clock_daydate,
+    widget_theme: normalizeWidgetTheme(raw.widget_theme),
+    widget_text_color: normalizeWidgetTextColor(raw.widget_text_color),
     button_primary: normalizeHex(
       String(raw.button_primary ?? ''),
       GOLD_PRIMARY

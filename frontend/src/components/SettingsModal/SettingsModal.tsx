@@ -10,6 +10,8 @@ import {
   HardDrive,
   LayoutGrid,
   Palette,
+  PanelLeftClose,
+  PanelLeftOpen,
   Save,
   Check,
 } from 'lucide-react';
@@ -19,6 +21,10 @@ import type {
   TaskbarAppsConfig,
   TaskbarAppsState,
 } from '../../types/ipc';
+import type {
+  DesktopWidget,
+  WidgetAppearanceOverrides,
+} from '../../widgets/types';
 import { resolveAppearance, resolveTaskbarApps } from '../Island/appearance';
 import { AiSettings } from './tabs/AiSettings';
 import { AppearanceSettings } from './tabs/AppearanceSettings';
@@ -39,6 +45,10 @@ interface SettingsModalProps {
   onHotkeyCapture: (enabled: boolean) => void;
   onOpenNotesFolder: (path: string) => void;
   taskbarState: TaskbarAppsState | null;
+  widgets: DesktopWidget[];
+  onWidgetAppearanceChange: (id: string, patch: WidgetAppearanceOverrides) => void;
+  onResetWidgetAppearance: (id: string) => void;
+  onWidgetAlwaysOnTopChange: (id: string, value: boolean) => void;
   initialTab?: SettingsTab | null;
   onRefreshTaskbar: () => void;
   onPreviewAppearance?: (appearance: AppearanceConfig | null) => void;
@@ -74,6 +84,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onHotkeyCapture,
   onOpenNotesFolder,
   taskbarState,
+  widgets,
+  onWidgetAppearanceChange,
+  onResetWidgetAppearance,
+  onWidgetAlwaysOnTopChange,
   initialTab,
   onRefreshTaskbar,
   onPreviewAppearance,
@@ -82,6 +96,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('ai');
   const [draft, setDraft] = useState<AppConfig | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { offset, dragHandleProps } = useSettingsDrag(isOpen);
 
   useEffect(() => {
@@ -174,31 +189,76 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             } as React.CSSProperties}
             className="aether-interactive glass-panel aether-grain aether-pop flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
           >
-          <div className="settings-sidebar flex w-44 flex-col justify-between border-r border-[var(--aether-line)] p-4">
+          <div
+            className={`settings-sidebar flex shrink-0 flex-col justify-between border-r border-[var(--aether-line)] transition-all duration-200 ${
+              sidebarCollapsed ? 'w-14 p-2' : 'w-44 p-4'
+            }`}
+          >
             <div>
               <div
                 {...dragHandleProps}
-                className="mb-6 flex cursor-grab items-center gap-2 active:cursor-grabbing"
+                className={`mb-5 flex cursor-grab items-center active:cursor-grabbing ${
+                  sidebarCollapsed ? 'flex-col gap-2' : 'gap-2'
+                }`}
                 title="Drag to move Settings"
               >
-                <Settings size={18} className="text-[var(--aether-accent-text)]" />
-                <h3 className="text-sm font-semibold text-[var(--aether-text-1)]">Settings</h3>
+                <Settings size={18} className="shrink-0 text-[var(--aether-accent-text)]" />
+                {!sidebarCollapsed ? (
+                  <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--aether-text-1)]">
+                    Settings
+                  </h3>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed((value) => !value)}
+                  aria-label={
+                    sidebarCollapsed
+                      ? 'Expand settings sidebar'
+                      : 'Collapse settings sidebar'
+                  }
+                  aria-expanded={!sidebarCollapsed}
+                  title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  className={`rounded-md p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)] ${
+                    sidebarCollapsed ? '' : 'ml-auto'
+                  }`}
+                >
+                  {sidebarCollapsed ? (
+                    <PanelLeftOpen size={14} />
+                  ) : (
+                    <PanelLeftClose size={14} />
+                  )}
+                </button>
               </div>
               <div className="flex flex-col gap-1 text-xs">
                 {tabs.map((item) => {
                   const Icon = item.icon;
+                  const active = activeTab === item.id;
                   return (
                     <button
                       key={item.id}
+                      type="button"
                       onClick={() => setActiveTab(item.id)}
-                      className={`flex items-center gap-2 rounded-md px-3 py-2 text-left transition ${
-                        activeTab === item.id
+                      aria-label={item.label}
+                      title={sidebarCollapsed ? item.label : undefined}
+                      className={`flex items-center rounded-md transition ${
+                        sidebarCollapsed
+                          ? 'justify-center px-0 py-2.5'
+                          : 'gap-2 px-3 py-2 text-left'
+                      } ${
+                        active
                           ? 'border border-[var(--aether-line)] bg-[var(--aether-surface-5)] font-medium text-[var(--aether-text-1)]'
                           : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
                       }`}
                     >
-                      <Icon size={14} className={activeTab === item.id ? 'text-[var(--aether-accent-text)]' : ''} />
-                      <span>{item.label}</span>
+                      <Icon
+                        size={14}
+                        className={`shrink-0 ${
+                          active ? 'text-[var(--aether-accent-text)]' : ''
+                        }`}
+                      />
+                      {!sidebarCollapsed ? (
+                        <span className="truncate">{item.label}</span>
+                      ) : null}
                     </button>
                   );
                 })}
@@ -206,11 +266,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div
               {...dragHandleProps}
-              className="flex cursor-grab items-center gap-1.5 font-mono text-[10px] text-[var(--aether-text-3)] active:cursor-grabbing"
+              className={`flex cursor-grab items-center font-mono text-[10px] text-[var(--aether-text-3)] active:cursor-grabbing ${
+                sidebarCollapsed ? 'justify-center' : 'gap-1.5'
+              }`}
               title="Drag to move Settings"
             >
-              <GripHorizontal size={12} />
-              Aether v0.1.0 · Local-first
+              <GripHorizontal size={12} className="shrink-0" />
+              {!sidebarCollapsed ? (
+                <span className="truncate">Aether v0.1.0 · Local-first</span>
+              ) : null}
             </div>
           </div>
 
@@ -286,6 +350,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <WidgetSettings
                       appearance={resolveAppearance(draft.appearance)}
                       onChange={updateAppearance}
+                      widgets={widgets}
+                      onWidgetAppearanceChange={onWidgetAppearanceChange}
+                      onResetWidgetAppearance={onResetWidgetAppearance}
+                      onWidgetAlwaysOnTopChange={onWidgetAlwaysOnTopChange}
                     />
                   )}
                 </>

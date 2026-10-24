@@ -60,17 +60,27 @@ mod native {
     use std::collections::HashSet;
 
     use windows_sys::core::BOOL;
-    use windows_sys::Win32::Foundation::{HWND, LPARAM, TRUE};
+    use windows_sys::Win32::Foundation::{FALSE, HWND, LPARAM, TRUE};
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         DestroyWindow, EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindowLongPtrW,
         GetWindowTextW, GetWindowThreadProcessId, SetParent, SetWindowLongPtrW, SetWindowPos,
         GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED,
-        SWP_NOACTIVATE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-        WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SIZEBOX, WS_SYSMENU,
+        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_EX_LAYERED,
+        WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SIZEBOX, WS_SYSMENU,
     };
-    use windows_sys::Win32::Graphics::Dwm::{DwmExtendFrameIntoClientArea};
-    use windows_sys::Win32::UI::Controls::MARGINS;
+    use windows_sys::Win32::Graphics::Dwm::{
+        DwmEnableBlurBehindWindow, DwmSetWindowAttribute, DWM_BLURBEHIND, DWM_BB_BLURREGION,
+        DWM_BB_ENABLE, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE,
+        DWMWCP_DONOTROUND,
+    };
+    use windows_sys::Win32::Graphics::Gdi::{
+        CreateRectRgn, DeleteObject, RedrawWindow, RDW_ALLCHILDREN, RDW_FRAME, RDW_INVALIDATE,
+    };
+    use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        EnumChildWindows, GetDesktopWindow, EVENT_SYSTEM_FOREGROUND, WINEVENT_OUTOFCONTEXT,
+    };
 
     use super::{LEGACY_TITLE_PREFIX, WIDGET_LABEL_PREFIX};
 
@@ -164,15 +174,6 @@ mod native {
                     height,
                     SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
                 );
-                // Force DWM to treat the whole window as client area so no
-                // non-client frame can ever appear, even during transitions.
-                let margins = RECT {
-                    left: -1,
-                    top: -1,
-                    right: -1,
-                    bottom: -1,
-                };
-                let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
             } else if let Some((progman, defview)) = desktop_layer() {
                 // Adopt the desktop layer as the parent. Coordinates become
                 // Progman-relative, and Progman fills the screen from (0, 0),
@@ -186,6 +187,12 @@ mod native {
                     );
                     SetParent(hwnd, progman);
                 }
+                // A layered window with no layered attributes paints nothing,
+                // and this widget may still carry `WS_EX_LAYERED` from an
+                // earlier on-top placement. The desktop placement is a plain
+                // child window, so strip it or the widget vanishes.
+                let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex & !(WS_EX_LAYERED as isize));
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                 SetWindowLongPtrW(hwnd, GWL_STYLE, style & !CHROME);
                 // Sit directly below the icon view: the widget never covers
@@ -225,6 +232,46 @@ mod native {
                     height,
                     SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
                 );
+            }
+
+            // Windows 11 rounds the corners of top-level windows and draws a
+            // one-pixel border around them. On these transparent cards the
+            // border shows as white brackets at the corners — most visibly
+            // after a reparent or Win+D, when DWM recomposes the window. Opt
+            // out of both: no rounding, no border. A widget draws its own
+            // corner radius in CSS.
+            let corner: i32 = DWMWCP_DONOTROUND;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE as u32,
+                &corner as *const i32 as *const core::ffi::c_void,
+                std::mem::size_of_val(&corner) as u32,
+            );
+            let border: u32 = DWMWA_COLOR_NONE;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_BORDER_COLOR as u32,
+                &border as *const u32 as *const core::ffi::c_void,
+                std::mem::size_of_val(&border) as u32,
+            );
+
+            // tao makes a window transparent with `DwmEnableBlurBehindWindow`
+            // and an empty blur region, applied once at creation. Reparenting
+            // between the desktop layer and the topmost band resets the
+            // window's DWM redirection surface and drops that state; the
+            // webview then paints on an opaque white surface and the card's
+            // rounded corners show white wedges. Re-apply it on every pass so
+            // the widget stays transparent across pin/unpin and Win+D.
+            let region = CreateRectRgn(0, 0, -1, -1);
+            if !region.is_null() {
+                let blur = DWM_BLURBEHIND {
+                    dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+                    fEnable: TRUE,
+                    hRgnBlur: region,
+                    fTransitionOnMaximized: FALSE,
+                };
+                let _ = DwmEnableBlurBehindWindow(hwnd, &blur);
+                let _ = DeleteObject(region as *mut core::ffi::c_void);
             }
         }
     }
@@ -311,14 +358,163 @@ mod native {
         }
     }
 
+    /// Collects every widget window of this process, top-level or a child of
+    /// the desktop layer.
+    struct Repaint {
+        windows: Vec<Hwnd>,
+    }
+
+    unsafe extern "system" fn repaint_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let state = unsafe { &mut *(lparam as *mut Repaint) };
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(hwnd, &mut pid as *mut u32) };
+        if pid != unsafe { GetCurrentProcessId() } {
+            return TRUE;
+        }
+        let mut buffer = [0u16; 128];
+        let len = unsafe { GetWindowTextW(hwnd, buffer.as_mut_ptr(), 128) };
+        let title = String::from_utf16_lossy(&buffer[..(len.max(0) as usize).min(128)]);
+        if title.starts_with(WIDGET_LABEL_PREFIX) {
+            state.windows.push(hwnd as Hwnd);
+        }
+        TRUE
+    }
+
+    /// Forces every widget window to repaint.
+    ///
+    /// Windows keeps the DWM redirection surface of a window across a
+    /// reparent, but after a composition change (Win+D is the common one) it
+    /// can composite that surface from stale opaque pixels: the webview's
+    /// transparent corners come back as white wedges. Invalidating the window
+    /// makes WebView2 present its transparent surface again and the wedges
+    /// vanish. The desktop window is enumerated instead of `EnumWindows`
+    /// because pinned widgets are children of Progman.
+    pub fn repaint_widgets() {
+        let mut state = Repaint {
+            windows: Vec::new(),
+        };
+        unsafe {
+            EnumChildWindows(
+                GetDesktopWindow(),
+                Some(repaint_proc),
+                &mut state as *mut Repaint as LPARAM,
+            );
+            for hwnd in &state.windows {
+                RedrawWindow(
+                    *hwnd as HWND,
+                    std::ptr::null(),
+                    std::ptr::null_mut(),
+                    RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN,
+                );
+            }
+        }
+    }
+
+    /// Repaints the widgets whenever the foreground window changes.
+    ///
+    /// Win+D ("show desktop") raises Progman and changes the foreground, and
+    /// that composition change is exactly what leaves the white corner
+    /// wedges on the widgets. Repairing on the event is immediate, and
+    /// foreground changes are user-driven, so the cost is a few redraws per
+    /// interaction rather than a poll.
+    unsafe extern "system" fn on_foreground(
+        _hook: HWINEVENTHOOK,
+        _event: u32,
+        _hwnd: HWND,
+        _object: i32,
+        _child: i32,
+        _thread: u32,
+        _time: u32,
+    ) {
+        repaint_widgets();
+    }
+
+    /// Installs the foreground repair hook for the lifetime of the process.
+    /// The returned handle is deliberately dropped: the hook must live as long
+    /// as the app, and the process owns it.
+    pub fn install_repaint_hook() {
+        unsafe {
+            SetWinEventHook(
+                EVENT_SYSTEM_FOREGROUND,
+                EVENT_SYSTEM_FOREGROUND,
+                std::ptr::null_mut(),
+                Some(on_foreground),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT,
+            );
+        }
+    }
+
     /// Styles every widget window, then sweeps the ghosts. Called once per
     /// sync on the main thread, so it is the last word on every window.
-    pub fn run_pass(jobs: Vec<Job>) {
+    pub fn run_pass(jobs: Vec<Job>, main_hwnd: Option<Hwnd>) {
         let managed: HashSet<Hwnd> = jobs.iter().map(|job| job.hwnd).collect();
+        // Re-assert the main window at the top of the topmost band first. The
+        // island is the shell floor and must cover every window the user
+        // opens; Windows re-orders *within* the topmost band whenever another
+        // topmost window is activated, which can bury the island between
+        // syncs. Raising it before the widget jobs leaves the widgets above
+        // the main window in the band, which is where they stood before.
+        if let Some(hwnd) = main_hwnd {
+            unsafe {
+                SetWindowPos(
+                    hwnd as HWND,
+                    HWND_TOPMOST,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                );
+            }
+        }
         for job in &jobs {
             unsafe { apply_one(job) };
         }
         unsafe { sweep(&managed) };
+    }
+
+    /// Re-asserts the island windows at the top of the topmost band: the main
+    /// window first, then every top-level widget window, so the widgets stay
+    /// above the main window while both sit above everything. Desktop-pinned
+    /// widgets are children of Progman and are skipped — their placement is
+    /// owned by `apply_one`.
+    ///
+    /// Windows re-orders within the topmost band whenever *any* topmost
+    /// window is activated, so a window the user pinned (or an overlay) can
+    /// bury the island between widget syncs. A few `SetWindowPos` calls at
+    /// microsecond cost restore the standing order.
+    pub fn raise_band(main_hwnd: Option<Hwnd>, widget_hwnds: Vec<Hwnd>) {
+        unsafe {
+            if let Some(hwnd) = main_hwnd {
+                SetWindowPos(
+                    hwnd as HWND,
+                    HWND_TOPMOST,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                );
+            }
+            for hwnd in widget_hwnds {
+                if GetParent(hwnd as HWND).is_null() {
+                    SetWindowPos(
+                        hwnd as HWND,
+                        HWND_TOPMOST,
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                    );
+                }
+            }
+        }
+        // Safety net for the rare composition change that never reached the
+        // foreground hook: a redraw repairs any stale opaque corner pixels.
+        repaint_widgets();
     }
 }
 
@@ -336,7 +532,17 @@ mod native {
         None
     }
 
-    pub fn run_pass(_jobs: Vec<Job>) {}
+    pub fn run_pass(_jobs: Vec<Job>, _main_hwnd: Option<Hwnd>) {}
+
+    pub fn raise_band(_main_hwnd: Option<Hwnd>, _widget_hwnds: Vec<Hwnd>) {}
+
+    pub fn install_repaint_hook() {}
+}
+
+/// Installs the foreground repaint hook that repairs stale widget corners
+/// after composition changes such as Win+D.
+pub fn install_repaint_hook() {
+    native::install_repaint_hook();
 }
 
 /// One widget as the main window describes it. Every coordinate and size is a
@@ -439,7 +645,31 @@ pub async fn sync_widgets(app: AppHandle, specs: Vec<WidgetSpec>) -> Result<(), 
     // One pass on the main thread, queued after the creation above, is the
     // last word on every widget window: styles, rectangle, visibility, Z order,
     // and the removal of any ghost windows left by earlier duplicate syncs.
-    let _ = app.run_on_main_thread(move || native::run_pass(jobs));
+    let main_hwnd = app
+        .get_webview_window("main")
+        .and_then(|window| native::raw_hwnd(&window));
+    let _ = app.run_on_main_thread(move || native::run_pass(jobs, main_hwnd));
 
+    Ok(())
+}
+
+/// Re-asserts the standing Z order of the island windows.
+///
+/// Called on a slow timer from the main window. Windows re-orders the topmost
+/// band whenever any topmost window is activated, so a window the user pinned
+/// (for example with a window manager's "always on top") can bury the island
+/// between widget syncs; this restores it. See `native::raise_band`.
+#[tauri::command]
+pub async fn ensure_on_top(app: AppHandle) -> Result<(), String> {
+    let main_hwnd = app
+        .get_webview_window("main")
+        .and_then(|window| native::raw_hwnd(&window));
+    let widget_hwnds: Vec<native::Hwnd> = app
+        .webview_windows()
+        .into_iter()
+        .filter(|(label, _)| label.starts_with(WIDGET_LABEL_PREFIX))
+        .filter_map(|(_, window)| native::raw_hwnd(&window))
+        .collect();
+    let _ = app.run_on_main_thread(move || native::raise_band(main_hwnd, widget_hwnds));
     Ok(())
 }

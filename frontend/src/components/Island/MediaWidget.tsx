@@ -35,14 +35,14 @@ export function glowFor(media: MediaSnapshot): string {
   return `hsl(${165 + (hash % 140)} 82% 62%)`;
 }
 
-function formatTime(value: number): string {
+export function formatTime(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0:00';
   const seconds = Math.floor(value % 60);
   const minutes = Math.floor(value / 60);
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function usePosition(media: MediaSnapshot | null): number {
+export function usePosition(media: MediaSnapshot | null): number {
   const [now, setNow] = useState(() => Date.now());
   const playing = Boolean(media?.is_playing);
   useEffect(() => {

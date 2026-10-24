@@ -39,6 +39,17 @@ export interface AppearanceConfig {
   widget_pop: number;
   /** Corner radius of the widget card, in pixels. */
   widget_radius: number;
+  /** Clock widget: show the small seconds counter beside the minutes. */
+  widget_clock_seconds: boolean;
+  /** Clock widget: show the weekday and date under the time. */
+  widget_clock_daydate: boolean;
+  /** Look of the media widget. The clock and date keep the shared surface. */
+  widget_theme: WidgetTheme;
+  /**
+   * Text colour for widget cards. An empty string follows the theme, which is
+   * white on dark and black on light.
+   */
+  widget_text_color: string;
   button_primary: string;
   button_secondary: string;
   button_gradient: boolean;
@@ -48,6 +59,9 @@ export interface AppearanceConfig {
 }
 
 export type ThemeMode = 'system' | 'light' | 'dark';
+
+/** Alternate looks for the desktop media widget. */
+export type WidgetTheme = 'default' | 'cozy';
 
 /** How times of day are displayed across the island. */
 export type TimeFormat = '12h' | '24h';

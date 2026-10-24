@@ -8,7 +8,8 @@ pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
       external_window::open_external,
-      widgets::sync_widgets
+      widgets::sync_widgets,
+      widgets::ensure_on_top
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -33,6 +34,11 @@ pub fn run() {
         window.set_always_on_top(true)?;
         window.show()?;
       }
+
+      // Composition changes (Win+D and friends) can leave stale opaque pixels
+      // at the widgets' rounded corners; repaint them whenever the foreground
+      // window changes.
+      widgets::install_repaint_hook();
 
       Ok(())
     })

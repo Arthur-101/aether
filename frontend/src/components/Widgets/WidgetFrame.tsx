@@ -8,14 +8,19 @@ interface WidgetFrameProps {
   alwaysOnTop: boolean;
   /** Corner radius of the card, in pixels. */
   radius: number;
+  /**
+   * `cozy` swaps the dark glass for the warm media-card surface. The header
+   * floats over the content so the artwork can use the full height.
+   */
+  tone?: 'default' | 'cozy';
+  /** Artwork used as the blurred colour wash behind the cozy card. */
+  backdrop?: string | null;
+  /** Hides the card itself, leaving only the text and controls. */
+  clearSurface?: boolean;
   onTogglePinned: () => void;
   onClose: () => void;
   /** Starts a native window drag. Ignored when the press lands on a control. */
   onDragStart: (event: React.PointerEvent) => void;
-  /** Optional custom label for the header (e.g. month/year for Date). If provided,
-   * this label is always visible and centered; the default widget label and
-   * controls fade out until hover. */
-  headerLabel?: string;
   children: React.ReactNode;
 }
 
@@ -30,21 +35,26 @@ const controlClass =
  * stop the press from reaching the drag handler, and the drag handler also
  * ignores presses that land on a button.
  *
- * For the Date widget the header shows the month/year centered and auto-hides
- * along with the controls until the user hovers the card.
+ * For every widget the header shows the kind and the placement controls only
+ * while the card is hovered, so the content stays the focal point. The cozy
+ * media theme floats that header over a full-bleed colour wash.
  */
 export const WidgetFrame: React.FC<WidgetFrameProps> = ({
   kind,
   alwaysOnTop,
   radius,
+  tone = 'default',
+  backdrop = null,
+  clearSurface = false,
   onTogglePinned,
   onClose,
   onDragStart,
-  headerLabel,
   children,
 }) => {
   const [hovered, setHovered] = useState(false);
   const stop = (event: React.PointerEvent) => event.stopPropagation();
+  const cozy = tone === 'cozy';
+  const showBackdrop = cozy && !clearSurface;
 
   return (
     <div
@@ -52,19 +62,45 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       data-aether-interactive
-      style={{ borderRadius: radius }}
+      data-tone={tone}
+      style={{
+        borderRadius: radius,
+        ...(clearSurface
+          ? {
+              background: 'transparent',
+              borderColor: 'transparent',
+              boxShadow: 'none',
+            }
+          : {}),
+      }}
       title={
         alwaysOnTop
           ? 'Drag to move this widget'
           : 'Pinned to the desktop — keep it on top to move it'
       }
-      className={`glass-panel aether-grain aether-pop flex h-full w-full flex-col overflow-hidden ${
-        alwaysOnTop ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-      }`}
+      className={`glass-panel aether-grain widget-card flex h-full w-full flex-col overflow-hidden ${
+        cozy ? 'cozy-surface' : ''
+      } ${alwaysOnTop ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
     >
-      {/* Header bar — split into: custom label (always visible) + kind/controls (fade) */}
+      {showBackdrop ? (
+        <div aria-hidden className="cozy-backdrop">
+          {backdrop ? (
+            <div
+              className="cozy-backdrop-art"
+              style={{ backgroundImage: `url("${backdrop}")` }}
+            />
+          ) : null}
+          <div className="cozy-backdrop-wash" />
+          <div className="cozy-backdrop-glow" />
+          <div className="cozy-backdrop-vignette" />
+        </div>
+      ) : null}
+
+      {/* Header bar — the kind and controls fade in on hover. */}
       <div
-        className={`flex shrink-0 items-center gap-1.5 px-2.5 pt-1.5 transition-opacity duration-150 ${
+        className={`${
+          cozy ? 'absolute inset-x-0 top-0 z-20' : 'relative shrink-0'
+        } flex items-center gap-1.5 px-2.5 pt-1.5 transition-opacity duration-150 ${
           hovered ? 'opacity-100' : 'opacity-0'
         }`}
       >
@@ -103,15 +139,13 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
         </div>
       </div>
 
-      {headerLabel && (
-        <div className="flex shrink-0 items-center justify-center px-2.5 py-1">
-          <span className="text-[10.5px] font-semibold text-[var(--aether-text-1)] truncate">
-            {headerLabel}
-          </span>
-        </div>
-      )}
-
-      <div className="flex min-h-0 flex-1 flex-col px-2.5 pt-1.5 pb-2.5">{children}</div>
+      <div
+        className={`relative z-10 flex min-h-0 flex-1 flex-col ${
+          cozy ? 'px-3 pb-2.5 pt-2' : 'px-2.5 pt-1.5 pb-2.5'
+        }`}
+      >
+        {children}
+      </div>
     </div>
   );
 };

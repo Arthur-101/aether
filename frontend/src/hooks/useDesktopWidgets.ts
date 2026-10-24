@@ -17,6 +17,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   AppearanceConfig,
+  AudioOutputDevice,
   MediaControlAction,
   MediaSnapshot,
   TimeFormat,
@@ -36,6 +37,7 @@ import {
   WIDGET_STATE_REQUEST,
   deviceScale,
   type DesktopWidget,
+  type WidgetAppearanceOverrides,
   type WidgetIdMessage,
   type WidgetKind,
   type WidgetMoveMessage,
@@ -48,6 +50,7 @@ interface UseDesktopWidgetsOptions {
   theme: 'light' | 'dark';
   timeFormat: TimeFormat;
   media: MediaSnapshot | null;
+  audioDevices: AudioOutputDevice[];
   onMediaControl: (action: MediaControlAction) => void;
 }
 
@@ -56,6 +59,8 @@ export interface DesktopWidgetsApi {
   addWidget: (kind: WidgetKind) => void;
   removeWidget: (id: string) => void;
   setWidgetAlwaysOnTop: (id: string, value: boolean) => void;
+  setWidgetAppearance: (id: string, patch: WidgetAppearanceOverrides) => void;
+  resetWidgetAppearance: (id: string) => void;
 }
 
 export function useDesktopWidgets({
@@ -63,13 +68,14 @@ export function useDesktopWidgets({
   theme,
   timeFormat,
   media,
+  audioDevices,
   onMediaControl,
 }: UseDesktopWidgetsOptions): DesktopWidgetsApi {
   const [widgets, setWidgets] = useState<DesktopWidget[]>(() => loadWidgets());
 
   const payload = useMemo<WidgetStatePayload>(
-    () => ({ appearance, theme, timeFormat, media, widgets }),
-    [appearance, theme, timeFormat, media, widgets]
+    () => ({ appearance, theme, timeFormat, media, audioDevices, widgets }),
+    [appearance, theme, timeFormat, media, audioDevices, widgets]
   );
   const payloadRef = useRef(payload);
   payloadRef.current = payload;
@@ -192,5 +198,35 @@ export function useDesktopWidgets({
     );
   }, []);
 
-  return { widgets, addWidget, removeWidget, setWidgetAlwaysOnTop };
+  const setWidgetAppearance = useCallback(
+    (id: string, patch: WidgetAppearanceOverrides) => {
+      setWidgets((current) =>
+        current.map((widget) =>
+          widget.id === id
+            ? { ...widget, appearance: { ...widget.appearance, ...patch } }
+            : widget
+        )
+      );
+    },
+    []
+  );
+
+  const resetWidgetAppearance = useCallback((id: string) => {
+    setWidgets((current) =>
+      current.map((widget) => {
+        if (widget.id !== id) return widget;
+        const { appearance: _appearance, ...rest } = widget;
+        return rest;
+      })
+    );
+  }, []);
+
+  return {
+    widgets,
+    addWidget,
+    removeWidget,
+    setWidgetAlwaysOnTop,
+    setWidgetAppearance,
+    resetWidgetAppearance,
+  };
 }

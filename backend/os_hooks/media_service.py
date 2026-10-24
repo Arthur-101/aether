@@ -4,49 +4,45 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import queue
 import threading
+from concurrent.futures import Future
 from typing import Any, Callable, Dict, Optional
 
 from .media_snapshot import (
-    capture_media,
     snapshot_differs,
     unavailable_snapshot,
 )
 
 logger = logging.getLogger("aether.media")
 
+CONTROL_METHODS = {
+    "play": "try_play_async",
+    "pause": "try_pause_async",
+    "play_pause": "try_toggle_play_pause_async",
+    "next": "try_skip_next_async",
+    "previous": "try_skip_previous_async",
+}
+CONTROL_TIMEOUT = 3.0
+CONTROL_RESULT_TIMEOUT = 6.0
 
-async def _control_once(action: str) -> bool:
-    from winsdk.windows.media.control import (
-        GlobalSystemMediaTransportControlsSessionManager as Manager,
-    )
 
-    manager = await Manager.request_async()
-    session = manager.get_current_session()
-    if session is None:
-        return False
-    methods = {
-        "play": "try_play_async",
-        "pause": "try_pause_async",
-        "play_pause": "try_toggle_play_pause_async",
-        "next": "try_skip_next_async",
-        "previous": "try_skip_previous_async",
-    }
-    method_name = methods.get(action)
+async def _invoke_control(session: Any, action: str) -> bool:
+    """Runs one SMTC transport action on the caller's event loop."""
+    method_name = CONTROL_METHODS.get(action)
     if not method_name:
         return False
     method = getattr(session, method_name, None)
     if method is None:
         return False
-    return bool(await method())
 
+    async def call() -> Any:
+        return await method()
 
-def control_media(action: str) -> bool:
-    """Runs an SMTC transport action in a fresh event loop."""
     try:
-        return asyncio.run(_control_once(action))
+        return bool(await asyncio.wait_for(call(), timeout=CONTROL_TIMEOUT))
     except Exception as exc:
-        logger.warning("Media control %s failed: %s", action, exc)
+        logger.debug("Media control %s failed: %s", action, exc)
         return False
 
 

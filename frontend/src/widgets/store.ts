@@ -12,11 +12,15 @@ import {
   WIDGET_KINDS,
   WIDGET_SIZES,
   type DesktopWidget,
+  type WidgetAppearanceOverrides,
   type WidgetKind,
 } from './types';
 
 const STORAGE_KEY = 'aether.desktop_widgets';
-const STORAGE_VERSION = 1;
+// Version 2 changed every widget's fixed size. Older layouts are re-flowed so
+// a grown card does not land on top of the one below it.
+const STORAGE_VERSION = 2;
+const LEGACY_VERSION = 1;
 
 /** Smallest visible strip of a widget that must stay on screen. */
 const KEEP_VISIBLE = 48;
@@ -49,6 +53,92 @@ function onScreen(widget: DesktopWidget): DesktopWidget {
   };
 }
 
+function overlaps(a: DesktopWidget, b: DesktopWidget): boolean {
+  const aSize = WIDGET_SIZES[a.kind];
+  const bSize = WIDGET_SIZES[b.kind];
+  return (
+    a.x < b.x + bSize.width &&
+    b.x < a.x + aSize.width &&
+    a.y < b.y + bSize.height &&
+    b.y < a.y + aSize.height
+  );
+}
+
+/**
+ * Pushes overlapping widgets down in their existing order. The old card sizes
+ * were smaller, so a stored layout can overlap once the redesign loads; the x
+ * positions and the user's vertical order are kept.
+ */
+function reflowWidgets(widgets: DesktopWidget[]): DesktopWidget[] {
+  const ordered = [...widgets].sort((a, b) => a.y - b.y);
+  const placed: DesktopWidget[] = [];
+  for (const widget of ordered) {
+    let next = { ...widget };
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const other of placed) {
+        if (!overlaps(next, other)) continue;
+        next = {
+          ...next,
+          y: other.y + WIDGET_SIZES[other.kind].height + GAP,
+        };
+        moved = true;
+      }
+    }
+    placed.push(next);
+  }
+  return placed.map(onScreen);
+}
+
+function normalizeWidgetAppearance(
+  value: unknown
+): WidgetAppearanceOverrides | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const raw = value as Record<string, unknown>;
+  const out: WidgetAppearanceOverrides = {};
+  const opacity = (input: unknown) => {
+    const number = typeof input === 'number' ? input : Number(input);
+    return Number.isFinite(number)
+      ? Math.round(Math.max(0, Math.min(1, number)) * 100) / 100
+      : undefined;
+  };
+  const percent = (input: unknown) => {
+    const number = typeof input === 'number' ? input : Number(input);
+    return Number.isFinite(number)
+      ? Math.round(Math.max(0, Math.min(100, number)))
+      : undefined;
+  };
+  const pixels = (input: unknown) => {
+    const number = typeof input === 'number' ? input : Number(input);
+    return Number.isFinite(number)
+      ? Math.round(Math.max(0, Math.min(32, number)))
+      : undefined;
+  };
+
+  const widgetOpacity = opacity(raw.widget_opacity);
+  if (widgetOpacity !== undefined) out.widget_opacity = widgetOpacity;
+  const widgetGrain = percent(raw.widget_grain);
+  if (widgetGrain !== undefined) out.widget_grain = widgetGrain;
+  const widgetPop = percent(raw.widget_pop);
+  if (widgetPop !== undefined) out.widget_pop = widgetPop;
+  const widgetRadius = pixels(raw.widget_radius);
+  if (widgetRadius !== undefined) out.widget_radius = widgetRadius;
+  if (typeof raw.widget_text_color === 'string') {
+    out.widget_text_color = raw.widget_text_color;
+  }
+  if (typeof raw.widget_clock_seconds === 'boolean') {
+    out.widget_clock_seconds = raw.widget_clock_seconds;
+  }
+  if (typeof raw.widget_clock_daydate === 'boolean') {
+    out.widget_clock_daydate = raw.widget_clock_daydate;
+  }
+  if (raw.widget_theme === 'default' || raw.widget_theme === 'cozy') {
+    out.widget_theme = raw.widget_theme;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function normalize(value: unknown): DesktopWidget | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
@@ -63,6 +153,7 @@ function normalize(value: unknown): DesktopWidget | null {
     x,
     y,
     always_on_top: raw.always_on_top !== false,
+    appearance: normalizeWidgetAppearance(raw.appearance),
   });
 }
 
@@ -71,13 +162,19 @@ export function loadWidgets(): DesktopWidget[] {
     const text = window.localStorage.getItem(STORAGE_KEY);
     if (!text) return [];
     const parsed = JSON.parse(text) as Partial<StoredWidgets>;
-    if (!parsed || parsed.version !== STORAGE_VERSION) return [];
+    if (
+      !parsed ||
+      (parsed.version !== LEGACY_VERSION && parsed.version !== STORAGE_VERSION)
+    ) {
+      return [];
+    }
     if (!Array.isArray(parsed.widgets)) return [];
     const seen = new Set<string>();
-    return parsed.widgets
+    const widgets = parsed.widgets
       .map(normalize)
       .filter((widget): widget is DesktopWidget => Boolean(widget))
       .filter((widget) => (seen.has(widget.id) ? false : seen.add(widget.id)));
+    return parsed.version === LEGACY_VERSION ? reflowWidgets(widgets) : widgets;
   } catch {
     return [];
   }

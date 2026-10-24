@@ -11,8 +11,8 @@ export interface ClockParts {
   time: string;
   seconds: string;
   meridiem: string;
-  weekday: string;
-  dateLabel: string;
+  /** Weekday plus date, without the year: "Saturday, 24 October". */
+  dayDate: string;
 }
 
 export function clockParts(date: Date, format: TimeFormat): ClockParts {
@@ -30,11 +30,10 @@ export function clockParts(date: Date, format: TimeFormat): ClockParts {
     time: `${value('hour')}:${value('minute')}`,
     seconds: value('second'),
     meridiem: hour12 ? value('dayPeriod') : '',
-    weekday: new Intl.DateTimeFormat(undefined, { weekday: 'long' }).format(date),
-    dateLabel: new Intl.DateTimeFormat(undefined, {
+    dayDate: new Intl.DateTimeFormat(undefined, {
+      weekday: 'long',
       day: 'numeric',
       month: 'long',
-      year: 'numeric',
     }).format(date),
   };
 }
@@ -43,10 +42,13 @@ export interface MonthGrid {
   label: string;
   weekdays: string[];
   weeks: Array<Array<number | null>>;
-  today: number;
+  /** Day of the month that is "today", or null when another month is shown. */
+  today: number | null;
+  /** Index of the week that contains today, or -1 for another month. */
+  todayWeek: number;
 }
 
-export function buildMonthGrid(date: Date): MonthGrid {
+export function buildMonthGrid(date: Date, today: Date = date): MonthGrid {
   const year = date.getFullYear();
   const month = date.getMonth();
   // Day 0 of the next month is the last day of this one.
@@ -71,6 +73,10 @@ export function buildMonthGrid(date: Date): MonthGrid {
     )
   );
 
+  const isCurrentMonth =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth();
+
   return {
     label: new Intl.DateTimeFormat(undefined, {
       month: 'long',
@@ -78,6 +84,9 @@ export function buildMonthGrid(date: Date): MonthGrid {
     }).format(date),
     weekdays,
     weeks,
-    today: date.getDate(),
+    today: isCurrentMonth ? today.getDate() : null,
+    todayWeek: isCurrentMonth
+      ? Math.floor((leading + today.getDate() - 1) / 7)
+      : -1,
   };
 }

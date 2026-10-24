@@ -12,8 +12,11 @@ export const OpacitySlider: React.FC<{
   label: string;
   value: number;
   onChange: (value: number) => void;
-}> = ({ label, value, onChange }) => {
+  /** The lowest opacity the surface may reach. Widgets allow 0. */
+  min?: number;
+}> = ({ label, value, onChange, min = 30 }) => {
   const percent = Math.round(value * 100);
+  const span = Math.max(1, 100 - min);
   return (
     <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
       <div className="mb-1.5 flex items-center justify-between text-[10px]">
@@ -22,12 +25,12 @@ export const OpacitySlider: React.FC<{
       </div>
       <input
         type="range"
-        min={30}
+        min={min}
         max={100}
         step={1}
         value={percent}
         onChange={(event) => onChange(Number(event.target.value) / 100)}
-        style={{ '--fill': `${((percent - 30) / 70) * 100}%` } as React.CSSProperties}
+        style={{ '--fill': `${((percent - min) / span) * 100}%` } as React.CSSProperties}
         className="win-slider h-4 w-full cursor-pointer"
         aria-label={label}
       />
@@ -82,6 +85,40 @@ export const PopSlider: React.FC<{
     />
   </div>
 );
+
+/**
+ * A compact slider for the widget panel: label, track, and value on one line.
+ * The boxed sliders above are kept for the wider Appearance layout.
+ */
+export const SliderRow: React.FC<{
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  display: string;
+  onChange: (value: number) => void;
+}> = ({ label, value, min, max, display, onChange }) => {
+  const fill = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  return (
+    <div className="grid grid-cols-[82px_1fr_40px] items-center gap-2 py-1.5">
+      <span className="text-[10px] text-[var(--aether-text-2)]">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        style={{ '--fill': `${fill}%` } as React.CSSProperties}
+        className="win-slider h-4 w-full cursor-pointer"
+        aria-label={label}
+      />
+      <span className="text-right font-mono text-[10px] text-[var(--aether-text-1)]">
+        {display}
+      </span>
+    </div>
+  );
+};
 
 export const RadiusSlider: React.FC<{
   label: string;

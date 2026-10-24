@@ -4,6 +4,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import type {
   AppConfig,
   AttachmentItem,
@@ -32,6 +34,7 @@ import type {
   WifiProfile,
 } from '../types/ipc';
 import type { Note, NoteMeta } from '../types/notes';
+import { WIDGET_AUDIO_EVENT } from '../widgets/types';
 import { useBackendActions } from './useBackendActions';
 import { useSocketConnection } from './useSocketConnection';
 
@@ -173,6 +176,14 @@ export function useBackendSocket() {
           break;
         case 'MEDIA_STATE':
           setMedia(payload as MediaSnapshot);
+          break;
+        case 'AUDIO_LEVEL':
+          // Audio levels arrive at 30 Hz. Forward them straight to the widget
+          // windows instead of putting them in React state: the cozy card
+          // writes them to CSS variables, so no component tree re-renders.
+          if (isTauri()) {
+            void emit(WIDGET_AUDIO_EVENT, payload).catch(() => undefined);
+          }
           break;
         case 'NOTES_LIST': {
           const noteList = (payload.notes as NoteMeta[] | undefined) || [];
