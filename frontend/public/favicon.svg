@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 512 512" role="img" aria-label="Aether">
-
-  <title>Aether small app icon</title>
+<title>Aether small app icon</title>
   <!--
-    Small-size edition for 16–32 px. The full mark's pill, inner dash ring and
-    four quiet wave bars collapse into noise at that scale, so this keeps only
-    the ring, the active arc and a bold three-bar core.
+    Small-size edition for 16–32 px. The full mark's pill and inner dash ring
+    collapse into noise at that scale, so this keeps a solid outer ring, the
+    active arc and a bold three-bar core. Segment gaps are deliberately dropped
+    here: at 32 px they read as noise, while the solid ring stays crisp.
   -->
   <rect width="464" height="464" x="24" y="24" rx="108" fill="#0F1218" stroke="#242A36" stroke-width="4" />
 

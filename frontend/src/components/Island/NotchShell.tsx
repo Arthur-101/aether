@@ -3,10 +3,14 @@ import { motion } from 'framer-motion';
 import type { AppearanceConfig, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
 import type { AutoHidePillMetrics } from '../../hooks/useAutoHidePill';
 import { appearanceCssVars } from './appearance';
+import { useTimeFormat } from '../../hooks/useTimeFormat';
+import { formatClockTime } from './timeFormat';
 import { NotchHeader } from './NotchHeader';
 import { NotchIdle } from './NotchIdle';
 import { NotchPeek } from './NotchPeek';
 import { computePeekLayout } from './peekLayout';
+import { compactPillWidth } from './pillTools';
+import type { ClockTools } from './useClockTools';
 import {
   CONTENT_PADDING,
   HEADER_HEIGHT,
@@ -25,6 +29,7 @@ interface NotchShellProps {
   peekEnabled: boolean;
   apps: TaskbarPinnedApp[];
   media: MediaSnapshot | null;
+  clockTools: ClockTools;
   onLaunchApp: (app: TaskbarPinnedApp) => void;
   onManageApps: () => void;
   onOpenSettings: () => void;
@@ -48,6 +53,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   peekEnabled,
   apps,
   media,
+  clockTools,
   onLaunchApp,
   onManageApps,
   onOpenSettings,
@@ -61,6 +67,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
 }) => {
   const [now, setNow] = useState(() => new Date());
   const [peek, setPeek] = useState(false);
+  const timeFormat = useTimeFormat();
   const [viewport, setViewport] = useState(() => ({
     width: typeof window === 'undefined' ? 1200 : window.innerWidth,
     height: typeof window === 'undefined' ? 800 : window.innerHeight,
@@ -141,7 +148,11 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     onExpandedChange(false);
   };
 
-  const compactWidth = mediaActive ? 176 : 140;
+  const compactWidth = compactPillWidth(
+    clockTools,
+    mediaActive,
+    2 + formatClockTime(now, timeFormat).length * 7.4
+  );
   const showPeek = peek && !isTucked;
   // The peek grows with the number of apps rather than scrolling.
   const peekLayout = useMemo(
@@ -272,6 +283,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
               now={now}
               mediaActive={mediaActive}
               spotify={spotify}
+              clockTools={clockTools}
               onOpen={open}
             />
           )}

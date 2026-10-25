@@ -305,6 +305,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
           peekEnabled={peekEnabled}
           apps={taskbarApps}
           media={media}
+          clockTools={clockTools}
           onLaunchApp={onLaunchTaskbarApp}
           onManageApps={onManageTaskbarApps}
           onOpenSettings={onOpenSettings}

@@ -8,87 +8,43 @@ import React from 'react';
  * Every control applies live, so no preview swatches are needed.
  */
 
-export const OpacitySlider: React.FC<{
+/**
+ * A borderless slider row for the Appearance tab. Label and value share the
+ * first line so six surface controls can sit in three tight rows.
+ */
+export const SurfaceSlider: React.FC<{
   label: string;
   value: number;
   onChange: (value: number) => void;
-  /** The lowest opacity the surface may reach. Widgets allow 0. */
+  /** The lowest value the surface may reach. Opacity starts at 30. */
   min?: number;
-}> = ({ label, value, onChange, min = 30 }) => {
-  const percent = Math.round(value * 100);
-  const span = Math.max(1, 100 - min);
+  max?: number;
+}> = ({ label, value, onChange, min = 30, max = 100 }) => {
+  const percent = Math.round(value);
+  const span = Math.max(1, max - min);
   return (
-    <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
-      <div className="mb-1.5 flex items-center justify-between text-[10px]">
-        <span className="text-[var(--aether-text-2)]">{label}</span>
+    <label className="block min-w-0">
+      <span className="flex items-center justify-between gap-2 text-[10px] leading-none">
+        <span className="truncate text-[var(--aether-text-2)]">{label}</span>
         <span className="font-mono text-[var(--aether-text-1)]">{percent}%</span>
-      </div>
+      </span>
       <input
         type="range"
         min={min}
-        max={100}
+        max={max}
         step={1}
         value={percent}
-        onChange={(event) => onChange(Number(event.target.value) / 100)}
+        onChange={(event) => onChange(Number(event.target.value))}
         style={{ '--fill': `${((percent - min) / span) * 100}%` } as React.CSSProperties}
-        className="win-slider h-4 w-full cursor-pointer"
+        className="win-slider mt-1.5 h-4 w-full cursor-pointer"
         aria-label={label}
       />
-    </div>
+    </label>
   );
 };
 
-export const GrainSlider: React.FC<{
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}> = ({ label, value, onChange }) => (
-  <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
-    <div className="mb-1.5 flex items-center justify-between text-[10px]">
-      <span className="text-[var(--aether-text-2)]">{label}</span>
-      <span className="font-mono text-[var(--aether-text-1)]">{value}%</span>
-    </div>
-    <input
-      type="range"
-      min={0}
-      max={100}
-      step={1}
-      value={value}
-      onChange={(event) => onChange(Number(event.target.value))}
-      style={{ '--fill': `${value}%` } as React.CSSProperties}
-      className="win-slider h-4 w-full cursor-pointer"
-      aria-label={label}
-    />
-  </div>
-);
-
-export const PopSlider: React.FC<{
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}> = ({ label, value, onChange }) => (
-  <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
-    <div className="mb-1.5 flex items-center justify-between text-[10px]">
-      <span className="text-[var(--aether-text-2)]">{label}</span>
-      <span className="font-mono text-[var(--aether-text-1)]">{value}%</span>
-    </div>
-    <input
-      type="range"
-      min={0}
-      max={100}
-      step={1}
-      value={value}
-      onChange={(event) => onChange(Number(event.target.value))}
-      style={{ '--fill': `${value}%` } as React.CSSProperties}
-      className="win-slider h-4 w-full cursor-pointer"
-      aria-label={label}
-    />
-  </div>
-);
-
 /**
  * A compact slider for the widget panel: label, track, and value on one line.
- * The boxed sliders above are kept for the wider Appearance layout.
  */
 export const SliderRow: React.FC<{
   label: string;

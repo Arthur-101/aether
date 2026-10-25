@@ -112,7 +112,7 @@ export const TaskbarAppsSettings: React.FC<TaskbarAppsSettingsProps> = ({
   }, [state, pendingSync, onChange]);
 
   return (
-    <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2.5">
+    <div className="rounded-lg border border-[var(--aether-line)] bg-black/15 p-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-[10px] text-[var(--aether-text-2)]">
           <MonitorUp size={13} className="accent-text" />
@@ -156,7 +156,7 @@ export const TaskbarAppsSettings: React.FC<TaskbarAppsSettingsProps> = ({
             : 'Editing switches to a custom list seeded from the mirrored pins.')}
       </p>
 
-      <div className="mt-2 flex max-h-52 flex-col gap-1 overflow-y-auto pr-1">
+      <div className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto pr-1">
         {apps.length === 0 ? (
           <div className="rounded-md border border-dashed border-[var(--aether-line)] px-3 py-5 text-center text-[10px] text-[var(--aether-text-3)]">
             {custom
@@ -182,7 +182,7 @@ export const TaskbarAppsSettings: React.FC<TaskbarAppsSettingsProps> = ({
                   setDragging(null);
                 }}
                 onDragEnd={() => setDragging(null)}
-                className={`group flex items-center gap-2 rounded-md border px-2 py-1.5 transition ${
+                className={`group flex items-center gap-2 rounded-md border px-2 py-1 transition ${
                   dragging === index
                     ? 'border-[var(--aether-accent)] bg-[var(--aether-fill-2)]'
                     : 'border-[var(--aether-line-soft)] bg-white/[0.025]'
@@ -212,24 +212,26 @@ export const TaskbarAppsSettings: React.FC<TaskbarAppsSettingsProps> = ({
                     {app.path || 'Path unavailable'}
                   </span>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => move(index, index - 1)}
-                  disabled={index === 0}
-                  aria-label={`Move ${app.name} up`}
-                  className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)] disabled:opacity-20"
-                >
-                  <ArrowUp size={10} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(index, index + 1)}
-                  disabled={index === apps.length - 1}
-                  aria-label={`Move ${app.name} down`}
-                  className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)] disabled:opacity-20"
-                >
-                  <ArrowDown size={10} />
-                </button>
+                <span className="flex shrink-0 items-center opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => move(index, index - 1)}
+                    disabled={index === 0}
+                    aria-label={`Move ${app.name} up`}
+                    className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)] disabled:opacity-20"
+                  >
+                    <ArrowUp size={10} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(index, index + 1)}
+                    disabled={index === apps.length - 1}
+                    aria-label={`Move ${app.name} down`}
+                    className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)] disabled:opacity-20"
+                  >
+                    <ArrowDown size={10} />
+                  </button>
+                </span>
                 <button
                   type="button"
                   onClick={() => remove(app)}

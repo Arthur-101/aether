@@ -1,5 +1,17 @@
 import React from 'react';
-import { Clock3, Layers, MonitorCog, Moon, Palette, PanelTop, Sparkles, Sun, Type } from 'lucide-react';
+import {
+  AppWindow,
+  LayoutGrid,
+  MonitorCog,
+  Moon,
+  Palette,
+  PanelTop,
+  RotateCcw,
+  SlidersHorizontal,
+  Sparkles,
+  Sun,
+  Type,
+} from 'lucide-react';
 import type {
   AppearanceConfig,
   GlowStyle,
@@ -8,9 +20,10 @@ import type {
   ThemeMode,
   TimeFormat,
 } from '../../../types/ipc';
+import { DEFAULT_TAB_IDS } from '../../Island/tabRegistry';
 import { ButtonColorSettings } from './ButtonColorSettings';
 import { DashboardTabsSettings } from './DashboardTabsSettings';
-import { GrainSlider, OpacitySlider, PopSlider } from './SurfaceSliders';
+import { SurfaceSlider } from './SurfaceSliders';
 import { TaskbarAppsSettings } from './TaskbarAppsSettings';
 
 const GLOW_OPTIONS: { id: GlowStyle; label: string }[] = [
@@ -53,24 +66,60 @@ interface AppearanceSettingsProps {
   onRefreshTaskbar: () => void;
 }
 
-const Section: React.FC<{
+const Group: React.FC<{
   icon: React.ReactNode;
   title: string;
-  description: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
-}> = ({ icon, title, description, children }) => (
-  <section className="border-b border-[var(--aether-line-soft)] pb-4 last:border-b-0 last:pb-0">
-    <div className="mb-2 flex items-start gap-2">
-      <span className="mt-0.5 accent-text">{icon}</span>
-      <div>
-        <h4 className="text-xs font-semibold text-[var(--aether-text-1)]">{title}</h4>
-        <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--aether-text-3)]">
-          {description}
-        </p>
+}> = ({ icon, title, action, children }) => (
+  <section className="flex flex-col gap-2">
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[var(--aether-text-3)]">{icon}</span>
+        <h4 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--aether-text-2)]">
+          {title}
+        </h4>
       </div>
+      {action}
     </div>
     {children}
   </section>
+);
+
+const ToggleRow: React.FC<{
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}> = ({ label, hint, checked, onChange }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    onClick={() => onChange(!checked)}
+    className="flex w-full items-center justify-between gap-3 text-left"
+  >
+    <span className="min-w-0">
+      <span className="block text-[11px] text-[var(--aether-text-2)]">{label}</span>
+      {hint ? (
+        <span className="mt-0.5 block text-[9px] leading-snug text-[var(--aether-text-3)]">
+          {hint}
+        </span>
+      ) : null}
+    </span>
+    <span
+      aria-hidden
+      className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+        checked ? 'bg-[var(--aether-accent)]' : 'bg-[var(--aether-fill-3)]'
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
+          checked ? 'left-[18px]' : 'left-0.5'
+        }`}
+      />
+    </span>
+  </button>
 );
 
 export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
@@ -88,261 +137,210 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
 
   return (
     <div className="flex flex-col gap-4 pb-2">
-      <Section
-        icon={<PanelTop size={14} />}
-        title="Notch & Island"
-        description="Opacity, grain, and pop depth apply to the background surface only; text and icons stay readable."
-      >
-        <div className="grid grid-cols-2 gap-2">
-          <OpacitySlider
-            label="Pill opacity"
-            value={appearance.pill_opacity}
-            onChange={(pill_opacity) => update({ pill_opacity })}
-          />
-          <OpacitySlider
-            label="Island opacity"
-            value={appearance.island_opacity}
-            onChange={(island_opacity) => update({ island_opacity })}
-          />
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <GrainSlider
-            label="Pill grain"
-            value={appearance.pill_grain}
-            onChange={(pill_grain) => update({ pill_grain })}
-          />
-          <GrainSlider
-            label="Island grain"
-            value={appearance.island_grain}
-            onChange={(island_grain) => update({ island_grain })}
-          />
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <PopSlider
-            label="Pill pop"
-            value={appearance.pill_pop}
-            onChange={(pill_pop) => update({ pill_pop })}
-          />
-          <PopSlider
-            label="Island pop"
-            value={appearance.island_pop}
-            onChange={(island_pop) => update({ island_pop })}
-          />
-        </div>
-        <label className="mt-3 flex cursor-pointer items-center justify-between rounded-lg border border-[var(--aether-line)] bg-black/15 px-2.5 py-2">
-          <span className="pr-3">
-            <span className="block text-[11px] text-[var(--aether-text-2)]">Auto-hide pill</span>
-            <span className="mt-0.5 block text-[9px] leading-snug text-[var(--aether-text-3)]">
-              Tuck the pill into the top bezel; touch its centre band to reveal it.
-            </span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={appearance.auto_hide_pill}
-            onClick={() => update({ auto_hide_pill: !appearance.auto_hide_pill })}
-            className={`relative h-5 w-9 shrink-0 rounded-full transition ${
-              appearance.auto_hide_pill
-                ? 'bg-[var(--aether-accent)]'
-                : 'bg-[var(--aether-fill-3)]'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                appearance.auto_hide_pill ? 'left-[18px]' : 'left-0.5'
-              }`}
-            />
-          </button>
-        </label>
-      </Section>
-
-      <DashboardTabsSettings
-        visible={appearance.dashboard_tabs}
-        onChange={(dashboard_tabs) => update({ dashboard_tabs })}
-      />
-
-      <Section
-        icon={<Type size={14} />}
-        title="Header"
-        description="The name shown beside the mark in the expanded island."
-      >
-        <input
-          value={brandName}
-          maxLength={24}
-          onChange={(event) => onBrandNameChange(event.target.value)}
-          placeholder="Aether"
-          spellCheck={false}
-          className="w-full rounded-md border border-[var(--aether-line)] bg-black/15 px-3 py-2 text-xs text-[var(--aether-text-1)] outline-none transition placeholder:text-[var(--aether-text-3)] focus:border-[var(--aether-accent)]"
-        />
-        <p className="mt-1.5 text-[9px] text-[var(--aether-text-3)]">
-          Leave blank to use the default Aether name.
-        </p>
-      </Section>
-
-      <Section
-        icon={<Clock3 size={14} />}
-        title="Clock"
-        description="How times are shown across the island, alarms, tasks, chat, and notes."
-      >
-        <div className="grid grid-cols-2 gap-2">
-          {TIME_FORMAT_OPTIONS.map((option) => {
-            const active = appearance.time_format === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => update({ time_format: option.id })}
-                className={`flex items-center justify-between rounded-lg border px-2.5 py-2 text-left transition ${
-                  active
-                    ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/12'
-                    : 'border-[var(--aether-line)] bg-black/15 hover:border-[var(--aether-line-strong)]'
-                }`}
-              >
-                <span className="text-[10.5px] font-semibold text-[var(--aether-text-1)]">
-                  {option.label}
-                </span>
-                <span className="font-mono text-[10px] text-[var(--aether-text-3)]">
-                  {option.example}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </Section>
-
-      <Section
-        icon={<Palette size={14} />}
-        title="Theme"
-        description="System follows the Windows theme, so the island, the pill, and Settings flip with the desktop."
-      >
-        <div className="grid grid-cols-3 gap-2">
+      <Group icon={<Palette size={13} />} title="Theme & accent">
+        <div className="grid grid-cols-3 gap-1.5">
           {THEME_OPTIONS.map((option) => {
             const active = appearance.theme_mode === option.id;
             return (
               <button
                 key={option.id}
                 type="button"
+                aria-pressed={active}
+                title={option.description}
                 onClick={() => update({ theme_mode: option.id })}
-                className={`flex flex-col items-start gap-1.5 rounded-lg border px-2.5 py-2 text-left transition ${
+                className={`flex h-8 items-center justify-center gap-1.5 rounded-md border text-[10px] font-medium transition ${
                   active
-                    ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/12'
-                    : 'border-[var(--aether-line)] bg-black/15 hover:border-[var(--aether-line-strong)]'
+                    ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/12 text-[var(--aether-text-1)]'
+                    : 'border-[var(--aether-line)] bg-black/15 text-[var(--aether-text-2)] hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]'
                 }`}
               >
-                <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-md border ${
-                    active
-                      ? 'border-[var(--aether-accent)]/50 bg-[var(--aether-surface-1)]'
-                      : 'border-[var(--aether-line)] bg-[var(--aether-surface-1)]'
-                  }`}
-                >
-                  <option.icon size={13} className="text-[var(--aether-text-2)]" />
-                </span>
-                <span className="text-[10.5px] font-semibold text-[var(--aether-text-1)]">
-                  {option.label}
-                </span>
-                <span className="text-[9px] leading-snug text-[var(--aether-text-3)]">
-                  {option.description}
-                </span>
+                <option.icon size={12} />
+                {option.label}
               </button>
             );
           })}
         </div>
-      </Section>
+        <ButtonColorSettings appearance={appearance} onChange={onChange} />
+      </Group>
 
-      <Section
-        icon={<Sparkles size={14} />}
-        title="Media glow"
-        description="The halo around the player. Source colour reads the app that is playing: green for Spotify, red for YouTube."
-      >
-        <div className="flex flex-wrap gap-1.5">
-          {GLOW_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => update({ glow_style: option.id })}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] transition ${
-                appearance.glow_style === option.id
-                  ? 'border-[var(--aether-line-strong)] bg-[var(--aether-fill-2)] text-[var(--aether-text-1)]'
-                  : 'border-[var(--aether-line)] text-[var(--aether-text-2)] hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]'
-              }`}
-            >
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{
-                  background:
-                    option.id === 'off'
-                      ? 'transparent'
-                      : 'radial-gradient(circle, var(--aether-accent), transparent 70%)',
-                  boxShadow:
-                    option.id === 'off' ? 'none' : '0 0 8px -1px var(--aether-accent)',
-                }}
-              />
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <label className="mt-2 flex cursor-pointer items-center justify-between rounded-lg border border-[var(--aether-line)] bg-black/15 px-2.5 py-2">
-          <span className="text-[11px] text-[var(--aether-text-2)]">
-            Colour follows the media source
-          </span>
-          <input
-            type="checkbox"
-            checked={appearance.glow_color === 'source'}
-            onChange={(event) =>
-              update({ glow_color: event.target.checked ? 'source' : 'theme' })
-            }
-            className="accent-[var(--aether-accent)]"
+      <Group icon={<SlidersHorizontal size={13} />} title="Surface">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+          <SurfaceSlider
+            label="Pill opacity"
+            min={30}
+            value={appearance.pill_opacity * 100}
+            onChange={(value) => update({ pill_opacity: value / 100 })}
           />
-        </label>
-      </Section>
+          <SurfaceSlider
+            label="Island opacity"
+            min={30}
+            value={appearance.island_opacity * 100}
+            onChange={(value) => update({ island_opacity: value / 100 })}
+          />
+          <SurfaceSlider
+            label="Pill grain"
+            min={0}
+            value={appearance.pill_grain}
+            onChange={(pill_grain) => update({ pill_grain })}
+          />
+          <SurfaceSlider
+            label="Island grain"
+            min={0}
+            value={appearance.island_grain}
+            onChange={(island_grain) => update({ island_grain })}
+          />
+          <SurfaceSlider
+            label="Pill pop"
+            min={0}
+            value={appearance.pill_pop}
+            onChange={(pill_pop) => update({ pill_pop })}
+          />
+          <SurfaceSlider
+            label="Island pop"
+            min={0}
+            value={appearance.island_pop}
+            onChange={(island_pop) => update({ island_pop })}
+          />
+        </div>
+      </Group>
 
-      <ButtonColorSettings appearance={appearance} onChange={onChange} />
+      <Group icon={<Type size={13} />} title="Island bar">
+        <div className="grid grid-cols-[76px_1fr] items-center gap-2">
+          <label
+            htmlFor="aether-brand-name"
+            className="text-[10px] text-[var(--aether-text-2)]"
+          >
+            Brand name
+          </label>
+          <input
+            id="aether-brand-name"
+            value={brandName}
+            maxLength={24}
+            onChange={(event) => onBrandNameChange(event.target.value)}
+            placeholder="Aether"
+            spellCheck={false}
+            className="h-8 w-full rounded-md border border-[var(--aether-line)] bg-black/15 px-2.5 text-[11px] text-[var(--aether-text-1)] outline-none transition placeholder:text-[var(--aether-text-3)] focus:border-[var(--aether-accent)]"
+          />
+        </div>
+        <div className="grid grid-cols-[76px_1fr] items-center gap-2">
+          <span className="text-[10px] text-[var(--aether-text-2)]">Time format</span>
+          <div className="grid grid-cols-2 gap-1.5">
+            {TIME_FORMAT_OPTIONS.map((option) => {
+              const active = appearance.time_format === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => update({ time_format: option.id })}
+                  className={`flex h-8 items-center justify-center gap-1.5 rounded-md border text-[10px] transition ${
+                    active
+                      ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/12 text-[var(--aether-text-1)]'
+                      : 'border-[var(--aether-line)] bg-black/15 text-[var(--aether-text-2)] hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]'
+                  }`}
+                >
+                  <span className="font-semibold">{option.label}</span>
+                  <span className="font-mono text-[9px] text-[var(--aether-text-3)]">
+                    {option.example}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Group>
 
-      <Section
-        icon={<Sparkles size={14} />}
-        title="Close behavior"
-        description="The close button is always available. Outside-click closing is optional."
-      >
-        <label className="flex cursor-pointer items-center justify-between rounded-lg border border-[var(--aether-line)] bg-black/15 px-2.5 py-2">
-          <span className="text-[11px] text-[var(--aether-text-2)]">Close when clicking outside</span>
+      <Group icon={<Sparkles size={13} />} title="Media glow">
+        <div className="grid grid-cols-5 gap-1.5">
+          {GLOW_OPTIONS.map((option) => {
+            const active = appearance.glow_style === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => update({ glow_style: option.id })}
+                aria-pressed={active}
+                className={`flex h-7 items-center justify-center gap-1 rounded-md border text-[10px] transition ${
+                  active
+                    ? 'border-[var(--aether-line-strong)] bg-[var(--aether-fill-2)] text-[var(--aether-text-1)]'
+                    : 'border-[var(--aether-line)] text-[var(--aether-text-2)] hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]'
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    background:
+                      option.id === 'off'
+                        ? 'transparent'
+                        : 'radial-gradient(circle, var(--aether-accent), transparent 70%)',
+                    boxShadow:
+                      option.id === 'off'
+                        ? 'none'
+                        : '0 0 6px -1px var(--aether-accent)',
+                  }}
+                />
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <ToggleRow
+          label="Match the playing app"
+          hint="Spotify stays green; other players use their own colour."
+          checked={appearance.glow_color === 'source'}
+          onChange={(checked) =>
+            update({ glow_color: checked ? 'source' : 'theme' })
+          }
+        />
+      </Group>
+
+      <Group icon={<PanelTop size={13} />} title="Behaviour">
+        <ToggleRow
+          label="Auto-hide the pill"
+          hint="Tuck it into the top bezel; touch the centre band to reveal it."
+          checked={appearance.auto_hide_pill}
+          onChange={(auto_hide_pill) => update({ auto_hide_pill })}
+        />
+        <ToggleRow
+          label="Close when clicking outside"
+          checked={appearance.close_on_outside_click}
+          onChange={(close_on_outside_click) =>
+            update({ close_on_outside_click })
+          }
+        />
+      </Group>
+
+      <Group
+        icon={<LayoutGrid size={13} />}
+        title="Dashboard tabs"
+        action={
           <button
             type="button"
-            role="switch"
-            aria-checked={appearance.close_on_outside_click}
-            onClick={() =>
-              update({ close_on_outside_click: !appearance.close_on_outside_click })
-            }
-            className={`relative h-5 w-9 rounded-full transition ${
-              appearance.close_on_outside_click ? 'bg-[var(--aether-accent)]' : 'bg-[var(--aether-fill-3)]'
-            }`}
+            onClick={() => update({ dashboard_tabs: [...DEFAULT_TAB_IDS] })}
+            aria-label="Reset dashboard tabs"
+            title="Reset tab order and visibility"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
           >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                appearance.close_on_outside_click ? 'left-[18px]' : 'left-0.5'
-              }`}
-            />
+            <RotateCcw size={10} />
+            Reset
           </button>
-        </label>
-        <p className="mt-1.5 text-[9px] text-[var(--aether-text-3)]">
-          When enabled, the outside click is consumed while the island is open.
-        </p>
-      </Section>
-
-      <Section
-        icon={<Layers size={14} />}
-        title="Taskbar apps"
-        description="The hover dock mirrors Windows taskbar pins by default."
+        }
       >
+        <DashboardTabsSettings
+          visible={appearance.dashboard_tabs}
+          onChange={(dashboard_tabs) => update({ dashboard_tabs })}
+        />
+      </Group>
+
+      <Group icon={<AppWindow size={13} />} title="Taskbar dock">
         <TaskbarAppsSettings
           config={taskbarApps}
           state={taskbarState}
           onChange={onTaskbarChange}
           onRefresh={onRefreshTaskbar}
         />
-      </Section>
+      </Group>
     </div>
   );
 };

@@ -1,18 +1,7 @@
 import React, { useState } from 'react';
-import {
-  ArrowDown,
-  ArrowUp,
-  Eye,
-  EyeOff,
-  GripVertical,
-  RotateCcw,
-} from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff } from 'lucide-react';
 import type { DashboardTabId } from '../../../types/ipc';
-import {
-  DASHBOARD_TABS,
-  DEFAULT_TAB_IDS,
-  tabDefinition,
-} from '../../Island/tabRegistry';
+import { DASHBOARD_TABS, tabDefinition } from '../../Island/tabRegistry';
 
 interface DashboardTabsSettingsProps {
   visible: DashboardTabId[];
@@ -63,79 +52,67 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
   };
 
   return (
-    <section>
-      <div className="mb-2 flex items-start justify-between">
-        <div>
-          <h5 className="text-xs font-semibold text-[var(--aether-text-1)]">Dashboard tabs</h5>
-          <p className="mt-0.5 text-[10px] text-[var(--aether-text-3)]">
-            Drag visible tabs to reorder. At least one must stay visible.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => onChange([...DEFAULT_TAB_IDS])}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
-          title="Reset tab order and visibility"
-        >
-          <RotateCcw size={11} />
-          Reset
-        </button>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-[var(--aether-line)]">
-        {[...visible, ...hidden].map((id, index) => {
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        {[...visible, ...hidden].map((id) => {
           const tab = tabDefinition(id);
           const Icon = tab.icon;
-          const isVisible = index < visible.length;
+          const isVisible = visible.includes(id);
           const currentIndex = visible.indexOf(id);
           return (
             <div
               key={id}
               draggable={isVisible}
-              onDragStart={() => setDragging(id)}
+              onDragStart={(event) => {
+                setDragging(id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
               onDragEnd={() => setDragging(null)}
               onDragOver={(event) => dragOver(event, id)}
               onDrop={() => setDragging(null)}
-              className={`flex items-center gap-2 border-b border-[var(--aether-line-soft)] px-2 py-1.5 last:border-b-0 ${
-                isVisible ? 'bg-white/[0.025]' : 'bg-transparent opacity-60'
+              title={isVisible ? 'Drag to reorder' : 'Hidden tab'}
+              className={`group flex h-7 min-w-0 items-center gap-1 rounded-md border px-1.5 transition ${
+                isVisible
+                  ? 'cursor-grab border-[var(--aether-line)] bg-white/[0.03] active:cursor-grabbing'
+                  : 'border-dashed border-[var(--aether-line)] bg-transparent opacity-55'
+              } ${
+                dragging === id
+                  ? 'border-[var(--aether-accent)] bg-[var(--aether-fill-2)]'
+                  : ''
               }`}
             >
-              <GripVertical
-                size={13}
-                className={isVisible ? 'cursor-grab text-[var(--aether-text-3)]' : 'text-[#444]'}
-              />
-              <Icon size={13} className="shrink-0 text-[var(--aether-text-2)]" />
-              <span className="min-w-0 flex-1 truncate text-[11px] text-[var(--aether-text-1)]">
+              <Icon size={12} className="shrink-0 text-[var(--aether-text-2)]" />
+              <span className="min-w-0 flex-1 truncate text-[10px] text-[var(--aether-text-1)]">
                 {tab.label}
               </span>
               {isVisible ? (
-                <div className="flex items-center gap-0.5">
+                <span className="flex w-[28px] shrink-0 items-center justify-end opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
                   <button
                     type="button"
                     onClick={() => move(id, -1)}
                     disabled={currentIndex === 0}
+                    aria-label={`Move ${tab.label} up`}
                     className="rounded p-0.5 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:opacity-25"
-                    title="Move tab up"
                   >
-                    <ArrowUp size={11} />
+                    <ArrowUp size={9} />
                   </button>
                   <button
                     type="button"
                     onClick={() => move(id, 1)}
                     disabled={currentIndex === visible.length - 1}
+                    aria-label={`Move ${tab.label} down`}
                     className="rounded p-0.5 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:opacity-25"
-                    title="Move tab down"
                   >
-                    <ArrowDown size={11} />
+                    <ArrowDown size={9} />
                   </button>
-                </div>
+                </span>
               ) : null}
               <button
                 type="button"
                 onClick={() => toggle(id)}
                 disabled={isVisible && !canHide}
                 aria-pressed={isVisible}
-                className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:cursor-not-allowed disabled:opacity-25"
+                aria-label={isVisible ? `Hide ${tab.label}` : `Show ${tab.label}`}
                 title={
                   isVisible
                     ? canHide
@@ -143,13 +120,17 @@ export const DashboardTabsSettings: React.FC<DashboardTabsSettingsProps> = ({
                       : 'At least one tab must stay visible'
                     : 'Show tab'
                 }
+                className="shrink-0 rounded p-0.5 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:cursor-not-allowed disabled:opacity-25"
               >
-                {isVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                {isVisible ? <Eye size={12} /> : <EyeOff size={12} />}
               </button>
             </div>
           );
         })}
       </div>
-    </section>
+      <p className="text-[9px] leading-snug text-[var(--aether-text-3)]">
+        Drag to reorder. Use the eye to hide a tab; at least one stays visible.
+      </p>
+    </div>
   );
 };

@@ -20,6 +20,26 @@ export function formatStopwatch(ms: number): string {
   )}.${String(centiseconds).padStart(2, '0')}`;
 }
 
+/**
+ * Compact duration for the collapsed pill: minutes and seconds, with an hours
+ * field only once the value reaches an hour. Countdowns round up so a fresh
+ * one-minute timer reads 01:00 rather than 00:59; elapsed time rounds down.
+ */
+export function formatCompactDuration(
+  ms: number,
+  mode: 'countdown' | 'elapsed'
+): string {
+  const rounded =
+    mode === 'countdown' ? Math.ceil(ms / 1000) : Math.floor(ms / 1000);
+  const total = Math.max(0, rounded);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 export function nextAlarm(tasks: ScheduledTask[]): ScheduledTask | null {
   return upcomingAlarms(tasks, 1)[0] ?? null;
 }
