@@ -17,13 +17,15 @@ TELEMETRY_INTERVAL = 2.0
 
 async def telemetry_loop() -> None:
     """Pushes SYSTEM_STATS to all clients every 2 seconds."""
+    from .executor_guard import run_guarded
     from .os_hooks.system_controls import get_system_telemetry
 
     while True:
         try:
             if ws_manager.client_count > 0:
-                loop = asyncio.get_running_loop()
-                stats = await loop.run_in_executor(None, get_system_telemetry)
+                stats = await run_guarded(
+                    "telemetry", get_system_telemetry, timeout=4.0
+                )
                 await ws_manager.broadcast("SYSTEM_STATS", stats)
         except Exception as exc:
             logger.debug("Telemetry tick error: %s", exc)

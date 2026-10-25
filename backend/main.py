@@ -34,8 +34,10 @@ async def lifespan(app: FastAPI):
 
     init_db()
 
+    from .executor_guard import start_executor_watchdog, stop_executor_watchdog
     from .runtime_wiring import start_runtime, stop_runtime, telemetry_loop
 
+    start_executor_watchdog()
     telemetry_task = asyncio.create_task(telemetry_loop())
     try:
         start_runtime()
@@ -47,6 +49,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         telemetry_task.cancel()
+        stop_executor_watchdog()
         stop_runtime()
         logger.info("Aether daemon stopped.")
 
@@ -92,10 +95,13 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
     """Simple health endpoint for daemon readiness probes."""
+    from .executor_guard import executor_health
+
     return {
         "status": "ok",
         "clients": ws_manager.client_count,
         "thinking_mode": config_manager.get("ai_provider", "thinking_mode", False),
+        "executor": executor_health(),
     }
 
 

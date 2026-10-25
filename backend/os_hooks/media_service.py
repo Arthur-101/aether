@@ -55,10 +55,34 @@ class MediaPoller:
         self._callback: Optional[Callable[[Dict[str, Any]], None]] = None
         self._latest: Optional[Dict[str, Any]] = None
         self._lock = threading.Lock()
+        # Transport actions run on this thread, which is the only place that
+        # talks to SMTC. A fresh event loop in an executor thread can block
+        # forever inside Manager.request_async() and leak a worker per call.
+        self._controls: "queue.Queue[tuple[str, Future]]" = queue.Queue()
+        self._wake: Optional[asyncio.Event] = None
+        self._event_loop: Optional[asyncio.AbstractEventLoop] = None
 
     def latest(self) -> Optional[Dict[str, Any]]:
         with self._lock:
             return self._latest
+
+    def submit_control(self, action: str) -> Future:
+        """Queues a transport action and returns a future for its result."""
+        future: Future = Future()
+        self._controls.put((action, future))
+        self.request_refresh()
+        return future
+
+    def request_refresh(self) -> None:
+        """Wakes the poller so it samples without waiting for the next tick."""
+        loop = self._event_loop
+        wake = self._wake
+        if loop is None or wake is None or loop.is_closed():
+            return
+        try:
+            loop.call_soon_threadsafe(wake.set)
+        except RuntimeError:
+            pass
 
     def start(self, callback: Callable[[Dict[str, Any]], None]) -> None:
         if self._thread and self._thread.is_alive():
@@ -72,6 +96,14 @@ class MediaPoller:
 
     def stop(self) -> None:
         self._stop.set()
+        # Release anyone waiting on a control that will never run.
+        while True:
+            try:
+                _action, future = self._controls.get_nowait()
+            except queue.Empty:
+                break
+            if not future.done():
+                future.set_result(False)
         if self._thread:
             self._thread.join(timeout=3.0)
             self._thread = None
@@ -92,38 +124,107 @@ class MediaPoller:
         except Exception as exc:
             logger.warning("Media poller stopped: %s", exc)
 
+    async def _run_controls(self, manager: Any) -> bool:
+        """Applies queued transport actions on the poller thread.
+
+        Returns True when at least one action was accepted, so the caller can
+        give the player a moment to publish its new state before sampling.
+        """
+        applied = False
+        while True:
+            try:
+                action, future = self._controls.get_nowait()
+            except queue.Empty:
+                return applied
+            if future.done():
+                continue
+            try:
+                session = manager.get_current_session()
+                if session is None:
+                    future.set_result(False)
+                    continue
+                ok = await _invoke_control(session, action)
+                future.set_result(ok)
+                applied = applied or ok
+            except Exception:
+                future.set_result(False)
+
     async def _loop(self) -> None:
         manager = None
         art_cache: Dict[str, Any] = {}
-        while not self._stop.is_set():
-            try:
-                if manager is None:
-                    from winsdk.windows.media.control import (
-                        GlobalSystemMediaTransportControlsSessionManager as Manager,
+        self._event_loop = asyncio.get_running_loop()
+        self._wake = asyncio.Event()
+        try:
+            while not self._stop.is_set():
+                # Clear before the capture so an action submitted while it runs
+                # still wakes the wait below instead of being lost.
+                self._wake.clear()
+                try:
+                    if manager is None:
+                        from winsdk.windows.media.control import (
+                            GlobalSystemMediaTransportControlsSessionManager as Manager,
+                        )
+
+                        async def request_manager() -> Any:
+                            return await Manager.request_async()
+
+                        manager = await asyncio.wait_for(
+                            request_manager(), timeout=5.0
+                        )
+                    applied = await self._run_controls(manager)
+                    from .media_snapshot import capture_snapshot
+
+                    # A transport command reports success before the player has
+                    # necessarily updated its playback status; give it a beat so
+                    # the snapshot we publish matches the new state.
+                    if applied:
+                        await asyncio.sleep(0.25)
+                    snapshot = await capture_snapshot(manager, art_cache)
+                except Exception as exc:
+                    manager = None
+                    snapshot = unavailable_snapshot(
+                        str(exc) or "Windows media controls are unavailable."
                     )
-
-                    manager = await Manager.request_async()
-                from .media_snapshot import capture_snapshot
-
-                snapshot = await capture_snapshot(manager, art_cache)
-            except Exception as exc:
-                manager = None
-                snapshot = unavailable_snapshot(
-                    str(exc) or "Windows media controls are unavailable."
-                )
-            self._publish(snapshot)
-            await asyncio.sleep(2.0)
+                self._publish(snapshot)
+                try:
+                    await asyncio.wait_for(self._wake.wait(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    pass
+        finally:
+            self._event_loop = None
+            self._wake = None
 
 
 media_poller = MediaPoller()
 
 
+async def control_media(action: str) -> bool:
+    """Queues a transport action on the poller thread and awaits its result."""
+    try:
+        future = media_poller.submit_control(action)
+        return bool(
+            await asyncio.wait_for(
+                asyncio.wrap_future(future), timeout=CONTROL_RESULT_TIMEOUT
+            )
+        )
+    except Exception as exc:
+        logger.warning("Media control %s failed: %s", action, exc)
+        return False
+
+
 def latest_media_snapshot() -> Dict[str, Any]:
-    """Returns the poller snapshot or captures a fresh one on first request."""
+    """Returns the poller's cached snapshot without touching SMTC.
+
+    Capturing here used to start a fresh event loop on a default-executor
+    thread. Manager.request_async() can block forever in that context, and
+    every media control leaked one worker until the pool was empty and all
+    executor-backed actions (media, taskbar, sessions) stopped responding.
+    The poller owns SMTC on its own thread; request handlers only read it.
+    """
     snapshot = media_poller.latest()
     if snapshot is not None:
         return snapshot
-    return capture_media()
+    return unavailable_snapshot("Waiting for the media player…")
 
 
 def start_media_poller(callback: Callable[[Dict[str, Any]], None]) -> None:
