@@ -13,13 +13,38 @@ from .errors import ModelNotConfiguredError
 class CloudEngine:
     """Thin LiteLLM wrapper with provider-qualified model resolution."""
 
+    def _selected_credentials(self) -> Dict[str, str]:
+        """Returns the selected provider plus its saved model and API key."""
+        provider = str(
+            config_manager.get("ai_provider", "cloud_provider", "") or ""
+        ).strip().lower()
+        providers = config_manager.get("ai_provider", "cloud_providers") or {}
+        entry = providers.get(provider) if isinstance(providers, dict) else None
+        entry = entry if isinstance(entry, dict) else {}
+        model = str(
+            entry.get("model")
+            or config_manager.get("ai_provider", "cloud_model", "")
+            or ""
+        ).strip()
+        api_key = str(
+            entry.get("api_key")
+            or config_manager.get("ai_provider", "api_key", "")
+            or ""
+        ).strip()
+        return {"provider": provider, "model": model, "api_key": api_key}
+
     def _qualified_model(self) -> str:
-        provider = str(config_manager.get("ai_provider", "cloud_provider", "") or "").strip()
-        model = str(config_manager.get("ai_provider", "cloud_model", "") or "").strip()
+        credentials = self._selected_credentials()
+        provider = credentials["provider"]
+        model = credentials["model"]
         if not model:
             raise ModelNotConfiguredError(
                 "Cloud model name is empty. Open Settings and choose a provider/model."
             )
+        if provider == "openrouter":
+            # OpenRouter's copy button returns a bare vendor/model slug, but
+            # LiteLLM needs the openrouter/ prefix. Accept either paste.
+            return model if model.startswith("openrouter/") else f"openrouter/{model}"
         if "/" in model:
             return model
         return f"{provider}/{model}" if provider else model
@@ -34,7 +59,7 @@ class CloudEngine:
         presence_penalty: float = 1.5,
         thinking_mode: bool = False,
     ) -> Dict[str, Any]:
-        api_key = str(config_manager.get("ai_provider", "api_key", "") or "").strip()
+        api_key = self._selected_credentials()["api_key"]
         if not api_key:
             raise ModelNotConfiguredError(
                 "Cloud API mode is selected but no API key is configured. "

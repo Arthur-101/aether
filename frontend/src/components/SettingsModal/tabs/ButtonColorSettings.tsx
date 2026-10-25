@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
 import type { AppearanceConfig } from '../../../types/ipc';
 import {
   ACCENT_PRESETS,
@@ -7,6 +6,7 @@ import {
   accentStyle,
 } from '../../Island/appearance';
 import { normalizeHex } from '../../Island/contrast';
+import { SettingsResetButton } from '../SettingsControls';
 
 interface ButtonColorSettingsProps {
   appearance: AppearanceConfig;
@@ -49,8 +49,7 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-[var(--aether-text-3)]">Accent</span>
-        <button
-          type="button"
+        <SettingsResetButton
           onClick={() =>
             onChange({
               ...appearance,
@@ -59,12 +58,9 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
               button_gradient: DEFAULT_APPEARANCE.button_gradient,
             })
           }
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
-          aria-label="Reset accent colour"
-        >
-          <RotateCcw size={10} />
-          Reset
-        </button>
+          title="Reset accent colour"
+          ariaLabel="Reset accent colour"
+        />
       </div>
 
       <div className="flex items-center gap-1.5">

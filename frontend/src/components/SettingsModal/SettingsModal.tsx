@@ -187,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               '--aether-grain': settingsSurface.island_grain,
               '--aether-pop': settingsSurface.island_pop,
             } as React.CSSProperties}
-            className="aether-interactive glass-panel aether-grain aether-pop flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
+            className="aether-interactive glass-panel aether-grain aether-pop relative flex h-[520px] w-[620px] overflow-hidden rounded-xl shadow-2xl"
           >
           <div
             className={`settings-sidebar flex shrink-0 flex-col justify-between border-r border-[var(--aether-line)] transition-all duration-200 ${

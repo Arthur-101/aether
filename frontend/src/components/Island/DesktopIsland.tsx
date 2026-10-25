@@ -77,6 +77,7 @@ interface DesktopIslandProps {
   onDeleteSession: (id: string) => void;
   onRefreshSessions: () => void;
   onToggleThinking: (enabled: boolean) => void;
+  onCycleBackend: () => void;
   onOpenSettings: () => void;
   onKillApp: () => void;
   onSendMessage: (msg: string) => void;
@@ -163,6 +164,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onDeleteSession,
   onRefreshSessions,
   onToggleThinking,
+  onCycleBackend,
   onOpenSettings,
   onKillApp,
   onSendMessage,
@@ -376,6 +378,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               ai: aiConfig,
               thinkingMode,
               onToggleThinking,
+              onCycleBackend,
               sessions,
               activeSessionId,
               activeSessionTitle,

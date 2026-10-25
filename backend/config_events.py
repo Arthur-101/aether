@@ -45,6 +45,7 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
         "ollama_model_name",
         "cloud_provider",
         "cloud_model",
+        "cloud_providers",
         "api_key",
         "context_length",
         "gpu_layers",

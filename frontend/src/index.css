@@ -145,6 +145,16 @@ textarea {
 }
 
 /*
+ * Windows paints the native select popup with the OS background while the
+ * option text inherits the app's. Pin both to the active surface tokens so the
+ * list stays legible in the dark and light themes.
+ */
+select option {
+  background-color: var(--aether-surface-2);
+  color: var(--aether-text-1);
+}
+
+/*
  * Surface grain. The overlay is a transparent WebView, so `backdrop-filter`
  * cannot sample the OS desktop behind it. Grain avoids that entirely: it is
  * painted by the webview itself, so it works on the real desktop.
@@ -154,9 +164,9 @@ textarea {
  * without greying out the dark glass underneath.
  */
 .aether-grain {
-  position: relative;
-  /* Creates a stacking context so the grain layer (z-index: -1) paints above
-     this element's own background but below its text and controls. */
+  /* Grain hosts provide their own positioning (`relative`, `fixed`, ...).
+     Do not set `position` here: unlayered CSS outranks Tailwind's utilities,
+     which turned the fixed voice pill into a full-width relative bar. */
   isolation: isolate;
 }
 

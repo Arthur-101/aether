@@ -28,6 +28,7 @@ import {
   resolveTheme,
 } from './components/Island/appearance';
 import type {
+  AIProviderConfig,
   AppearanceConfig,
   ClockConfig,
   MediaControlAction,
@@ -232,6 +233,16 @@ export function App() {
     [mediaControl]
   );
 
+  // Quick Chat's engine chip rotates the same backends the AI settings expose,
+  // so a backend swap does not require opening Settings.
+  const handleCycleBackend = useCallback(() => {
+    if (!config) return;
+    const ai = config.ai_provider;
+    const nextMode: AIProviderConfig['mode'] =
+      ai.mode === 'local_gguf' ? 'ollama' : ai.mode === 'ollama' ? 'cloud' : 'local_gguf';
+    saveConfig({ ...config, ai_provider: { ...ai, mode: nextMode } });
+  }, [config, saveConfig]);
+
   const closeSettings = useCallback(() => {
     settingsOpenRef.current = false;
     setIsSettingsOpen(false);
@@ -413,6 +424,7 @@ export function App() {
         onDeleteSession={deleteSession}
         onRefreshSessions={refreshSessions}
         onToggleThinking={toggleThinking}
+        onCycleBackend={handleCycleBackend}
         onOpenSettings={openSettings}
         onKillApp={killApp}
         onSendMessage={sendChatMessage}

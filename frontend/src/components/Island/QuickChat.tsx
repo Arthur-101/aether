@@ -52,6 +52,7 @@ interface QuickChatProps {
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
   onRefreshSessions: () => void;
+  onCycleBackend: () => void;
   onBrowseFiles: () => void;
   onSend: (message: string) => void;
   onDetach?: (filePath: string) => void;
@@ -62,6 +63,15 @@ const PROMPTS = [
   'What is using the most memory?',
   'Plan the rest of my afternoon',
 ];
+
+const BACKEND_CYCLE: Record<
+  AIProviderConfig['mode'],
+  { mode: AIProviderConfig['mode']; label: string }
+> = {
+  local_gguf: { mode: 'ollama', label: 'Ollama' },
+  ollama: { mode: 'cloud', label: 'Cloud' },
+  cloud: { mode: 'local_gguf', label: 'Local GGUF' },
+};
 
 function attachmentStatus(item: AttachmentItem): string {
   if (item.mode === 'indexing') return 'Indexing…';
@@ -123,6 +133,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onNewSession,
   onDeleteSession,
   onRefreshSessions,
+  onCycleBackend,
   onBrowseFiles,
   onSend,
   onDetach,
@@ -137,6 +148,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
 
   const engine = useMemo(() => engineInfo(ai), [ai]);
   const EngineIcon = engine.icon;
+  const nextBackend = ai ? BACKEND_CYCLE[ai.mode] : null;
   const attachedFiles = attachments.filter(
     (item) => item.mode === 'inline' || item.mode === 'rag_vector'
   ).length;
@@ -203,12 +215,27 @@ export const QuickChat: React.FC<QuickChatProps> = ({
         />
 
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-          <span className={statusChip} title={`${engine.label} · ${engine.detail}`}>
+          <button
+            type="button"
+            onClick={onCycleBackend}
+            disabled={!ai || !nextBackend}
+            title={
+              ai && nextBackend
+                ? `${engine.label} · ${engine.detail} — click to switch to ${nextBackend.label}`
+                : 'Waiting for inference configuration'
+            }
+            aria-label={
+              ai && nextBackend
+                ? `Inference backend: ${engine.label}. Switch to ${nextBackend.label}`
+                : 'Inference backend'
+            }
+            className={`${statusChip} hover:border-[var(--aether-line-strong)] hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)] disabled:cursor-wait disabled:opacity-60`}
+          >
             <EngineIcon size={11} className="shrink-0 text-[var(--aether-accent-text)]" />
             <span className="max-w-[110px] truncate font-medium text-[var(--aether-text-1)]">
               {engine.label}
             </span>
-          </span>
+          </button>
 
           <button
             type="button"

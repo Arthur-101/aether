@@ -5,7 +5,6 @@ import {
   Layers,
   Music2,
   Palette,
-  RotateCcw,
   SlidersHorizontal,
 } from 'lucide-react';
 import type { AppearanceConfig } from '../../../types/ipc';
@@ -17,7 +16,18 @@ import {
   type WidgetAppearanceOverrides,
   type WidgetKind,
 } from '../../../widgets/types';
-import { SliderRow } from './SurfaceSliders';
+import {
+  SettingsGroup,
+  SettingsResetButton,
+  SettingsToggleRow,
+} from '../SettingsControls';
+import {
+  settingsCardClass,
+  settingsChipClass,
+  settingsHintClass,
+  settingsLabelClass,
+} from '../settingsStyles';
+import { SurfaceSlider } from './SurfaceSliders';
 
 interface WidgetSettingsProps {
   appearance: AppearanceConfig;
@@ -27,13 +37,6 @@ interface WidgetSettingsProps {
   onResetWidgetAppearance: (id: string) => void;
   onWidgetAlwaysOnTopChange: (id: string, value: boolean) => void;
 }
-
-const chipClass = (selected: boolean) =>
-  `rounded-full border px-2 py-1 text-[10px] transition ${
-    selected
-      ? 'border-[var(--aether-line-strong)] bg-[var(--aether-fill-2)] text-[var(--aether-text-1)]'
-      : 'border-[var(--aether-line)] text-[var(--aether-text-2)] hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]'
-  }`;
 
 const targetRowClass = (selected: boolean) =>
   `flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
@@ -50,60 +53,6 @@ const KindIcon: React.FC<{ kind: DesktopWidget['kind']; size?: number }> = ({
   if (kind === 'clock') return <Clock size={size} />;
   return <CalendarDays size={size} />;
 };
-
-const Switch: React.FC<{
-  label: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}> = ({ label, checked, onChange }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={label}
-    onClick={() => onChange(!checked)}
-    className={`relative h-[18px] w-8 shrink-0 rounded-full transition ${
-      checked ? 'bg-[var(--aether-accent)]' : 'bg-[var(--aether-fill-3)]'
-    }`}
-  >
-    <span
-      className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition ${
-        checked ? 'left-4' : 'left-0.5'
-      }`}
-    />
-  </button>
-);
-
-const ToggleRow: React.FC<{
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}> = ({ label, description, checked, onChange }) => (
-  <div className="flex items-center justify-between gap-3 py-2">
-    <span className="min-w-0">
-      <span className="block text-[10px] text-[var(--aether-text-2)]">{label}</span>
-      <span className="mt-0.5 block text-[9px] leading-snug text-[var(--aether-text-3)]">
-        {description}
-      </span>
-    </span>
-    <Switch label={label} checked={checked} onChange={onChange} />
-  </div>
-);
-
-const SectionHeader: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  hint: string;
-}> = ({ icon, title, hint }) => (
-  <div className="mb-2">
-    <div className="flex items-center gap-1.5">
-      <span className="accent-text">{icon}</span>
-      <h4 className="text-[11px] font-semibold text-[var(--aether-text-1)]">{title}</h4>
-    </div>
-    <p className="mt-0.5 text-[9px] leading-relaxed text-[var(--aether-text-3)]">{hint}</p>
-  </div>
-);
 
 const ThemeRow: React.FC<{
   label: string;
@@ -303,23 +252,22 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
         ? 'Clock theme'
         : 'Media theme';
   const targetLabel = selected ? WIDGET_LABELS[selected.kind] : 'All widgets';
+  const textColorLower = textColor.toLowerCase();
+  const customColor =
+    Boolean(textColor) && textColorLower !== '#ffffff' && textColorLower !== '#000000';
 
   return (
-    <div className="flex flex-col gap-3 pb-2">
-      <section>
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="accent-text">
-              <Layers size={13} />
-            </span>
-            <h4 className="text-[11px] font-semibold text-[var(--aether-text-1)]">Widgets</h4>
-          </div>
+    <div className="flex flex-col gap-4 pb-2">
+      <SettingsGroup
+        icon={<Layers size={13} />}
+        title="Widgets"
+        action={
           <span className="text-[9px] text-[var(--aether-text-3)]">
             {widgets.length} on desktop
           </span>
-        </div>
-
-        <div className="rounded-xl border border-[var(--aether-line)] bg-black/15 p-1.5">
+        }
+      >
+        <div className={`${settingsCardClass} p-1.5`}>
           <button
             type="button"
             aria-pressed={!selected}
@@ -389,10 +337,10 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
           </div>
 
           {selected ? (
-            <div className="mt-1 border-t border-[var(--aether-line-soft)] px-1">
-              <ToggleRow
+            <div className="mt-1 border-t border-[var(--aether-line-soft)] px-2.5 py-2">
+              <SettingsToggleRow
                 label="Keep on top"
-                description="Drag to move. Turn off to pin this widget to the desktop."
+                hint="Drag to move. Turn off to pin this widget to the desktop."
                 checked={selected.always_on_top}
                 onChange={(value) => onWidgetAlwaysOnTopChange(selected.id, value)}
               />
@@ -400,7 +348,7 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
           ) : null}
         </div>
 
-        <div className="mt-1.5 flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2">
           <span className="inline-flex min-w-0 items-center gap-1.5 text-[9px] text-[var(--aether-text-3)]">
             <span className="h-1 w-1 shrink-0 rounded-full bg-[var(--aether-accent)]" />
             {selected ? (
@@ -410,25 +358,22 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
             )}
           </span>
           {selected ? (
-            <button
-              type="button"
+            <SettingsResetButton
               onClick={() => onResetWidgetAppearance(selected.id)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[9px] text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
-            >
-              <RotateCcw size={10} />
-              Reset overrides
-            </button>
+              label="Reset overrides"
+              title="Reset this widget's appearance overrides"
+              ariaLabel="Reset widget appearance overrides"
+            />
           ) : null}
         </div>
-      </section>
+      </SettingsGroup>
 
       {showTheme ? (
-        <section className="border-t border-[var(--aether-line-soft)] pt-3">
-          <SectionHeader
-            icon={<Palette size={13} />}
-            title={themeTitle}
-            hint="Choose the look of this widget."
-          />
+        <SettingsGroup
+          icon={<Palette size={13} />}
+          title={themeTitle}
+          hint="Choose the look of this widget."
+        >
           <div className="space-y-1.5">
             <ThemeRow
               label="Default glass"
@@ -456,50 +401,46 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
               ? 'Cozy drops the timeline and transport. Hover the artwork to play or pause; the waves follow the music and drift at rest.'
               : 'Cozy swaps the dark glass for a warm wash and keeps the same layout and controls.'}
           </p>
-        </section>
+        </SettingsGroup>
       ) : null}
 
-      <section className="border-t border-[var(--aether-line-soft)] pt-3">
-        <SectionHeader
-          icon={<SlidersHorizontal size={13} />}
-          title={selected ? `${targetLabel} surface` : 'Widget surface'}
-          hint={
-            selected
-              ? 'Only this widget changes.'
-              : 'Shared defaults; text and icons stay readable at any transparency.'
-          }
-        />
-
-        <div className="divide-y divide-[var(--aether-line-soft)] rounded-xl border border-[var(--aether-line)] bg-black/15 px-2.5 py-0.5">
-          <SliderRow
+      <SettingsGroup
+        icon={<SlidersHorizontal size={13} />}
+        title={selected ? `${targetLabel} surface` : 'Widget surface'}
+        hint={
+          selected
+            ? 'Only this widget changes.'
+            : 'Shared defaults; text and icons stay readable at any transparency.'
+        }
+      >
+        <div className="grid grid-cols-3 gap-x-3 gap-y-2">
+          <SurfaceSlider
             label="Transparency"
-            value={Math.round(effective.widget_opacity * 100)}
             min={0}
             max={100}
-            display={`${Math.round(effective.widget_opacity * 100)}%`}
+            value={Math.round(effective.widget_opacity * 100)}
             onChange={(value) => update({ widget_opacity: value / 100 })}
           />
-          <SliderRow
+          <SurfaceSlider
             label="Grain"
-            value={effective.widget_grain}
             min={0}
             max={100}
-            display={`${effective.widget_grain}%`}
+            value={effective.widget_grain}
             onChange={(widget_grain) => update({ widget_grain })}
           />
-          <SliderRow
+          <SurfaceSlider
             label="Corners"
-            value={effective.widget_radius}
             min={0}
             max={32}
-            display={`${effective.widget_radius}px`}
+            suffix="px"
+            value={effective.widget_radius}
             onChange={(widget_radius) => update({ widget_radius })}
           />
         </div>
 
-        <div className="mt-2.5">
-          <div className="mb-1.5 flex items-center justify-between text-[10px]">
-            <span className="text-[var(--aether-text-2)]">Text color</span>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className={settingsLabelClass}>Text color</span>
             <span className="font-mono text-[9px] text-[var(--aether-text-3)]">
               {textColor || 'Auto'}
             </span>
@@ -508,25 +449,25 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
             <button
               type="button"
               onClick={() => update({ widget_text_color: '' })}
-              className={chipClass(!textColor)}
+              className={settingsChipClass(!textColor)}
             >
               Auto
             </button>
             <button
               type="button"
               onClick={() => update({ widget_text_color: '#ffffff' })}
-              className={chipClass(textColor.toLowerCase() === '#ffffff')}
+              className={settingsChipClass(textColorLower === '#ffffff')}
             >
               White
             </button>
             <button
               type="button"
               onClick={() => update({ widget_text_color: '#000000' })}
-              className={chipClass(textColor.toLowerCase() === '#000000')}
+              className={settingsChipClass(textColorLower === '#000000')}
             >
               Black
             </button>
-            <label className="ml-auto flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--aether-line)] px-2 py-1 text-[10px] text-[var(--aether-text-2)] transition hover:border-[var(--aether-line-strong)] hover:text-[var(--aether-text-1)]">
+            <label className={`${settingsChipClass(customColor)} ml-auto cursor-pointer`}>
               <input
                 type="color"
                 value={textColor || '#ffffff'}
@@ -537,38 +478,41 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
               Custom
             </label>
           </div>
-          <p className="mt-1 text-[9px] leading-snug text-[var(--aether-text-3)]">
+          <p className={`${settingsHintClass} mt-1`}>
             Auto follows the theme: white on dark, black on light.
           </p>
         </div>
-      </section>
+      </SettingsGroup>
 
       {showClockFace ? (
-        <section className="border-t border-[var(--aether-line-soft)] pt-3">
-          <SectionHeader
-            icon={<Clock size={13} />}
-            title="Clock face"
-            hint={
-              selected
-                ? 'These clock face settings apply to this widget only.'
-                : 'Choose what every clock widget shows beside the time.'
-            }
-          />
-          <div className="divide-y divide-[var(--aether-line-soft)] rounded-xl border border-[var(--aether-line)] bg-black/15 px-2.5 py-0.5">
-            <ToggleRow
-              label="Show seconds"
-              description="A small seconds counter sits beside the minutes."
-              checked={effective.widget_clock_seconds}
-              onChange={(widget_clock_seconds) => update({ widget_clock_seconds })}
-            />
-            <ToggleRow
-              label="Show day and date"
-              description="The weekday and date appear under the time."
-              checked={effective.widget_clock_daydate}
-              onChange={(widget_clock_daydate) => update({ widget_clock_daydate })}
-            />
+        <SettingsGroup
+          icon={<Clock size={13} />}
+          title="Clock face"
+          hint={
+            selected
+              ? 'These clock face settings apply to this widget only.'
+              : 'Choose what every clock widget shows beside the time.'
+          }
+        >
+          <div className={settingsCardClass}>
+            <div className="px-2.5 py-2">
+              <SettingsToggleRow
+                label="Show seconds"
+                hint="A small seconds counter sits beside the minutes."
+                checked={effective.widget_clock_seconds}
+                onChange={(widget_clock_seconds) => update({ widget_clock_seconds })}
+              />
+            </div>
+            <div className="border-t border-[var(--aether-line-soft)] px-2.5 py-2">
+              <SettingsToggleRow
+                label="Show day and date"
+                hint="The weekday and date appear under the time."
+                checked={effective.widget_clock_daydate}
+                onChange={(widget_clock_daydate) => update({ widget_clock_daydate })}
+              />
+            </div>
           </div>
-        </section>
+        </SettingsGroup>
       ) : null}
     </div>
   );

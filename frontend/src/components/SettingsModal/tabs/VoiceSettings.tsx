@@ -1,17 +1,22 @@
 import React from 'react';
-import { FolderOpen, FileSearch } from 'lucide-react';
+import { AudioLines, FileSearch, FolderOpen, Play } from 'lucide-react';
 import type { VoiceConfig } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
 import { placementBesideSettings } from '../../../lib/externalWindows';
+import { SettingsGroup } from '../SettingsControls';
+import {
+  settingsCardClass,
+  settingsHintClass,
+  settingsLabelClass,
+  settingsMonoInputClass,
+  settingsSecondaryButtonClass,
+} from '../settingsStyles';
+import { SliderRow } from './SurfaceSliders';
 
 interface VoiceSettingsProps {
   voice: VoiceConfig;
   onChange: (patch: Partial<VoiceConfig>) => void;
 }
-
-const inputClass =
-  'w-full rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3 py-2 font-mono text-[11px] text-[var(--aether-text-1)] outline-none focus:border-[var(--aether-accent)]';
-const labelClass = 'mb-1 block text-[11px] font-medium text-[var(--aether-text-2)]';
 
 export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange }) => {
   const browseStt = async () => {
@@ -25,78 +30,92 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
   };
 
   return (
-    <div className="flex flex-col gap-4 text-xs">
-      <div>
-        <label className={labelClass}>Speech-to-Text Model Folder (Phonon-2)</label>
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-4 pb-2">
+      <SettingsGroup
+        icon={<AudioLines size={13} />}
+        title="Models"
+        hint="Phonon-2 handles speech-to-text; Paradee renders speech at 24 kHz."
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="aether-stt-folder" className={settingsLabelClass}>
+              Speech-to-text folder
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id="aether-stt-folder"
+                type="text"
+                value={voice.stt_model_dir}
+                onChange={(event) => onChange({ stt_model_dir: event.target.value })}
+                placeholder="Select the Phonon-2 model directory…"
+                spellCheck={false}
+                className={`${settingsMonoInputClass} min-w-0 flex-1`}
+              />
+              <button
+                type="button"
+                onClick={browseStt}
+                className={settingsSecondaryButtonClass}
+              >
+                <FolderOpen size={12} />
+                Browse
+              </button>
+            </div>
+            <p className={settingsHintClass}>
+              Microphone capture is live. Wire a real Phonon decoder to enable transcription.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="aether-tts-model" className={settingsLabelClass}>
+              Text-to-speech model
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id="aether-tts-model"
+                type="text"
+                value={voice.tts_model_path}
+                onChange={(event) => onChange({ tts_model_path: event.target.value })}
+                placeholder="Select paradee.onnx…"
+                spellCheck={false}
+                className={`${settingsMonoInputClass} min-w-0 flex-1`}
+              />
+              <button
+                type="button"
+                onClick={browseTts}
+                className={settingsSecondaryButtonClass}
+              >
+                <FileSearch size={12} />
+                Browse
+              </button>
+            </div>
+          </div>
+        </div>
+      </SettingsGroup>
+
+      <SettingsGroup icon={<Play size={13} />} title="Playback">
+        <div className={settingsCardClass}>
+          <div className="px-2.5">
+            <SliderRow
+              label="Speed"
+              min={0.8}
+              max={1.4}
+              step={0.05}
+              value={voice.tts_speed}
+              display={`${voice.tts_speed.toFixed(2)}×`}
+              onChange={(tts_speed) => onChange({ tts_speed })}
+            />
+          </div>
+        </div>
+        <label className="flex flex-col gap-1">
+          <span className={settingsLabelClass}>Voice preset</span>
           <input
             type="text"
-            value={voice.stt_model_dir}
-            onChange={(event) => onChange({ stt_model_dir: event.target.value })}
-            placeholder="Select the Phonon-2 model directory…"
-            className={inputClass}
+            value={voice.tts_voice_id}
+            onChange={(event) => onChange({ tts_voice_id: event.target.value })}
+            className={`${settingsMonoInputClass} w-full`}
           />
-          <button
-            onClick={browseStt}
-            className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition"
-          >
-            <FolderOpen size={13} />
-            Browse
-          </button>
-        </div>
-        <p className="mt-1 text-[10px] text-[var(--aether-text-3)]">
-          Microphone capture is live. Wire a real Phonon decoder to enable transcription.
-        </p>
-      </div>
-
-      <div>
-        <label className={labelClass}>Text-to-Speech Model (Paradee ONNX, 24 kHz)</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={voice.tts_model_path}
-            onChange={(event) => onChange({ tts_model_path: event.target.value })}
-            placeholder="Select paradee.onnx…"
-            className={inputClass}
-          />
-          <button
-            onClick={browseTts}
-            className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition"
-          >
-            <FileSearch size={13} />
-            Browse
-          </button>
-        </div>
-      </div>
-
-      <div>
-        <div className="mb-1 flex items-center justify-between">
-          <label className={`${labelClass} mb-0`}>Speech Speed</label>
-          <span className="font-mono text-[11px] text-[var(--aether-accent-text)]">
-            {voice.tts_speed.toFixed(2)}×
-          </span>
-        </div>
-        <input
-          type="range"
-          min="0.8"
-          max="1.4"
-          step="0.05"
-          value={voice.tts_speed}
-          onChange={(event) => onChange({ tts_speed: Number(event.target.value) })}
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[var(--aether-fill-2)] accent-[var(--aether-accent)]"
-        />
-      </div>
-
-      <div>
-        <label className={labelClass}>Voice Preset</label>
-        <input
-          type="text"
-          value={voice.tts_voice_id}
-          onChange={(event) => onChange({ tts_voice_id: event.target.value })}
-          className={inputClass}
-        />
-      </div>
+        </label>
+      </SettingsGroup>
     </div>
   );
 };
-

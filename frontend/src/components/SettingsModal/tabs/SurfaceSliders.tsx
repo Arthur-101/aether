@@ -19,23 +19,28 @@ export const SurfaceSlider: React.FC<{
   /** The lowest value the surface may reach. Opacity starts at 30. */
   min?: number;
   max?: number;
-}> = ({ label, value, onChange, min = 30, max = 100 }) => {
-  const percent = Math.round(value);
+  /** Unit shown after the value. Defaults to a percent sign. */
+  suffix?: string;
+}> = ({ label, value, onChange, min = 30, max = 100, suffix = '%' }) => {
+  const rounded = Math.round(value);
   const span = Math.max(1, max - min);
   return (
     <label className="block min-w-0">
       <span className="flex items-center justify-between gap-2 text-[10px] leading-none">
         <span className="truncate text-[var(--aether-text-2)]">{label}</span>
-        <span className="font-mono text-[var(--aether-text-1)]">{percent}%</span>
+        <span className="font-mono text-[var(--aether-text-1)]">
+          {rounded}
+          {suffix}
+        </span>
       </span>
       <input
         type="range"
         min={min}
         max={max}
         step={1}
-        value={percent}
+        value={rounded}
         onChange={(event) => onChange(Number(event.target.value))}
-        style={{ '--fill': `${((percent - min) / span) * 100}%` } as React.CSSProperties}
+        style={{ '--fill': `${((rounded - min) / span) * 100}%` } as React.CSSProperties}
         className="win-slider mt-1.5 h-4 w-full cursor-pointer"
         aria-label={label}
       />
@@ -52,8 +57,9 @@ export const SliderRow: React.FC<{
   min: number;
   max: number;
   display: string;
+  step?: number;
   onChange: (value: number) => void;
-}> = ({ label, value, min, max, display, onChange }) => {
+}> = ({ label, value, min, max, display, step = 1, onChange }) => {
   const fill = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
     <div className="grid grid-cols-[82px_1fr_40px] items-center gap-2 py-1.5">
@@ -62,7 +68,7 @@ export const SliderRow: React.FC<{
         type="range"
         min={min}
         max={max}
-        step={1}
+        step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
         style={{ '--fill': `${fill}%` } as React.CSSProperties}

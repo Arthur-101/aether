@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Keyboard, RotateCcw } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 import type { HotkeysConfig } from '../../../types/ipc';
+import { SettingsGroup, SettingsResetButton } from '../SettingsControls';
+import {
+  settingsCardClass,
+  settingsHintClass,
+  settingsRowClass,
+} from '../settingsStyles';
 
 interface HotkeySettingsProps {
   hotkeys: HotkeysConfig;
@@ -111,55 +117,56 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
   const reset = () => onChange(DEFAULTS);
 
   return (
-    <div className="flex flex-col gap-2 text-xs">
-      <div className="mb-1 flex items-start justify-between gap-3">
-        <p className="text-[11px] leading-relaxed text-[var(--aether-text-3)]">
-          Click a shortcut, then press the new keys. Changes take effect immediately after
-          Save &amp; Apply.
+    <div className="flex flex-col gap-4 pb-2">
+      <SettingsGroup
+        icon={<Keyboard size={13} />}
+        title="Shortcuts"
+        action={
+          <SettingsResetButton
+            onClick={reset}
+            title="Restore default shortcuts"
+            ariaLabel="Reset shortcuts"
+          />
+        }
+        hint="Click a shortcut, then press the new keys. Changes take effect after Save & Apply."
+      >
+        <div className={settingsCardClass}>
+          {rows.map((row) => {
+            const isRecording = recording === row.key;
+            return (
+              <div key={row.key} className={settingsRowClass}>
+                <span className="min-w-0 truncate text-[11px] text-[var(--aether-text-1)]">
+                  {row.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRecording(isRecording ? null : row.key)}
+                  aria-label={`Change ${row.label} shortcut`}
+                  className={`flex h-7 min-w-[138px] shrink-0 items-center justify-center gap-1.5 rounded-md border px-2 font-mono text-[10px] transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--aether-accent)] ${
+                    isRecording
+                      ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/12 text-[var(--aether-text-1)]'
+                      : 'border-[var(--aether-line)] bg-black/15 text-[var(--aether-text-1)] hover:border-[var(--aether-line-strong)]'
+                  }`}
+                >
+                  {isRecording ? (
+                    <>
+                      <Keyboard size={11} className="animate-pulse" />
+                      Press keys… (Esc)
+                    </>
+                  ) : (
+                    displayValue(row.key, hotkeys[row.key])
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className={settingsHintClass}>
+          Tip: Radial Wheel accepts Ctrl, Shift, or Alt as the drag modifier. Other actions
+          require a main key such as Space, A–Z, or F1–F12.
         </p>
-        <button
-          onClick={reset}
-          className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2 py-1 text-[10px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-surface-5)] hover:text-[var(--aether-text-1)]"
-        >
-          <RotateCcw size={11} />
-          Reset
-        </button>
-      </div>
-
-      {rows.map((row) => {
-        const isRecording = recording === row.key;
-        return (
-          <div
-            key={row.key}
-            className="flex items-center justify-between rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] p-2.5"
-          >
-            <span className="font-medium text-[var(--aether-text-1)]">{row.label}</span>
-            <button
-              onClick={() => setRecording(isRecording ? null : row.key)}
-              className={`flex min-w-[138px] items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 font-mono text-[11px] transition ${
-                isRecording
-                  ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/15 text-[var(--aether-accent-text)]'
-                  : 'border-[var(--aether-line)] bg-[var(--aether-surface-3)] text-[var(--aether-accent-text)] hover:border-[var(--aether-accent)]/60'
-              }`}
-            >
-              {isRecording ? (
-                <>
-                  <Keyboard size={12} className="animate-pulse" />
-                  Press keys… (Esc)
-                </>
-              ) : (
-                displayValue(row.key, hotkeys[row.key])
-              )}
-            </button>
-          </div>
-        );
-      })}
-
-      <p className="mt-1 text-[10px] text-[var(--aether-text-3)]">
-        Tip: Radial Wheel accepts Ctrl, Shift, or Alt as the drag modifier. Other actions
-        require a main key such as Space, A–Z, or F1–F12.
-      </p>
+      </SettingsGroup>
     </div>
   );
 };
-

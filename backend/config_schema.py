@@ -73,6 +73,13 @@ DEFAULT_TASKBAR_APPS: Dict[str, Any] = {
     "pinned": [],
 }
 
+DEFAULT_CLOUD_PROVIDERS: Dict[str, Dict[str, str]] = {
+    "gemini": {"api_key": "", "model": "gemini-2.5-flash"},
+    "groq": {"api_key": "", "model": "llama-3.3-70b-versatile"},
+    "openai": {"api_key": "", "model": "gpt-4o-mini"},
+    "openrouter": {"api_key": "", "model": "openai/gpt-4o-mini"},
+}
+
 _HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
@@ -328,10 +335,51 @@ def normalize_wallpaper(value: Any) -> Dict[str, Any]:
     return {"folder": _optional_text(raw.get("folder"), 260)}
 
 
+def normalize_ai_provider(value: Any) -> Dict[str, Any]:
+    """
+    Sanitizes the cloud credential store and migrates the original single key.
+
+    `cloud_providers` keeps one key and model per provider. The legacy
+    `api_key` / `cloud_model` fields are mirrored from the selected provider so
+    older readers (and QuickChat) keep working unchanged.
+    """
+    raw = dict(value) if isinstance(value, dict) else {}
+    incoming = raw.get("cloud_providers")
+    incoming = incoming if isinstance(incoming, dict) else {}
+
+    selected = _optional_text(raw.get("cloud_provider"), 40).lower()
+    if selected not in DEFAULT_CLOUD_PROVIDERS:
+        selected = "gemini"
+
+    providers = {name: dict(entry) for name, entry in DEFAULT_CLOUD_PROVIDERS.items()}
+    for name, entry in incoming.items():
+        if name not in providers or not isinstance(entry, dict):
+            continue
+        providers[name]["api_key"] = _optional_text(entry.get("api_key"), 400)
+        providers[name]["model"] = _optional_text(entry.get("model"), 200)
+
+    if not incoming:
+        # One-time migration from the pre-0.2 single-key config: keep the
+        # selected provider's credentials and drop nothing else.
+        legacy_key = _optional_text(raw.get("api_key"), 400)
+        legacy_model = _optional_text(raw.get("cloud_model"), 200)
+        if legacy_key:
+            providers[selected]["api_key"] = legacy_key
+        if legacy_model:
+            providers[selected]["model"] = legacy_model
+
+    raw["cloud_provider"] = selected
+    raw["cloud_providers"] = providers
+    raw["api_key"] = providers[selected]["api_key"]
+    raw["cloud_model"] = providers[selected]["model"]
+    return raw
+
+
 def normalize_config(config: Any) -> Dict[str, Any]:
     """Returns the config with valid brand/appearance/clock/taskbar sections."""
     normalized = dict(config) if isinstance(config, dict) else {}
     normalized["brand_name"] = normalize_brand_name(normalized.get("brand_name"))
+    normalized["ai_provider"] = normalize_ai_provider(normalized.get("ai_provider"))
     normalized["appearance"] = normalize_appearance(normalized.get("appearance"))
     normalized["clock"] = normalize_clock(normalized.get("clock"))
     normalized["taskbar_apps"] = normalize_taskbar_apps(normalized.get("taskbar_apps"))

@@ -1,7 +1,17 @@
 import React from 'react';
-import { FolderOpen, AlertTriangle } from 'lucide-react';
-import type { AIProviderConfig } from '../../../types/ipc';
+import { AlertTriangle, Box, Brain, FolderOpen, Server, Zap } from 'lucide-react';
+import type { AIProviderConfig, CloudProviderEntry } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
+import { SettingsGroup } from '../SettingsControls';
+import {
+  settingsChipClass,
+  settingsHintClass,
+  settingsInputClass,
+  settingsLabelClass,
+  settingsMonoInputClass,
+  settingsSecondaryButtonClass,
+  settingsSegmentClass,
+} from '../settingsStyles';
 
 interface AiSettingsProps {
   ai: AIProviderConfig;
@@ -11,15 +21,26 @@ interface AiSettingsProps {
   onChange: (patch: Partial<AIProviderConfig>) => void;
 }
 
-const inputClass =
-  'w-full rounded-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3 py-2 font-mono text-[11px] text-[var(--aether-text-1)] outline-none focus:border-[var(--aether-accent)]';
-const labelClass = 'mb-1 block text-[11px] font-medium text-[var(--aether-text-2)]';
-
 const modes = [
-  { id: 'local_gguf', label: 'Local GGUF', hint: 'llama-server · private' },
-  { id: 'ollama', label: 'Ollama', hint: '127.0.0.1:11434' },
-  { id: 'cloud', label: 'Cloud API', hint: 'Gemini / Groq / OpenAI' },
+  { id: 'local_gguf', label: 'Local GGUF' },
+  { id: 'ollama', label: 'Ollama' },
+  { id: 'cloud', label: 'Cloud API' },
 ] as const;
+
+const MODEL_HINTS: Record<AIProviderConfig['mode'], string> = {
+  local_gguf: 'Private and offline. Higher context uses more memory.',
+  ollama: 'Talks to a local Ollama server on 127.0.0.1:11434.',
+  cloud: 'Keys stay on this machine. Paste an OpenRouter ID as copied.',
+};
+
+const CLOUD_PROVIDERS = [
+  { id: 'gemini', label: 'Google Gemini', placeholder: 'gemini-2.5-flash' },
+  { id: 'groq', label: 'Groq', placeholder: 'llama-3.3-70b-versatile' },
+  { id: 'openai', label: 'OpenAI', placeholder: 'gpt-4o-mini' },
+  { id: 'openrouter', label: 'OpenRouter', placeholder: 'anthropic/claude-sonnet-4.5' },
+] as const;
+
+const emptyEntry: CloudProviderEntry = { api_key: '', model: '' };
 
 export const AiSettings: React.FC<AiSettingsProps> = ({
   ai,
@@ -33,170 +54,199 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
     if (path) onChange({ gguf_model_path: path });
   };
 
+  const cloudProviders = ai.cloud_providers ?? {};
+  const cloudEntry = cloudProviders[ai.cloud_provider] ?? emptyEntry;
+  const cloudProvider =
+    CLOUD_PROVIDERS.find((provider) => provider.id === ai.cloud_provider) ??
+    CLOUD_PROVIDERS[0];
+  const updateCloudEntry = (patch: Partial<CloudProviderEntry>) =>
+    onChange({
+      cloud_providers: {
+        ...cloudProviders,
+        [ai.cloud_provider]: { ...cloudEntry, ...patch },
+      },
+    });
+
   return (
-    <div className="flex flex-col gap-3.5 text-xs">
-      {configError && (
-        <div className="flex items-start gap-2 rounded-md border border-[#ff99a4]/40 bg-[#442726] px-3 py-2 text-[11px] text-[#ffd7d9]">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+    <div className="flex flex-col gap-4 pb-2">
+      {configError ? (
+        <div className="flex items-start gap-2 rounded-md border border-[#ff99a4]/40 bg-[#442726] px-2.5 py-2 text-[10px] leading-snug text-[#ffd7d9]">
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
           <span>{configError}</span>
         </div>
-      )}
+      ) : null}
 
-      <div>
-        <label className={labelClass}>Execution Mode</label>
-        <div className="grid grid-cols-2 gap-2 rounded-md bg-[var(--aether-surface-5)] p-1">
+      <SettingsGroup
+        icon={<Zap size={13} />}
+        title="Execution"
+        hint="Normal answers directly. Thinking reasons through harder questions."
+      >
+        <div className="grid grid-cols-2 gap-1.5">
           <button
+            type="button"
+            aria-pressed={!thinkingMode}
             onClick={() => onToggleThinking(false)}
-            className={`rounded px-2 py-2 text-center transition ${
-              !thinkingMode
-                ? 'accent-fill'
-                : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
-            }`}
+            className={`${settingsSegmentClass(!thinkingMode)} font-medium`}
           >
-            <div className="font-medium">Normal Mode</div>
-            <div className="text-[9px] opacity-80">Direct, low latency</div>
+            <Zap size={12} />
+            Normal mode
           </button>
           <button
+            type="button"
+            aria-pressed={thinkingMode}
             onClick={() => onToggleThinking(true)}
-            className={`rounded px-2 py-2 text-center transition ${
-              thinkingMode
-                ? 'accent-fill'
-                : 'text-[var(--aether-text-3)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
-            }`}
+            className={`${settingsSegmentClass(thinkingMode)} font-medium`}
           >
-            <div className="font-medium">Thinking Mode</div>
-            <div className="text-[9px] opacity-80">Deeper reasoning</div>
+            <Brain size={12} />
+            Thinking mode
           </button>
         </div>
-      </div>
+      </SettingsGroup>
 
-      <div>
-        <label className={labelClass}>Inference Backend</label>
-        <div className="grid grid-cols-3 gap-1 rounded-md bg-[var(--aether-surface-5)] p-1">
+      <SettingsGroup
+        icon={<Server size={13} />}
+        title="Inference backend"
+        hint="Local GGUF runs on this machine. Ollama uses 127.0.0.1:11434. Cloud supports Gemini, Groq, OpenAI, and OpenRouter."
+      >
+        <div className="grid grid-cols-3 gap-1.5">
           {modes.map((mode) => (
             <button
               key={mode.id}
+              type="button"
+              aria-pressed={ai.mode === mode.id}
               onClick={() => onChange({ mode: mode.id })}
-              className={`rounded px-2 py-1.5 transition ${
-                ai.mode === mode.id
-                  ? 'bg-[var(--aether-surface-5)] text-[var(--aether-text-1)]'
-                  : 'text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]'
-              }`}
+              className={settingsSegmentClass(ai.mode === mode.id)}
             >
-              <div className="font-medium">{mode.label}</div>
-              <div className="text-[9px] opacity-70">{mode.hint}</div>
+              {mode.label}
             </button>
           ))}
         </div>
-      </div>
+      </SettingsGroup>
 
-      {ai.mode === 'local_gguf' && (
-        <>
-          <div>
-            <label className={labelClass}>GGUF Model</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={ai.gguf_model_path}
-                onChange={(event) => onChange({ gguf_model_path: event.target.value })}
-                placeholder="Select a .gguf file…"
-                className={inputClass}
-              />
-              <button
-                onClick={browseGguf}
-                className="accent-fill flex shrink-0 items-center gap-1.5 rounded-md px-3 text-[11px] font-medium transition"
-              >
-                <FolderOpen size={13} />
-                Browse
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Context Length</label>
-            <div className="flex gap-2">
-              {[4096, 8192, 16384].map((ctx) => (
+      <SettingsGroup icon={<Box size={13} />} title="Model" hint={MODEL_HINTS[ai.mode]}>
+        {ai.mode === 'local_gguf' ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="aether-gguf-path" className={settingsLabelClass}>
+                GGUF file
+              </label>
+              <div className="flex gap-1.5">
+                <input
+                  id="aether-gguf-path"
+                  type="text"
+                  value={ai.gguf_model_path}
+                  onChange={(event) => onChange({ gguf_model_path: event.target.value })}
+                  placeholder="Select a .gguf file…"
+                  spellCheck={false}
+                  className={`${settingsMonoInputClass} min-w-0 flex-1`}
+                />
                 <button
-                  key={ctx}
-                  onClick={() => onChange({ context_length: ctx })}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition ${
-                    ai.context_length === ctx
-                      ? 'border-[var(--aether-accent)] bg-[var(--aether-accent)]/15 text-[var(--aether-accent-text)]'
-                      : 'border-[var(--aether-line)] bg-[var(--aether-surface-1)] text-[var(--aether-text-3)] hover:text-[var(--aether-text-1)]'
-                  }`}
+                  type="button"
+                  onClick={browseGguf}
+                  className={settingsSecondaryButtonClass}
                 >
-                  {ctx}
+                  <FolderOpen size={12} />
+                  Browse
                 </button>
-              ))}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <span className={settingsLabelClass}>Context length</span>
+              <div className="flex gap-1.5">
+                {[4096, 8192, 16384].map((ctx) => (
+                  <button
+                    key={ctx}
+                    type="button"
+                    aria-pressed={ai.context_length === ctx}
+                    onClick={() => onChange({ context_length: ctx })}
+                    className={`${settingsChipClass(ai.context_length === ctx)} font-mono`}
+                  >
+                    {ctx}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </>
-      )}
+        ) : null}
 
-      {ai.mode === 'ollama' && (
-        <>
-          <div>
-            <label className={labelClass}>Ollama Base URL</label>
-            <input
-              type="text"
-              value={ai.ollama_base_url}
-              onChange={(event) => onChange({ ollama_base_url: event.target.value })}
-              placeholder="http://127.0.0.1:11434"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Ollama Model Name</label>
-            <input
-              type="text"
-              value={ai.ollama_model_name}
-              onChange={(event) => onChange({ ollama_model_name: event.target.value })}
-              placeholder="qwen2.5:7b"
-              className={inputClass}
-            />
-          </div>
-        </>
-      )}
-
-      {ai.mode === 'cloud' && (
-        <>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={labelClass}>Provider</label>
-              <select
-                value={ai.cloud_provider}
-                onChange={(event) => onChange({ cloud_provider: event.target.value })}
-                className={inputClass}
-              >
-                <option value="gemini">Google Gemini</option>
-                <option value="groq">Groq</option>
-                <option value="openai">OpenAI</option>
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Model</label>
+        {ai.mode === 'ollama' ? (
+          <div className="flex flex-col gap-2">
+            <label className="flex flex-col gap-1">
+              <span className={settingsLabelClass}>Base URL</span>
               <input
                 type="text"
-                value={ai.cloud_model}
-                onChange={(event) => onChange({ cloud_model: event.target.value })}
-                placeholder="gemini-2.5-flash"
-                className={inputClass}
+                value={ai.ollama_base_url}
+                onChange={(event) => onChange({ ollama_base_url: event.target.value })}
+                placeholder="http://127.0.0.1:11434"
+                spellCheck={false}
+                className={`${settingsMonoInputClass} w-full`}
               />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={settingsLabelClass}>Model name</span>
+              <input
+                type="text"
+                value={ai.ollama_model_name}
+                onChange={(event) => onChange({ ollama_model_name: event.target.value })}
+                placeholder="qwen2.5:7b"
+                spellCheck={false}
+                className={`${settingsMonoInputClass} w-full`}
+              />
+            </label>
+          </div>
+        ) : null}
+
+        {ai.mode === 'cloud' ? (
+          <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className={settingsLabelClass}>Provider</span>
+                <select
+                  value={ai.cloud_provider}
+                  onChange={(event) => onChange({ cloud_provider: event.target.value })}
+                  className={`${settingsInputClass} w-full`}
+                >
+                  {CLOUD_PROVIDERS.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.label}
+                      {cloudProviders[provider.id]?.api_key ? ' · key saved' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className={settingsLabelClass}>Model</span>
+                <input
+                  type="text"
+                  value={cloudEntry.model}
+                  onChange={(event) => updateCloudEntry({ model: event.target.value })}
+                  placeholder={cloudProvider.placeholder}
+                  spellCheck={false}
+                  className={`${settingsMonoInputClass} w-full`}
+                />
+              </label>
             </div>
+            {ai.cloud_provider === 'openrouter' ? (
+              <span className={settingsHintClass}>
+                Paste the model ID exactly as OpenRouter copies it. The
+                <span className="font-mono"> openrouter/ </span>
+                prefix is added automatically.
+              </span>
+            ) : null}
+            <label className="flex flex-col gap-1">
+              <span className={settingsLabelClass}>API key</span>
+              <input
+                type="password"
+                value={cloudEntry.api_key}
+                onChange={(event) => updateCloudEntry({ api_key: event.target.value })}
+                placeholder="Stored locally in %APPDATA%/Aether"
+                className={`${settingsMonoInputClass} w-full`}
+              />
+            </label>
           </div>
-          <div>
-            <label className={labelClass}>API Key</label>
-            <input
-              type="password"
-              value={ai.api_key}
-              onChange={(event) => onChange({ api_key: event.target.value })}
-              placeholder="Stored locally in %APPDATA%/Aether"
-              className={inputClass}
-            />
-          </div>
-        </>
-      )}
+        ) : null}
+      </SettingsGroup>
     </div>
   );
 };
-

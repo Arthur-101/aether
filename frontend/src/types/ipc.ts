@@ -402,6 +402,11 @@ export interface BluetoothDeviceInfo {
   instance_id?: string;
 }
 
+export interface CloudProviderEntry {
+  api_key: string;
+  model: string;
+}
+
 export interface AIProviderConfig {
   mode: 'local_gguf' | 'ollama' | 'cloud';
   local_engine?: string;
@@ -409,6 +414,7 @@ export interface AIProviderConfig {
   ollama_base_url: string;
   ollama_model_name: string;
   cloud_provider: string;
+  cloud_providers: Record<string, CloudProviderEntry>;
   cloud_model: string;
   api_key: string;
   context_length: number;

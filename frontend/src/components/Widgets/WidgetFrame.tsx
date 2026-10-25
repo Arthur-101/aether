@@ -78,7 +78,7 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
           ? 'Drag to move this widget'
           : 'Pinned to the desktop — keep it on top to move it'
       }
-      className={`glass-panel aether-grain widget-card flex h-full w-full flex-col overflow-hidden ${
+      className={`glass-panel aether-grain widget-card relative flex h-full w-full flex-col overflow-hidden ${
         cozy ? 'cozy-surface' : ''
       } ${alwaysOnTop ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
     >
