@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Repeat2, Sparkles, X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import type {
   RadialWheelCursor,
   RadialWheelDropPayload,
@@ -40,14 +40,13 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   onOpenAddBg,
   onClose,
 }) => {
-  const [activeRing, setActiveRing] = useState<'format' | 'utility'>('format');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [coreHovered, setCoreHovered] = useState(false);
 
   const ext = data.ext.toLowerCase().replace('.', '');
   const isPdf = ext === 'pdf';
   const askEligible = ASK_EXTENSIONS.has(ext);
-  const slices = buildSlices(ext, activeRing, askEligible);
+  const slices = buildSlices(ext, askEligible);
 
   // Global cursor coordinates are physical pixels; CSS uses logical pixels.
   const scale = window.devicePixelRatio || 1;
@@ -72,9 +71,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
     ? 'Cancel'
     : highlightedIndex !== null
       ? sliceActionLabel(slices[highlightedIndex], isPdf)
-      : activeRing === 'format'
-        ? 'Convert'
-        : 'Utility';
+      : 'Pick an action';
 
   const activate = (label: string) => {
     if (label === 'ASK') {
@@ -91,9 +88,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
       onClose();
       return;
     }
-    if (label === 'REM BG') {
-      onAction(data.file_path, 'REMOVE_BG');
-    } else if (label === 'COMPRESS') {
+    if (label === 'COMPRESS') {
       onAction(data.file_path, 'COMPRESS');
     } else if (label === 'METADATA') {
       onAction(data.file_path, 'STRIP_META');
@@ -147,7 +142,6 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
       >
         <RadialWheelCanvas
           slices={slices}
-          ring={activeRing}
           highlightedIndex={highlightedIndex}
           coreHighlighted={coreHighlighted}
           onActivate={activate}
@@ -162,7 +156,7 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
         >
           <div className="flex items-center gap-1 text-[10px] font-bold tracking-wider text-[var(--aether-accent-text)]">
             <Sparkles size={10} />
-            <span>{activeRing === 'format' ? 'FORMAT' : 'UTILITY'}</span>
+            <span>ACTIONS</span>
           </div>
           <div className="mt-0.5 max-w-[118px] truncate text-[12px] font-bold text-[var(--aether-text-1)]">
             {activeLabel}
@@ -174,15 +168,6 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
             {coreHighlighted ? 'Release to cancel' : 'Release on a slice'}
           </div>
         </div>
-
-        <button
-          onClick={() => setActiveRing(activeRing === 'format' ? 'utility' : 'format')}
-          className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-2.5 py-1 text-[9px] font-medium text-[var(--aether-text-2)] transition hover:bg-[var(--aether-surface-5)] hover:text-[var(--aether-text-1)]"
-          title="Switch action ring"
-        >
-          <Repeat2 size={10} />
-          {activeRing === 'format' ? 'Utility' : 'Format'}
-        </button>
 
         <button
           onClick={onClose}

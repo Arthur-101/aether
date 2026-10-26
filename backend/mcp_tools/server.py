@@ -11,10 +11,18 @@ from .media_tools import (
     compress_media,
     convert_image_format,
     crop_image,
-    remove_image_background,
     strip_image_metadata,
 )
 from .doc_tools import convert_document, search_dropped_file
+from .note_tools import (
+    append_to_note,
+    create_note,
+    get_note_tool_schemas,
+    list_notes,
+    read_note,
+    search_notes,
+    set_note_pinned,
+)
 from .clock_tools import (
     cancel_task_tool,
     complete_task_tool,
@@ -38,9 +46,14 @@ mcp = FastMCP("AetherTools")
 mcp.tool()(convert_image_format)
 mcp.tool()(compress_media)
 mcp.tool()(strip_image_metadata)
-mcp.tool()(remove_image_background)
 mcp.tool()(convert_document)
 mcp.tool()(search_dropped_file)
+mcp.tool()(list_notes)
+mcp.tool()(search_notes)
+mcp.tool()(read_note)
+mcp.tool()(create_note)
+mcp.tool()(append_to_note)
+mcp.tool()(set_note_pinned)
 mcp.tool()(schedule_one_time_task)
 mcp.tool()(schedule_recurring_routine)
 mcp.tool()(schedule_custom_task)
@@ -57,9 +70,14 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "convert_image_format": convert_image_format,
     "compress_media": compress_media,
     "strip_image_metadata": strip_image_metadata,
-    "remove_image_background": remove_image_background,
     "convert_document": convert_document,
     "search_dropped_file": search_dropped_file,
+    "list_notes": list_notes,
+    "search_notes": search_notes,
+    "read_note": read_note,
+    "create_note": create_note,
+    "append_to_note": append_to_note,
+    "set_note_pinned": set_note_pinned,
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
     "schedule_custom_task": schedule_custom_task,
@@ -133,20 +151,6 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
         {
             "type": "function",
             "function": {
-                "name": "remove_image_background",
-                "description": "Remove background from an image and save as transparent PNG.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {"type": "string", "description": "Absolute path to image."}
-                    },
-                    "required": ["file_path"]
-                }
-            }
-        },
-        {
-            "type": "function",
-            "function": {
                 "name": "convert_document",
                 "description": "Convert PDF to docx, jpg, png, or txt.",
                 "parameters": {
@@ -175,7 +179,7 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
                 }
             }
         },
-    ] + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_clock_tool_schemas()
 
 
 def execute_tool(name: str, arguments: Dict[str, Any]) -> str:

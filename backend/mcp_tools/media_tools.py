@@ -1,7 +1,7 @@
 """
 Aether Media Tools
 Deterministic image, video, and audio conversion, compression, and background removal.
-Zero LLM latency. Uses Pillow, pillow-heif, piexif, rembg, and local bin/ffmpeg.
+Zero LLM latency. Uses Pillow, pillow-heif, piexif, and local bin/ffmpeg.
 """
 
 import os
@@ -68,7 +68,12 @@ def convert_image_format(file_path: str, target_format: str) -> str:
         elif img.mode != "RGB" and fmt in ("jpg", "jpeg"):
             img = img.convert("RGB")
 
-        save_fmt = "JPEG" if fmt in ("jpg", "jpeg") else fmt.upper()
+        save_fmt = {
+            "jpg": "JPEG",
+            "jpeg": "JPEG",
+            # pillow_heif registers the save handler as "HEIF", not "HEIC".
+            "heic": "HEIF",
+        }.get(fmt, fmt.upper())
         img.save(out_path, format=save_fmt)
 
     return str(out_path)
@@ -86,24 +91,6 @@ def strip_image_metadata(file_path: str) -> str:
         clean_img = Image.new(img.mode, img.size)
         clean_img.putdata(data)
         clean_img.save(out_path)
-
-    return str(out_path)
-
-
-def remove_image_background(file_path: str) -> str:
-    """Removes background from an image using rembg and saves as a transparent PNG."""
-    from rembg import remove
-    p = Path(file_path)
-    if not p.exists():
-        raise FileNotFoundError(f"Source file not found: {file_path}")
-
-    out_path = exported_path(p, f"{p.stem}_nobg.png")
-    with open(p, "rb") as f_in:
-        input_bytes = f_in.read()
-
-    output_bytes = remove(input_bytes)
-    with open(out_path, "wb") as f_out:
-        f_out.write(output_bytes)
 
     return str(out_path)
 

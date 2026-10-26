@@ -97,9 +97,9 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
           </div>
         </div>
         <p className={settingsHintClass}>
-          Region to Ask saves its screenshots here too, under
-          <span className="font-mono"> captures\</span>. They stay on your PC until
-          you delete them.
+          Region to Ask saves its screenshots here too, in the
+          <span className="font-mono"> captures</span> folder. They stay on your PC
+          until you delete them.
         </p>
       </SettingsGroup>
     </div>

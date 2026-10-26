@@ -7,7 +7,6 @@ import {
 
 interface RadialWheelCanvasProps {
   slices: string[];
-  ring: 'format' | 'utility';
   highlightedIndex: number | null;
   coreHighlighted: boolean;
   onActivate: (slice: string) => void;
@@ -18,7 +17,6 @@ interface RadialWheelCanvasProps {
 
 export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
   slices,
-  ring,
   highlightedIndex,
   coreHighlighted,
   onActivate,
@@ -68,7 +66,7 @@ export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
 
         return (
           <g
-            key={`${ring}-${slice}`}
+            key={slice}
             onClick={() => onActivate(slice)}
             onMouseEnter={() => onHover(index)}
             onMouseLeave={() => onHover(null)}

@@ -3,11 +3,11 @@
  * Slices start at 0° (right) and advance clockwise, matching atan2.
  */
 
-export const WHEEL_SIZE = 340;
-export const WHEEL_RADIUS = 135;
+export const WHEEL_SIZE = 372;
+export const WHEEL_RADIUS = 150;
 export const WHEEL_INNER_RADIUS = 56;
 export const WHEEL_CORE_RADIUS = 42;
-export const WHEEL_DETECT_RADIUS = 145;
+export const WHEEL_DETECT_RADIUS = 160;
 
 export type WheelHit =
   | { type: 'core' }
@@ -36,17 +36,12 @@ export function sliceActionLabel(label: string, isPdf: boolean): string {
   if (label === 'ASK') return 'Ask AI';
   if (label === 'CROP') return 'Crop Image';
   if (label === 'ADD BG') return 'Add Background';
-  if (label === 'REM BG') return 'Remove Background';
   if (label === 'COMPRESS') return 'Compress';
   if (label === 'METADATA') return 'Strip Metadata';
   return isPdf ? `Convert → ${label}` : `Convert → .${label}`;
 }
 
-export function buildSlices(
-  ext: string,
-  ring: 'format' | 'utility',
-  askEligible: boolean
-): string[] {
+export function buildSlices(ext: string, askEligible: boolean): string[] {
   const isPdf = ext === 'pdf';
   const isVideo = ['mp4', 'mov', 'mkv', 'avi'].includes(ext);
   const format = isPdf
@@ -54,8 +49,9 @@ export function buildSlices(
     : isVideo
       ? ['MP3', 'GIF', 'COMPRESS', 'WEBM']
       : ['WEBP', 'PNG', 'JPG', 'PDF', 'HEIC', 'AVIF'];
-  const utility = ['COMPRESS', 'CROP', 'ADD BG', 'REM BG', 'METADATA'];
-  const slices = ring === 'format' ? [...format] : [...utility];
+  // Edits share one ring with conversions; dedupe keeps video's COMPRESS once.
+  const edits = ['COMPRESS', 'CROP', 'ADD BG', 'METADATA'];
+  const slices = [...format, ...edits.filter((slice) => !format.includes(slice))];
   if (askEligible) slices.push('ASK');
   return slices;
 }

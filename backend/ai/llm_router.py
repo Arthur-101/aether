@@ -5,7 +5,7 @@ runs the deterministic FastMCP tool loop, and keeps dictation cleaning local.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager
 from ..db.sessions import session_manager
@@ -17,6 +17,18 @@ from .ollama_engine import OllamaEngine
 from .prompts import DICTATION_SYSTEM_PROMPT
 
 __all__ = ["llm_router", "ModelNotConfiguredError", "LocalGGUFEngine"]
+
+# A tool result begins with "Error" when execute_tool caught a failure; it never
+# raises. That string contract is the only failure signal the loop has.
+_ERROR_PREFIX = "Error"
+
+
+def _parse_args(raw: Any) -> Dict[str, Any]:
+    """Parses a tool-call argument payload that may arrive as JSON text or a dict."""
+    try:
+        return json.loads(raw) if isinstance(raw, str) else dict(raw or {})
+    except Exception:
+        return {}
 
 
 class LLMRouter:
@@ -68,10 +80,7 @@ class LLMRouter:
         raw_args: Any,
         session_id: Optional[str],
     ) -> str:
-        try:
-            arguments = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args or {})
-        except Exception:
-            arguments = {}
+        arguments = _parse_args(raw_args)
         if name in SESSION_SCOPED_TOOLS:
             # The small local model can invent placeholders such as
             # "current_session"; always bind tools to the real active session.

@@ -71,7 +71,6 @@ async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
                 ),
                 "COMPRESS": ("compress_media", {"file_path": file_path}),
                 "STRIP_META": ("strip_image_metadata", {"file_path": file_path}),
-                "REMOVE_BG": ("remove_image_background", {"file_path": file_path}),
                 "CONVERT_DOC": (
                     "convert_document",
                     {"file_path": file_path, "target_format": target},

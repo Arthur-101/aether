@@ -13,7 +13,7 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
 * **Local LLM:** Exclusively powered by `Ternary-Bonsai-2-9B` GGUF via `llama-cpp-python` with `q8_0` KV cache (total VRAM < 4.5 GB).
 * **Memory & Context Pipeline:** 1-Turn raw buffer (`last_turn_prompt` + `last_turn_reply`) + session-scoped episodic vector search via `sqlite-vec` & CPU `fastembed` (`bge-small-en-v1.5`, 384 dims, 0 VRAM).
 * **Voice Stack:** Local `Phonon-2` STT + 24kHz `Paradee` TTS.
-* **Deterministic Tooling:** Typed FastMCP tools for image/document conversions, background removal (`rembg`), metadata stripping (`piexif`), and APScheduler reverse-trigger loops.
+* **Deterministic Tooling:** Typed FastMCP tools for image/document conversions, metadata stripping (`piexif`), and APScheduler reverse-trigger loops.
 * **Zero Hardcoded Paths:** Dynamically resolves `%APPDATA%/Aether` and user-configurable paths via `config_manager.py`.
 
 ---
