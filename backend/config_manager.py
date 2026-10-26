@@ -5,7 +5,9 @@ Strictly follows Rule 1: ZERO Hardcoded Paths. All paths resolve dynamically.
 """
 
 import json
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from platformdirs import user_data_dir
@@ -19,6 +21,7 @@ from .config_schema import (
 )
 
 APP_NAME = "Aether"
+logger = logging.getLogger("aether.config")
 
 
 def get_app_dir() -> Path:
@@ -140,20 +143,53 @@ class ConfigManager:
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
+            if not isinstance(loaded, dict):
+                raise ValueError("config root must be a JSON object")
             defaults = get_default_config()
-            # Deep merge to ensure newly added keys are populated
-            for section, vals in defaults.items():
-                if section not in loaded:
-                    loaded[section] = vals
-                elif isinstance(vals, dict) and isinstance(loaded[section], dict):
-                    for k, v in vals.items():
-                        loaded[section].setdefault(k, v)
+            # Recursively merge to ensure newly added keys are populated while
+            # preserving every value the user already had.
+            self._merge_defaults(loaded, defaults)
             self._config = normalize_config(loaded)
-        except Exception:
+        except Exception as exc:
+            # Never silently destroy a config we could not read. Keep the
+            # original beside the new defaults so it can be recovered.
+            backup = self.config_path.with_name(
+                f"{self.config_path.stem}.corrupt-{int(time.time())}.json"
+            )
+            try:
+                self.config_path.replace(backup)
+                logger.warning(
+                    "Could not load %s (%s); moved it to %s and restored defaults.",
+                    self.config_path,
+                    exc,
+                    backup.name,
+                )
+            except OSError:
+                logger.warning(
+                    "Could not load %s (%s); restoring defaults in place.",
+                    self.config_path,
+                    exc,
+                )
             self._config = get_default_config()
             self.save(self._config)
 
         return self._config
+
+    @staticmethod
+    def _merge_defaults(loaded: Dict[str, Any], defaults: Dict[str, Any]) -> None:
+        """Adds missing default keys without overwriting user values."""
+        for key, default_value in defaults.items():
+            if key not in loaded:
+                loaded[key] = default_value
+                continue
+            current = loaded[key]
+            if isinstance(default_value, dict):
+                if not isinstance(current, dict):
+                    loaded[key] = default_value
+                else:
+                    ConfigManager._merge_defaults(current, default_value)
+            elif current is None and default_value is not None:
+                loaded[key] = default_value
 
     def save(self, new_config: Dict[str, Any]) -> None:
         """Persists configuration to disk atomically."""

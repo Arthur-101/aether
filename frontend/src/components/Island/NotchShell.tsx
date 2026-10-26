@@ -70,8 +70,12 @@ export const NotchShell: React.FC<NotchShellProps> = ({
 }) => {
   const [now, setNow] = useState(() => new Date());
   const [peek, setPeek] = useState(false);
+  const [peekFocusToken, setPeekFocusToken] = useState(0);
   const [focusWithin, setFocusWithin] = useState(false);
   const focusWithinRef = useRef(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const pendingPeekFocus = useRef(false);
+  const peekFocusGraceUntil = useRef(0);
   const reduceMotion = useReducedMotion();
   const timeFormat = useTimeFormat();
   const [viewport, setViewport] = useState(() => ({
@@ -85,6 +89,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   // Expanding must win immediately, even before the auto-hide controller's
   // suspension effect runs, so the island can never animate above the screen.
   const isTucked = tucked && !isExpanded;
+  const showPeek = peek && !isTucked;
   const clearTimers = useCallback(() => {
     if (enterTimer.current !== null) {
       window.clearTimeout(enterTimer.current);
@@ -110,12 +115,14 @@ export const NotchShell: React.FC<NotchShellProps> = ({
 
   useEffect(() => {
     if (!isExpanded) return;
+    pendingPeekFocus.current = false;
     setPeek(false);
     clearTimers();
   }, [clearTimers, isExpanded]);
 
   useEffect(() => {
     if (peekEnabled) return;
+    pendingPeekFocus.current = false;
     clearTimers();
     setPeek(false);
   }, [clearTimers, peekEnabled]);
@@ -161,8 +168,8 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     setFocusWithin(value);
   }, []);
 
-  // The idle pill and the hover peek are different buttons. Give the peek
-  // swap time to settle, then return focus unless the user has clicked away.
+  // The idle pill and the peek deck use different buttons. Give the swap time
+  // to settle, then return focus unless the user has clicked away.
   const focusIslandTrigger = useCallback(() => {
     let attempts = 0;
     const focusOnce = () => {
@@ -189,33 +196,62 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     return () => onFocusWithinChange?.(false);
   }, [onFocusWithinChange]);
 
-  useEffect(() => {
-    if (!isExpanded) return;
+  const openPeekFromKeyboard = useCallback(() => {
+    clearTimers();
+    pendingPeekFocus.current = true;
+    peekFocusGraceUntil.current = window.performance.now() + 300;
+    updateFocusWithin(true);
+    setPeek(true);
+    setPeekFocusToken((token) => token + 1);
+  }, [clearTimers, updateFocusWithin]);
 
+  useEffect(() => {
+    if (!showPeek || !pendingPeekFocus.current) return;
+    pendingPeekFocus.current = false;
+    const first = shellRef.current?.querySelector<HTMLElement>('[data-aether-peek-app]');
+    if (!first) {
+      setPeek(false);
+      updateFocusWithin(false);
+      return;
+    }
+    first.focus();
+    updateFocusWithin(true);
+  }, [peekFocusToken, showPeek, updateFocusWithin]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       // A picker, menu, or dialog above the island owns Escape first.
       if (document.querySelector('[data-aether-escape-layer]')) return;
       const target = event.target instanceof HTMLElement ? event.target : null;
       if (target?.closest('[data-aether-escape-guard]')) return;
-      // Closing the island unmounts Quick Chat, so protect an in-progress draft.
-      if (target instanceof HTMLTextAreaElement && target.value.trim()) return;
 
+      if (isExpanded) {
+        // Closing the island unmounts Quick Chat, so protect an in-progress draft.
+        if (target instanceof HTMLTextAreaElement && target.value.trim()) return;
+        event.preventDefault();
+        close();
+        focusIslandTrigger();
+        return;
+      }
+
+      if (!showPeek) return;
       event.preventDefault();
-      close();
+      pendingPeekFocus.current = false;
+      peekFocusGraceUntil.current = 0;
+      setPeek(false);
       focusIslandTrigger();
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [close, focusIslandTrigger, isExpanded]);
+  }, [close, focusIslandTrigger, isExpanded, showPeek]);
 
   const compactWidth = compactPillWidth(
     clockTools,
     mediaActive,
     2 + formatClockTime(now, timeFormat).length * 7.4
   );
-  const showPeek = peek && !isTucked;
   // The peek grows with the number of apps rather than scrolling.
   const peekLayout = useMemo(
     () => computePeekLayout(apps.length, viewport.width),
@@ -264,6 +300,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
 
   return (
     <motion.div
+      ref={shellRef}
       data-aether-interactive
       data-notch-shell
       initial={false}
@@ -287,11 +324,48 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         if (!isExpanded) open();
       }}
       onKeyDownCapture={(event) => {
+        const target = event.target as HTMLElement | null;
+
+        if (
+          !isExpanded &&
+          peekEnabled &&
+          event.key === 'ArrowUp' &&
+          target?.closest('[data-aether-island-trigger]')
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          openPeekFromKeyboard();
+          return;
+        }
+
+        if (
+          !isExpanded &&
+          showPeek &&
+          (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+        ) {
+          const items = Array.from(
+            shellRef.current?.querySelectorAll<HTMLElement>('[data-aether-peek-app]') ?? []
+          );
+          if (items.length > 0) {
+            const index = items.indexOf(document.activeElement as HTMLElement);
+            const delta = event.key === 'ArrowRight' ? 1 : -1;
+            const next =
+              index === -1
+                ? delta === 1
+                  ? 0
+                  : items.length - 1
+                : (index + delta + items.length) % items.length;
+            event.preventDefault();
+            event.stopPropagation();
+            items[next].focus();
+            return;
+          }
+        }
+
         // Global shortcuts end in Space/Enter. A focused button inside the
         // shell must not treat the shortcut's main key as a click.
         if (event.key !== ' ' && event.key !== 'Enter') return;
         if (!(event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)) return;
-        const target = event.target as HTMLElement | null;
         if (target?.closest('button, [role="button"], a[href]')) {
           event.preventDefault();
         }
@@ -302,7 +376,11 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         updateFocusWithin(true);
       }}
       onBlurCapture={(event) => {
+        // ArrowUp swaps the pill's clock button for the deck. Ignore the blur
+        // from that swap while the deck focus is being placed.
+        if (window.performance.now() < peekFocusGraceUntil.current) return;
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          pendingPeekFocus.current = false;
           setPeek(false);
           updateFocusWithin(false);
         }

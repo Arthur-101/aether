@@ -70,3 +70,49 @@ export function accentBackground(
     ? `linear-gradient(135deg, ${primary}, ${secondary})`
     : primary;
 }
+
+const MIN_ACCENT_CONTRAST = 4.5;
+
+export interface AccentVisuals {
+  background: string;
+  text: AccentTextColor;
+  gradientSuppressed: boolean;
+}
+
+/**
+ * Returns the accent fill and its label colour. A gradient is only used when
+ * one label colour stays readable on both stops; opposite-luminance stops have
+ * no readable single label colour, so the primary colour is used as a solid
+ * fill instead.
+ */
+export function accentVisuals(
+  primary: string,
+  secondary: string,
+  gradient: boolean
+): AccentVisuals {
+  if (!gradient || primary === secondary) {
+    return {
+      background: primary,
+      text: accentTextColor(primary),
+      gradientSuppressed: false,
+    };
+  }
+
+  const text = accentTextColor(primary, secondary);
+  const readable =
+    Math.min(contrastRatio(primary, text), contrastRatio(secondary, text)) >=
+    MIN_ACCENT_CONTRAST;
+  if (readable) {
+    return {
+      background: accentBackground(primary, secondary, true),
+      text,
+      gradientSuppressed: false,
+    };
+  }
+
+  return {
+    background: primary,
+    text: accentTextColor(primary),
+    gradientSuppressed: true,
+  };
+}

@@ -150,16 +150,31 @@ class LLMRouter:
 
     def clean_dictation(self, raw_text: str) -> str:
         """Cleans stutters and filler words using the configured backend."""
-        if not raw_text.strip():
+        raw = raw_text.strip()
+        if not raw:
             return ""
         messages = [
             {"role": "system", "content": DICTATION_SYSTEM_PROMPT},
-            {"role": "user", "content": raw_text},
+            {"role": "user", "content": raw},
         ]
         result = self.chat_completion(
             messages, tools=None, max_tokens=256, thinking_mode=False
         )
-        return result.get("content", "").strip()
+        content = (result.get("content") or "").strip()
+        if not content:
+            return raw
+
+        # Some providers leak a reasoning trace into content. Never paste it
+        # into the user's application; the raw transcript is always usable.
+        lowered = content.lower()
+        if len(content) > max(160, len(raw) * 3):
+            return raw
+        if len(content) > len(raw) + 80 and any(
+            marker in lowered
+            for marker in ("the user wants", "audio transcript", "let me", "i need to")
+        ):
+            return raw
+        return content
 
     def tool_schemas(self) -> List[Dict[str, Any]]:
         return get_openai_tool_schemas()

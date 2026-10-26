@@ -4,8 +4,10 @@ Monitors configurable pynput hotkey holds for dictation, Circle to Ask, the
 voice assistant, and Drag + modifier Radial Wheel gestures.
 """
 
+import logging
 import threading
 from typing import Any, Callable, Dict, Optional
+
 import numpy as np
 import keyboard as kb
 from pynput import keyboard
@@ -23,6 +25,7 @@ from .hotkey_parser import HotkeyBinding, key_name, modifier_name, parse_hotkey
 from .window_context import get_active_window_context
 
 _ACTIONS = ("dictation", "circle_to_ask", "toggle_drawer", "open_island")
+logger = logging.getLogger("aether.hotkeys")
 
 # A quick press of the shared open/voice shortcut opens the island; holding it
 # past this threshold starts voice capture. The delay only applies to the voice
@@ -146,6 +149,7 @@ class HotkeyManager:
     def _start_recording_safe(self) -> None:
         try:
             stt_engine.recorder.start_recording()
+            stt_engine.prewarm()
         except Exception:
             pass
 
@@ -242,16 +246,20 @@ class HotkeyManager:
         audio = self._stop_recording_safe()
         raw_text = stt_engine.transcribe(audio)
         if raw_text:
+            cleaned = raw_text
             try:
-                cleaned = llm_router.clean_dictation(raw_text)
+                candidate = llm_router.clean_dictation(raw_text)
+                if candidate:
+                    cleaned = candidate
             except ModelNotConfiguredError:
-                self.on_voice_state("idle", "Model not configured")
-                return
-            if cleaned:
-                clipboard_copy(cleaned)
-                kb.send("ctrl+v")
-                self.on_voice_state("idle", cleaned)
-                return
+                # Local dictation is still useful without an LLM.
+                pass
+            except Exception as exc:
+                logger.warning("Dictation cleanup failed: %s", exc)
+            clipboard_copy(cleaned)
+            kb.send("ctrl+v")
+            self.on_voice_state("idle", cleaned)
+            return
         self.on_voice_state("idle", "")
 
     def _process_assistant_release(self) -> None:

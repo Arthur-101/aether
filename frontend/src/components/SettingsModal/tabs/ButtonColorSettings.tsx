@@ -3,6 +3,7 @@ import type { AppearanceConfig } from '../../../types/ipc';
 import {
   ACCENT_PRESETS,
   DEFAULT_APPEARANCE,
+  accentGradientSuppressed,
   accentStyle,
 } from '../../Island/appearance';
 import { normalizeHex } from '../../Island/contrast';
@@ -44,6 +45,7 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
     (item) => item.primary.toLowerCase() === appearance.button_primary
   );
   const preview = accentStyle(appearance);
+  const gradientSuppressed = accentGradientSuppressed(appearance);
 
   return (
     <div className="flex flex-col gap-2">
@@ -162,6 +164,11 @@ export const ButtonColorSettings: React.FC<ButtonColorSettingsProps> = ({
           </span>
         </span>
       </div>
+      {gradientSuppressed ? (
+        <p className="text-[9px] leading-relaxed text-[var(--aether-text-3)]">
+          Gradient is off: the two colours are too far apart to keep labels readable.
+        </p>
+      ) : null}
     </div>
   );
 };

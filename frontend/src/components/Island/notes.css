@@ -343,6 +343,11 @@
   color: var(--note-text);
 }
 
+.note-surface .ProseMirror:focus-visible {
+  outline: 2px solid var(--note-accent);
+  outline-offset: -2px;
+}
+
 .note-surface .ProseMirror > * + * {
   margin-top: 0.45em;
 }

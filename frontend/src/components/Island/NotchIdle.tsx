@@ -64,6 +64,7 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
     <button
       type="button"
       data-aether-island-trigger
+      aria-keyshortcuts="ArrowUp"
       onClick={(event) => {
         event.stopPropagation();
         onOpen();

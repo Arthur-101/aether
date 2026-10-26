@@ -10,7 +10,7 @@ import type {
   TimeFormat,
   WidgetTheme,
 } from '../../types/ipc';
-import { normalizeHex, accentBackground, accentTextColor } from './contrast';
+import { normalizeHex, accentVisuals } from './contrast';
 import { normalizeDashboardTabs } from './tabRegistry';
 
 export const GOLD_PRIMARY = '#E8C56B';
@@ -223,35 +223,39 @@ export function resolveTaskbarApps(
 }
 
 export function accentStyle(appearance: AppearanceConfig): CSSProperties {
+  const accent = accentVisuals(
+    appearance.button_primary,
+    appearance.button_secondary,
+    appearance.button_gradient
+  );
   return {
-    background: accentBackground(
-      appearance.button_primary,
-      appearance.button_secondary,
-      appearance.button_gradient
-    ),
-    color: accentTextColor(
-      appearance.button_primary,
-      appearance.button_secondary
-    ),
+    background: accent.background,
+    color: accent.text,
   };
+}
+
+export function accentGradientSuppressed(appearance: AppearanceConfig): boolean {
+  return accentVisuals(
+    appearance.button_primary,
+    appearance.button_secondary,
+    appearance.button_gradient
+  ).gradientSuppressed;
 }
 
 export function appearanceCssVars(
   appearance: AppearanceConfig,
   theme?: 'light' | 'dark'
 ): CSSProperties {
+  const accent = accentVisuals(
+    appearance.button_primary,
+    appearance.button_secondary,
+    appearance.button_gradient
+  );
   return {
     '--aether-accent': appearance.button_primary,
     '--aether-accent-secondary': appearance.button_secondary,
-    '--aether-accent-gradient': accentBackground(
-      appearance.button_primary,
-      appearance.button_secondary,
-      appearance.button_gradient
-    ),
-    '--aether-accent-contrast': accentTextColor(
-      appearance.button_primary,
-      appearance.button_secondary
-    ),
+    '--aether-accent-gradient': accent.background,
+    '--aether-accent-contrast': accent.text,
     // A custom property that references another is resolved where it is
     // declared, so the accent text colour has to be set alongside the accent
     // itself rather than derived in the stylesheet.

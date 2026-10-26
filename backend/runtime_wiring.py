@@ -241,6 +241,12 @@ def stop_runtime() -> None:
     except Exception:
         pass
     try:
+        from .ai.stt_engine import stt_engine
+
+        stt_engine.shutdown()
+    except Exception:
+        pass
+    try:
         from .mcp_tools.clock_scheduler import scheduler
 
         scheduler.shutdown(wait=False)

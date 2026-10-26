@@ -34,7 +34,7 @@
    */
   --aether-text-1: #f2efe7;
   --aether-text-2: #c7c7c7;
-  --aether-text-3: #8b8b8b;
+  --aether-text-3: #929292;
   --aether-text-4: #6f6c64;
   /* The accent itself, so an icon always matches the chosen theme. */
   --aether-accent-text: var(--aether-accent);

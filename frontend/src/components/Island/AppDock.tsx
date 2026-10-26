@@ -56,6 +56,7 @@ export const AppDock: React.FC<AppDockProps> = ({ apps, side, step = 18, onLaunc
 
   return (
     <div
+      role="group"
       className={`flex items-center ${side === 'left' ? 'justify-end' : 'justify-start'}`}
       aria-label={side === 'left' ? 'App deck' : 'More apps'}
     >
@@ -66,6 +67,7 @@ export const AppDock: React.FC<AppDockProps> = ({ apps, side, step = 18, onLaunc
           <button
             key={app.id}
             type="button"
+            data-aether-peek-app
             title={app.missing ? `${app.name} (missing)` : app.name}
             aria-label={`${app.name}${app.missing ? ' (missing)' : ''}`}
             onPointerEnter={() => setHovered(index)}

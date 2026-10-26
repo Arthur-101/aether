@@ -49,6 +49,28 @@ aether/
 cd backend
 pip install -r requirements.txt
 
-# 2. Run Phase 1 verification tests
-python test_phase1.py
+# 2. Install the isolated Phonon-2 speech-to-text runtime
+cd ..
+powershell -ExecutionPolicy Bypass -File setup_stt.ps1
+
+# 3. Run the full backend suite
+py -3.12 -m pytest backend -q
+
+# 4. Build the production overlay and installers
+cd frontend
+npm run tauri build
 ```
+
+The build writes `Aether_0.1.0_x64_en-US.msi` and
+`Aether_0.1.0_x64-setup.exe` under `frontend/src-tauri/target/release/bundle/`.
+The installers package the overlay; the Python daemon and isolated STT runtime
+remain external (see `PACKAGING_AND_CONFIG.md`).
+
+Phonon-2 runs in `bin/stt-runtime` so Torch and Transformers never load in the
+backend process. Without that runtime, dictation stays disabled and logs one
+actionable warning; the rest of Aether is unaffected. Point Settings → Voice →
+STT Model at a directory containing `model.fermion` and `config.json`.
+
+Existing configs are upgraded in place with any newly added defaults. An
+unreadable `config.json` is preserved as `config.corrupt-<timestamp>.json`
+before Aether restores safe defaults.

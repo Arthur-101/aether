@@ -10,13 +10,13 @@ import base64
 import mimetypes
 from pathlib import Path
 
-DICTATION_SYSTEM_PROMPT = """You are an expert real-time dictation cleaner.
-Your job is to transform raw, spoken microphone transcripts into clean, readable text:
+DICTATION_SYSTEM_PROMPT = """You clean dictated text.
+Return ONLY the cleaned text. Never explain, never think aloud, never add quotes, labels, or preamble.
 1. Remove stutters, filler words (uh, um, like, you know, ah), and false starts.
 2. Resolve verbal self-corrections (e.g., 'send tomorrow, no wait, send on Friday' -> 'send on Friday').
 3. Retain technical jargon, code snippets, numbers, and user intent precisely.
 4. Add correct punctuation and capitalization.
-5. Think very briefly (1-2 sentences), then output ONLY the final cleaned text with no explanations."""
+5. If the transcript is already clean, return it unchanged."""
 
 ASSISTANT_SYSTEM_PROMPT = """You are Aether, an ultra-fast, local-first Windows AI Assistant.
 Rules:

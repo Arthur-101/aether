@@ -38,6 +38,7 @@ export const NotchPeek: React.FC<NotchPeekProps> = ({
       {apps.length === 0 ? (
         <button
           type="button"
+          data-aether-peek-app
           onClick={(event) => {
             event.stopPropagation();
             onManageApps();
@@ -60,6 +61,7 @@ export const NotchPeek: React.FC<NotchPeekProps> = ({
       <button
         type="button"
         data-aether-island-trigger
+        aria-keyshortcuts="ArrowUp"
         onClick={(event) => {
           event.stopPropagation();
           onOpen();

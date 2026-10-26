@@ -2,18 +2,36 @@
 Aether STT Engine & Microphone Recorder
 Microphone audio capture via sounddevice and local transcription pipeline.
 Records audio at 16,000 Hz mono while hotkey is held.
+
+Phonon-2 runs in an isolated Python runtime under ``bin/stt-runtime`` so the
+backend never imports Torch. The runtime loads the model once in a resident
+worker and answers newline-delimited JSON requests over stdin/stdout.
 """
 
+import base64
+import json
 import logging
+import os
+import queue
+import subprocess
+import sys
 import threading
+import time
+from collections import deque
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Deque, Dict, List, Optional
+
 import numpy as np
 import sounddevice as sd
 from ..config_manager import config_manager, find_model_dir, get_models_dir
 
 logger = logging.getLogger("aether.stt")
 SAMPLE_RATE = 16000
+PROTOCOL_PREFIX = "@@AETHER_STT@@ "
+RUNTIME_RELATIVE = Path("bin") / "stt-runtime" / "Scripts" / "python.exe"
+MODEL_FILE = "model.fermion"
+START_TIMEOUT_S = 120.0
+FAILURE_COOLDOWN_S = 30.0
 
 
 class AudioRecorder:
@@ -65,11 +83,19 @@ class AudioRecorder:
 
 
 class STTEngine:
-    """Manages local Phonon-2 / Whistle speech-to-text transcription."""
+    """Manages local Phonon-2 speech-to-text transcription."""
 
     def __init__(self):
         self.recorder = AudioRecorder(sample_rate=SAMPLE_RATE)
         self._model_dir: Optional[Path] = None
+        self._proc: Optional[subprocess.Popen] = None
+        self._proc_model: Optional[Path] = None
+        self._queue: Optional["queue.Queue[Dict[str, Any]]"] = None
+        self._stderr_tail: Deque[str] = deque(maxlen=20)
+        self._lock = threading.Lock()
+        self._next_id = 0
+        self._retry_after = 0.0
+        self._missing_runtime_logged = False
 
     def _resolve_model_dir(self) -> Path:
         """Resolves the Phonon-2 model directory dynamically."""
@@ -81,39 +107,366 @@ class STTEngine:
         )
         return Path(discovered) if discovered else get_models_dir()
 
+    def _runtime_candidates(self) -> List[Path]:
+        """Returns every plausible location of the isolated STT runtime."""
+        candidates: List[Path] = []
+        override = os.environ.get("AETHER_STT_RUNTIME", "").strip()
+        if override:
+            override_path = Path(override).expanduser()
+            candidates.append(override_path)
+            if override_path.is_dir():
+                candidates.append(override_path / "Scripts" / "python.exe")
+                candidates.append(override_path / "python.exe")
+
+        bundle = getattr(sys, "_MEIPASS", "")
+        if bundle:
+            candidates.append(Path(bundle) / RUNTIME_RELATIVE)
+            candidates.append(Path(bundle) / "aether" / RUNTIME_RELATIVE)
+
+        # Development checkout: backend/ai/stt_engine.py -> aether/bin/...
+        candidates.append(Path(__file__).resolve().parents[2] / RUNTIME_RELATIVE)
+        candidates.append(Path(sys.executable).resolve().parent / RUNTIME_RELATIVE)
+
+        unique: List[Path] = []
+        seen = set()
+        for candidate in candidates:
+            if candidate not in seen:
+                seen.add(candidate)
+                unique.append(candidate)
+        return unique
+
+    def _runtime_python(self) -> Optional[Path]:
+        """Returns the isolated runtime's Python, if it is installed."""
+        for candidate in self._runtime_candidates():
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def _worker_script(self) -> Optional[Path]:
+        """Returns the worker script bundled beside this module."""
+        candidate = Path(__file__).with_name("stt_worker.py")
+        if candidate.is_file():
+            return candidate
+        bundle = getattr(sys, "_MEIPASS", "")
+        if bundle:
+            candidate = Path(bundle) / "backend" / "ai" / "stt_worker.py"
+            if candidate.is_file():
+                return candidate
+        return None
+
     def is_available(self) -> bool:
-        """Checks if local STT model files exist."""
+        """Checks if the local model files and isolated runtime exist."""
         p = self._resolve_model_dir()
-        return (p / "model.fermion").exists() or (p / "config.json").exists()
+        return (p / MODEL_FILE).exists() and self._runtime_python() is not None
+
+    @staticmethod
+    def _format_tail(tail: Deque[str]) -> str:
+        lines = [line for line in list(tail)[-3:] if line]
+        return f": {' | '.join(lines)}" if lines else ""
+
+    def _pump_stdout(
+        self,
+        proc: subprocess.Popen,
+        messages: "queue.Queue[Dict[str, Any]]",
+    ) -> None:
+        try:
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                if line.startswith(PROTOCOL_PREFIX):
+                    try:
+                        messages.put(json.loads(line[len(PROTOCOL_PREFIX):]))
+                    except json.JSONDecodeError:
+                        logger.debug("Phonon-2 sent a malformed protocol line")
+                else:
+                    logger.debug("Phonon-2: %s", line)
+        except (OSError, ValueError):
+            pass
+        finally:
+            messages.put({"event": "eof"})
+
+    def _pump_stderr(self, proc: subprocess.Popen, tail: Deque[str]) -> None:
+        try:
+            for line in proc.stderr:
+                line = line.rstrip()
+                if line:
+                    tail.append(line)
+                    logger.debug("Phonon-2: %s", line)
+        except (OSError, ValueError):
+            pass
+
+    def _stop_worker_locked(self) -> None:
+        """Stops the resident worker. Caller must hold ``self._lock``."""
+        proc = self._proc
+        self._proc = None
+        self._proc_model = None
+        self._queue = None
+        if proc is None:
+            return
+
+        try:
+            if proc.stdin is not None and not proc.stdin.closed:
+                proc.stdin.close()
+        except (OSError, ValueError):
+            pass
+        try:
+            proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                try:
+                    proc.wait(timeout=2)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+        except (OSError, ValueError):
+            pass
+
+    def _start_worker_locked(self, model_dir: Path) -> bool:
+        """Starts or reuses the resident Phonon-2 worker."""
+        if (
+            self._proc is not None
+            and self._proc.poll() is None
+            and self._proc_model == model_dir
+        ):
+            return True
+
+        self._stop_worker_locked()
+
+        python = self._runtime_python()
+        script = self._worker_script()
+        if python is None or script is None:
+            if not self._missing_runtime_logged:
+                logger.warning(
+                    "Phonon-2 runtime not found; dictation is disabled until the "
+                    "isolated STT runtime is installed under %s.",
+                    RUNTIME_RELATIVE,
+                )
+                self._missing_runtime_logged = True
+            self._retry_after = time.monotonic() + 300.0
+            return False
+
+        env = os.environ.copy()
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        env["HF_HUB_OFFLINE"] = "1"
+        env["TRANSFORMERS_OFFLINE"] = "1"
+        env["TOKENIZERS_PARALLELISM"] = "false"
+        creationflags = (
+            getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0
+        )
+        try:
+            proc = subprocess.Popen(
+                [str(python), str(script), str(model_dir)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                bufsize=1,
+                env=env,
+                creationflags=creationflags,
+            )
+        except OSError as exc:
+            logger.warning("Could not start the Phonon-2 runtime: %s", exc)
+            self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+            return False
+
+        messages: "queue.Queue[Dict[str, Any]]" = queue.Queue()
+        tail: Deque[str] = deque(maxlen=20)
+        self._proc = proc
+        self._proc_model = model_dir
+        self._queue = messages
+        self._stderr_tail = tail
+        threading.Thread(
+            target=self._pump_stdout,
+            args=(proc, messages),
+            name="phonon-stdout",
+            daemon=True,
+        ).start()
+        threading.Thread(
+            target=self._pump_stderr,
+            args=(proc, tail),
+            name="phonon-stderr",
+            daemon=True,
+        ).start()
+
+        deadline = time.monotonic() + START_TIMEOUT_S
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                logger.warning(
+                    "Phonon-2 did not become ready within %.0fs%s",
+                    START_TIMEOUT_S,
+                    self._format_tail(tail),
+                )
+                break
+
+            try:
+                message = messages.get(timeout=min(0.5, remaining))
+            except queue.Empty:
+                if proc.poll() is not None:
+                    logger.warning(
+                        "Phonon-2 exited during startup (code %s)%s",
+                        proc.returncode,
+                        self._format_tail(tail),
+                    )
+                    break
+                continue
+
+            event = message.get("event")
+            if event == "ready":
+                logger.info("Phonon-2 ready with model %s.", model_dir)
+                return True
+            if event == "fatal":
+                logger.warning("Phonon-2 failed to load: %s", message.get("error"))
+                break
+            if event == "eof":
+                logger.warning(
+                    "Phonon-2 closed its output during startup%s",
+                    self._format_tail(tail),
+                )
+                break
+
+        self._stop_worker_locked()
+        self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+        return False
+
+    def prewarm(self) -> None:
+        """Loads Phonon-2 in the background while the user is still speaking."""
+        if self._proc is not None and self._proc.poll() is None:
+            return
+        threading.Thread(
+            target=self._prewarm_worker,
+            name="phonon-prewarm",
+            daemon=True,
+        ).start()
+
+    def _prewarm_worker(self) -> None:
+        model_dir = self._resolve_model_dir().resolve()
+        if not (model_dir / MODEL_FILE).exists():
+            return
+        with self._lock:
+            if time.monotonic() < self._retry_after:
+                return
+            self._start_worker_locked(model_dir)
 
     def transcribe(self, audio: np.ndarray) -> str:
         """
         Transcribes 16kHz float32 audio waveform into text.
         Handles short/empty audio inputs gracefully.
         """
-        if len(audio) < self.recorder.sample_rate * 0.2:  # Less than 200ms
+        if audio is None:
             return ""
-
-        # Normalize audio
-        max_val = np.max(np.abs(audio))
-        if max_val > 0.001:
-            audio = audio / max_val
-        else:
+        audio = np.asarray(audio, dtype=np.float32).flatten()
+        if audio.size < self.recorder.sample_rate * 0.2:  # Less than 200ms
+            return ""
+        if float(np.max(np.abs(audio))) < 0.001:
             return ""  # Pure silence
 
-        # When local Phonon-2 runtime container is engaged
-        model_dir = self._resolve_model_dir()
-        if (model_dir / "model.fermion").exists():
-            # The fermion decoder binary is not bundled yet. Never inject
-            # placeholder text into the user's applications.
+        model_dir = self._resolve_model_dir().resolve()
+        if not (model_dir / MODEL_FILE).exists():
             logger.warning(
-                "Phonon-2 model found at %s but the decoder runtime is not bound; "
-                "dictation is disabled until a real STT backend is installed.",
-                model_dir,
+                "Phonon-2 model not found at %s; dictation is disabled.", model_dir
             )
             return ""
 
-        return ""
+        with self._lock:
+            if time.monotonic() < self._retry_after:
+                return ""
+            if not self._start_worker_locked(model_dir):
+                return ""
+
+            proc = self._proc
+            messages = self._queue
+            if proc is None or messages is None or proc.stdin is None:
+                return ""
+
+            self._next_id += 1
+            request_id = self._next_id
+            payload = base64.b64encode(
+                np.ascontiguousarray(audio, dtype=np.float32).tobytes()
+            ).decode("ascii")
+            try:
+                proc.stdin.write(
+                    json.dumps({"id": request_id, "audio": payload}) + "\n"
+                )
+                proc.stdin.flush()
+            except (OSError, ValueError) as exc:
+                logger.warning("Phonon-2 request failed: %s", exc)
+                self._stop_worker_locked()
+                self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+                return ""
+
+            timeout = max(
+                45.0,
+                audio.size / self.recorder.sample_rate * 4.0 + 30.0,
+            )
+            deadline = time.monotonic() + timeout
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    logger.warning(
+                        "Phonon-2 timed out after %.0fs%s",
+                        timeout,
+                        self._format_tail(self._stderr_tail),
+                    )
+                    self._stop_worker_locked()
+                    self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+                    return ""
+
+                try:
+                    message = messages.get(timeout=min(0.5, remaining))
+                except queue.Empty:
+                    if proc.poll() is not None:
+                        logger.warning(
+                            "Phonon-2 worker exited (code %s)%s",
+                            proc.returncode,
+                            self._format_tail(self._stderr_tail),
+                        )
+                        self._stop_worker_locked()
+                        self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+                        return ""
+                    continue
+
+                event = message.get("event")
+                if event == "eof":
+                    logger.warning(
+                        "Phonon-2 worker closed its output%s",
+                        self._format_tail(self._stderr_tail),
+                    )
+                    self._stop_worker_locked()
+                    self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+                    return ""
+                if event == "fatal":
+                    logger.warning("Phonon-2 worker failed: %s", message.get("error"))
+                    self._stop_worker_locked()
+                    self._retry_after = time.monotonic() + FAILURE_COOLDOWN_S
+                    return ""
+                if message.get("id") != request_id:
+                    continue
+                if message.get("error"):
+                    logger.warning(
+                        "Phonon-2 could not transcribe the clip: %s",
+                        message["error"],
+                    )
+                    return ""
+
+                text = str(message.get("text") or "").strip()
+                logger.info(
+                    "Phonon-2 transcribed %.1fs in %.2fs decode time",
+                    audio.size / self.recorder.sample_rate,
+                    float(message.get("decode_s") or 0.0),
+                )
+                return text
+
+    def shutdown(self) -> None:
+        """Stops the resident worker during backend shutdown."""
+        with self._lock:
+            self._stop_worker_locked()
 
 
 # Global singleton instance

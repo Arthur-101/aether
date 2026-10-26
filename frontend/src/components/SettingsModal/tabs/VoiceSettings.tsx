@@ -61,7 +61,8 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({ voice, onChange })
               </button>
             </div>
             <p className={settingsHintClass}>
-              Microphone capture is live. Wire a real Phonon decoder to enable transcription.
+              Requires the isolated Phonon-2 runtime. Run setup_stt.ps1 once if
+              dictation is unavailable.
             </p>
           </div>
 

@@ -1,0 +1,4 @@
+# Isolated Phonon-2 speech-to-text runtime
+# Installed into aether/bin/stt-runtime, never into the backend environment.
+# Torch and Transformers stay out of the main backend process.
+fermion-research==0.2.15
