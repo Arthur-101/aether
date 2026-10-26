@@ -77,6 +77,7 @@ export function useBackendSocket() {
   const [wallpaperState, setWallpaperState] = useState<WallpaperState | null>(null);
   const [powerResult, setPowerResult] = useState<PowerActionResult | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
+  const [openIslandRequest, setOpenIslandRequest] = useState(0);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
 
   const subscribeMouse = useCallback((cb: MouseSubscriber) => {
@@ -318,6 +319,9 @@ export function useBackendSocket() {
         case 'CIRCLE_TO_ASK':
           setIsCircleOpen(true);
           break;
+        case 'OPEN_ISLAND':
+          setOpenIslandRequest((request) => request + 1);
+          break;
         case 'MOUSE_POSITION':
           mouseListenersRef.current.forEach((cb) => cb(payload.x, payload.y));
           break;
@@ -409,6 +413,7 @@ export function useBackendSocket() {
     wallpaperState,
     powerResult,
     lastWheelResult,
+    openIslandRequest,
     subscribeMouse,
     ...actions,
     requestScreenSample,

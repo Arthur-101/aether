@@ -71,15 +71,17 @@ export const Notifications: React.FC<NotificationsProps> = ({
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
+          role="status"
+          aria-live="polite"
           className="glass-pill aether-grain aether-pop fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-[var(--aether-line)] px-5 py-2.5 text-xs text-[var(--aether-text-1)]"
         >
           <Mic
             size={16}
             className={
               voiceState === 'listening'
-                ? 'animate-pulse text-[var(--aether-accent-text)]'
+                ? 'animate-pulse text-[var(--aether-accent-text)] motion-reduce:animate-none'
                 : voiceState === 'thinking'
-                  ? 'animate-bounce text-[#fce100]'
+                  ? 'animate-bounce text-[#fce100] motion-reduce:animate-none'
                   : 'text-[#6ccb5f]'
             }
           />
@@ -99,6 +101,8 @@ export const Notifications: React.FC<NotificationsProps> = ({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
+            role={isAlarm ? 'alert' : 'status'}
+            aria-live={isAlarm ? 'assertive' : 'polite'}
             className={`glass-panel pointer-events-auto flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-xs text-[var(--aether-text-1)] ${
               isAlarm
                 ? 'border-[#fce100]/45 shadow-[0_0_32px_rgba(252,225,0,0.12)]'
@@ -106,7 +110,10 @@ export const Notifications: React.FC<NotificationsProps> = ({
             }`}
           >
             {isAlarm ? (
-              <AlarmClock size={18} className="shrink-0 animate-pulse text-[#fce100]" />
+              <AlarmClock
+                size={18}
+                className="shrink-0 animate-pulse text-[#fce100] motion-reduce:animate-none"
+              />
             ) : (
               <Bell size={18} className="shrink-0 accent-text" />
             )}

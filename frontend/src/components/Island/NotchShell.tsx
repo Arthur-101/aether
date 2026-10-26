@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceConfig, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
 import type { AutoHidePillMetrics } from '../../hooks/useAutoHidePill';
 import { appearanceCssVars } from './appearance';
@@ -42,6 +42,8 @@ interface NotchShellProps {
   contentHeight: number;
   tucked: boolean;
   onMetricsChange: (metrics: AutoHidePillMetrics) => void;
+  /** Tracks keyboard focus inside the shell so auto-hide can pause. */
+  onFocusWithinChange?: (focused: boolean) => void;
   children: React.ReactNode;
 }
 
@@ -63,10 +65,14 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   contentHeight,
   tucked,
   onMetricsChange,
+  onFocusWithinChange,
   children,
 }) => {
   const [now, setNow] = useState(() => new Date());
   const [peek, setPeek] = useState(false);
+  const [focusWithin, setFocusWithin] = useState(false);
+  const focusWithinRef = useRef(false);
+  const reduceMotion = useReducedMotion();
   const timeFormat = useTimeFormat();
   const [viewport, setViewport] = useState(() => ({
     width: typeof window === 'undefined' ? 1200 : window.innerWidth,
@@ -125,28 +131,84 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   }, [clearTimers, isTucked]);
 
   const handlePointerEnter = () => {
-    if (isTucked || isExpanded || !peekEnabled) return;
+    if (isTucked || isExpanded || !peekEnabled || focusWithinRef.current) return;
     clearTimers();
     enterTimer.current = window.setTimeout(() => {
       enterTimer.current = null;
+      if (focusWithinRef.current) return;
       setPeek(true);
     }, 180);
   };
 
   const handlePointerLeave = () => {
-    if (isTucked || isExpanded) return;
+    if (isTucked || isExpanded || focusWithinRef.current) return;
     clearTimers();
     leaveTimer.current = window.setTimeout(() => {
       leaveTimer.current = null;
+      if (focusWithinRef.current) return;
       setPeek(false);
     }, 280);
   };
 
-  const open = () => onExpandedChange(true);
-  const close = () => {
+  const open = useCallback(() => onExpandedChange(true), [onExpandedChange]);
+  const close = useCallback(() => {
     setPeek(false);
     onExpandedChange(false);
-  };
+  }, [onExpandedChange]);
+
+  const updateFocusWithin = useCallback((value: boolean) => {
+    focusWithinRef.current = value;
+    setFocusWithin(value);
+  }, []);
+
+  // The idle pill and the hover peek are different buttons. Give the peek
+  // swap time to settle, then return focus unless the user has clicked away.
+  const focusIslandTrigger = useCallback(() => {
+    let attempts = 0;
+    const focusOnce = () => {
+      attempts += 1;
+      const active = document.activeElement as HTMLElement | null;
+      const canRefocus =
+        !active ||
+        active === document.body ||
+        active === document.documentElement ||
+        !active.isConnected;
+      if (canRefocus) {
+        document.querySelector<HTMLElement>('[data-aether-island-trigger]')?.focus();
+      }
+      if (attempts < 3) window.setTimeout(focusOnce, 110);
+    };
+    window.setTimeout(focusOnce, 90);
+  }, []);
+
+  useEffect(() => {
+    onFocusWithinChange?.(focusWithin);
+  }, [focusWithin, onFocusWithinChange]);
+
+  useEffect(() => {
+    return () => onFocusWithinChange?.(false);
+  }, [onFocusWithinChange]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      // A picker, menu, or dialog above the island owns Escape first.
+      if (document.querySelector('[data-aether-escape-layer]')) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('[data-aether-escape-guard]')) return;
+      // Closing the island unmounts Quick Chat, so protect an in-progress draft.
+      if (target instanceof HTMLTextAreaElement && target.value.trim()) return;
+
+      event.preventDefault();
+      close();
+      focusIslandTrigger();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [close, focusIslandTrigger, isExpanded]);
 
   const compactWidth = compactPillWidth(
     clockTools,
@@ -211,23 +273,38 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         y: isTucked ? -(height + 2) : 0,
         borderRadius: '0px 0px 20px 20px',
       }}
-      transition={{
-        width: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
-        height: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
-        borderRadius: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
-        y: { duration: 0.18, ease: 'easeOut' },
-      }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : {
+              width: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
+              height: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
+              borderRadius: { type: 'spring', stiffness: 380, damping: 30, mass: 0.8 },
+              y: { duration: 0.18, ease: 'easeOut' },
+            }
+      }
       onClick={() => {
         if (!isExpanded) open();
+      }}
+      onKeyDownCapture={(event) => {
+        // Global shortcuts end in Space/Enter. A focused button inside the
+        // shell must not treat the shortcut's main key as a click.
+        if (event.key !== ' ' && event.key !== 'Enter') return;
+        if (!(event.ctrlKey || event.altKey || event.metaKey || event.shiftKey)) return;
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('button, [role="button"], a[href]')) {
+          event.preventDefault();
+        }
       }}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onFocusCapture={() => {
-        if (!isTucked && !isExpanded && peekEnabled) setPeek(true);
+        updateFocusWithin(true);
       }}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
           setPeek(false);
+          updateFocusWithin(false);
         }
       }}
       className="notch-surface aether-grain aether-pop relative z-50 flex flex-col overflow-hidden text-[var(--aether-text-1)]"

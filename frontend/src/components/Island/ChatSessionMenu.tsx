@@ -66,7 +66,9 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
   const [query, setQuery] = useState('');
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const sessionRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId);
   const deleteTarget = deleteSessionId
@@ -93,9 +95,11 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
       if (event.key !== 'Escape') return;
       if (deleteSessionId) {
         setDeleteSessionId(null);
+        window.setTimeout(() => searchRef.current?.focus(), 0);
         return;
       }
       setOpen(false);
+      window.setTimeout(() => triggerRef.current?.focus(), 0);
     };
     document.addEventListener('mousedown', handlePointer);
     document.addEventListener('keydown', handleKey);
@@ -120,6 +124,7 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
     onSelectSession(id);
     setDeleteSessionId(null);
     setOpen(false);
+    window.setTimeout(() => triggerRef.current?.focus(), 0);
   };
 
   const create = () => {
@@ -129,17 +134,65 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
     onRefreshSessions();
     setDeleteSessionId(null);
     setOpen(false);
+    window.setTimeout(() => triggerRef.current?.focus(), 0);
   };
 
   const remove = (id: string) => {
     onDeleteSession(id);
     setDeleteSessionId(null);
-    if (id === activeSessionId) setOpen(false);
+    if (id === activeSessionId) {
+      setOpen(false);
+      window.setTimeout(() => triggerRef.current?.focus(), 0);
+    } else {
+      window.setTimeout(() => searchRef.current?.focus(), 0);
+    }
+  };
+
+  const focusSession = (index: number) => {
+    if (filtered.length === 0) return;
+    const wrapped = ((index % filtered.length) + filtered.length) % filtered.length;
+    sessionRefs.current[wrapped]?.focus();
+  };
+
+  const handleSessionKeyDown = (
+    event: React.KeyboardEvent,
+    index: number,
+    sessionId: string
+  ) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusSession(index + 1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusSession(index - 1);
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      focusSession(0);
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      focusSession(filtered.length - 1);
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      select(sessionId);
+    }
   };
 
   return (
-    <div ref={rootRef} className="relative min-w-0 flex-1">
+    <div
+      ref={rootRef}
+      data-aether-escape-guard={open ? '' : undefined}
+      className="relative min-w-0 flex-1"
+    >
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
@@ -175,6 +228,7 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
         <div
           role="dialog"
           aria-label="Chat sessions"
+          data-aether-escape-guard
           className="absolute left-0 top-full z-40 mt-2 w-[min(380px,calc(100vw-3rem))] overflow-hidden rounded-xl border border-[var(--aether-line-strong)] bg-[var(--aether-surface-2)] shadow-2xl"
         >
           <div className="flex items-center justify-between gap-2 border-b border-[var(--aether-line)] px-3 py-2">
@@ -202,7 +256,17 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  focusSession(0);
+                } else if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  focusSession(filtered.length - 1);
+                }
+              }}
               placeholder="Search sessions"
+              aria-label="Search sessions"
               className="min-w-0 flex-1 bg-transparent text-[11px] text-[var(--aether-text-1)] outline-none placeholder:text-[var(--aether-text-3)]"
             />
             {query ? (
@@ -228,21 +292,21 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
               </div>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {filtered.map((session) => {
+                {filtered.map((session, index) => {
                   const active = session.id === activeSessionId;
                   return (
                     <div
                       key={session.id}
+                      ref={(node) => {
+                        sessionRefs.current[index] = node;
+                      }}
                       role="button"
                       tabIndex={0}
                       aria-current={active ? 'true' : undefined}
                       onClick={() => select(session.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          select(session.id);
-                        }
-                      }}
+                      onKeyDown={(event) =>
+                        handleSessionKeyDown(event, index, session.id)
+                      }
                       className={`group relative flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 text-left transition ${
                         active
                           ? 'border-[var(--aether-accent)]/45 bg-[var(--aether-accent)]/12'

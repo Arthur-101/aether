@@ -284,6 +284,7 @@ export const NotesTab: React.FC<NotesTabProps> = ({ notes }) => {
           >
             <div
               className="notes-menu-area relative flex shrink-0 items-start gap-2 border-b px-3.5 pb-2 pt-2.5"
+              data-aether-escape-guard={themeOpen ? '' : undefined}
               style={{ borderColor: 'var(--note-border)' }}
             >
               <div className="min-w-0 flex-1">

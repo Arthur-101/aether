@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MotionConfig } from 'framer-motion'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import './index.css'
 import App from './App.tsx'
@@ -30,6 +31,8 @@ const widget = readWidgetTarget()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {widget ? <WidgetWindow kind={widget.kind} id={widget.id} /> : <App />}
+    <MotionConfig reducedMotion="user">
+      {widget ? <WidgetWindow kind={widget.kind} id={widget.id} /> : <App />}
+    </MotionConfig>
   </StrictMode>,
 )

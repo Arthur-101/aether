@@ -89,7 +89,11 @@ export const IslandBody: React.FC<IslandBodyProps> = ({
         <DashboardTabs tabs={tabs} activeTab={activeTab} onSelect={onSelectTab} />
       </div>
       <div
-        className={`min-h-0 flex-1 overflow-y-auto p-5 ${
+        role="tabpanel"
+        id="aether-tabpanel"
+        aria-labelledby={`aether-tab-${activeTab}`}
+        tabIndex={0}
+        className={`min-h-0 flex-1 overflow-y-auto p-5 outline-none ${
           activeTab === 'clock' ? 'no-scrollbar' : ''
         }`}
       >

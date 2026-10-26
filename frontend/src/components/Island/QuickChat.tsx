@@ -23,6 +23,7 @@ import type {
   AIProviderConfig,
   AttachmentItem,
   ChatTurn,
+  HotkeysConfig,
   ModelStatus,
   SessionItem,
   TimeFormat,
@@ -39,6 +40,8 @@ interface QuickChatProps {
   pending: string | null;
   attachments?: AttachmentItem[];
   focusToken?: number;
+  openFocusToken?: number;
+  hotkeys?: HotkeysConfig;
   model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
   notes: NotesApi;
   ai?: AIProviderConfig | null;
@@ -115,11 +118,34 @@ function turnTime(timestamp: string | undefined, timeFormat: TimeFormat): string
   return formatClockTime(date, timeFormat);
 }
 
+/** Compact shortcut label for the composer footer. */
+function shortcutLabel(value: string | undefined, fallback: string): string {
+  const tokens = (value || fallback)
+    .replace(/[<>]/g, '')
+    .split('+')
+    .map((token) => token.trim())
+    .filter(Boolean);
+  return tokens
+    .map((token) => {
+      const lower = token.toLowerCase();
+      if (lower === 'ctrl' || lower === 'control') return 'Ctrl';
+      if (lower === 'cmd' || lower === 'win' || lower === 'meta') return 'Win';
+      if (lower === 'shift') return 'Shift';
+      if (lower === 'alt') return 'Alt';
+      if (lower === 'space') return 'Space';
+      if (lower === 'esc' || lower === 'escape') return 'Esc';
+      return token.length === 1 ? token.toUpperCase() : token;
+    })
+    .join('+');
+}
+
 export const QuickChat: React.FC<QuickChatProps> = ({
   history,
   pending,
   attachments = [],
   focusToken = 0,
+  openFocusToken = 0,
+  hotkeys,
   model,
   notes,
   ai,
@@ -139,6 +165,9 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onDetach,
 }) => {
   const timeFormat = useTimeFormat();
+  const openShortcut = shortcutLabel(hotkeys?.open_island, 'Ctrl+Space');
+  const voiceShortcut = shortcutLabel(hotkeys?.toggle_drawer, 'Alt+Space');
+  const shortcutsMatch = openShortcut === voiceShortcut;
   const [input, setInput] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
   const [notePickerOpen, setNotePickerOpen] = useState(false);
@@ -163,6 +192,14 @@ export const QuickChat: React.FC<QuickChatProps> = ({
     const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
     return () => window.clearTimeout(timer);
   }, [focusToken]);
+
+  // The global Open Island shortcut always lands in Quick Chat. The 80ms
+  // delay lets the shell finish expanding before the composer takes focus.
+  useEffect(() => {
+    if (!openFocusToken) return;
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
+    return () => window.clearTimeout(timer);
+  }, [openFocusToken]);
 
   useEffect(() => {
     const el = inputRef.current;
@@ -290,7 +327,15 @@ export const QuickChat: React.FC<QuickChatProps> = ({
       </div>
 
       <div className="aether-panel flex h-[314px] flex-col overflow-hidden rounded-2xl border border-[var(--aether-line-soft)]">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3.5">
+        <div
+          ref={scrollRef}
+          role="log"
+          aria-label="Conversation"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-busy={Boolean(pending)}
+          className="flex-1 overflow-y-auto px-4 py-3.5"
+        >
           {history.length === 0 && !pending ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--aether-accent)]/25 bg-[var(--aether-accent)]/10 text-[var(--aether-accent-text)]">
@@ -547,6 +592,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
 
           <textarea
             ref={inputRef}
+            aria-label="Message Aether"
             rows={1}
             value={input}
             onChange={(event) => setInput(event.target.value)}
@@ -568,6 +614,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
             type="button"
             onClick={handleSend}
             disabled={!input.trim()}
+            aria-label="Send message"
             title="Send message"
             className="accent-fill flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -584,10 +631,22 @@ export const QuickChat: React.FC<QuickChatProps> = ({
           <span className="flex items-center gap-1.5">
             <MessageSquare size={9} />
             <span>
-              <kbd className="rounded bg-[var(--aether-fill-2)] px-1.5 py-0.5">Ctrl+Win</kbd>{' '}
-              dictation ·{' '}
-              <kbd className="rounded bg-[var(--aether-fill-2)] px-1.5 py-0.5">Alt+Space</kbd>{' '}
-              voice
+              <kbd className="rounded bg-[var(--aether-fill-2)] px-1.5 py-0.5">
+                {openShortcut}
+              </kbd>{' '}
+              open
+              {shortcutsMatch ? (
+                <> · hold to talk</>
+              ) : (
+                <>
+                  {' '}
+                  ·{' '}
+                  <kbd className="rounded bg-[var(--aether-fill-2)] px-1.5 py-0.5">
+                    {voiceShortcut}
+                  </kbd>{' '}
+                  hold to talk
+                </>
+              )}
             </span>
           </span>
         </div>

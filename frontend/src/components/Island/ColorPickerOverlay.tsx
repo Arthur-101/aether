@@ -184,6 +184,7 @@ export const ColorPickerOverlay: React.FC<ColorPickerOverlayProps> = ({
   return (
     <div
       data-aether-interactive
+      data-aether-escape-layer
       aria-label="Screen color picker"
       className="fixed inset-0 z-[80] cursor-crosshair select-none"
       onPointerMove={handlePointerMove}

@@ -63,6 +63,7 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
   return (
     <button
       type="button"
+      data-aether-island-trigger
       onClick={(event) => {
         event.stopPropagation();
         onOpen();
@@ -70,7 +71,7 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
       aria-label={`Open Aether command center. ${time}${
         status ? `. ${status}` : ''
       }`}
-      className={`relative h-full w-full items-center px-3 text-[var(--aether-text-1)] outline-none ${
+      className={`focus-inset relative h-full w-full items-center px-3 text-[var(--aether-text-1)] ${
         hasTools
           ? 'flex justify-center gap-[18px]'
           : 'grid grid-cols-[1fr_auto_1fr] gap-2'

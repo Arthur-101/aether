@@ -22,7 +22,12 @@ from .explorer_spy import DragShiftDetector
 from .hotkey_parser import HotkeyBinding, key_name, modifier_name, parse_hotkey
 from .window_context import get_active_window_context
 
-_ACTIONS = ("dictation", "circle_to_ask", "toggle_drawer")
+_ACTIONS = ("dictation", "circle_to_ask", "toggle_drawer", "open_island")
+
+# A quick press of the shared open/voice shortcut opens the island; holding it
+# past this threshold starts voice capture. The delay only applies to the voice
+# action, so an accidental tap never opens the microphone.
+VOICE_HOLD_SECONDS = 0.3
 
 
 class HotkeyManager:
@@ -35,17 +40,24 @@ class HotkeyManager:
         on_circle_to_ask: Optional[Callable[[], None]] = None,
         on_session_updated: Optional[Callable[[Dict[str, Any]], None]] = None,
         on_wheel_move: Optional[Callable[[int, int], None]] = None,
+        on_open_island: Optional[Callable[[], None]] = None,
+        hold_threshold: float = VOICE_HOLD_SECONDS,
     ):
         self.on_voice_state = on_voice_state or (lambda state, text: None)
         self.on_show_wheel = on_show_wheel or (lambda x, y, path, ext: None)
         self.on_circle_to_ask = on_circle_to_ask or (lambda: None)
         self.on_session_updated = on_session_updated or (lambda data: None)
         self.on_wheel_move = on_wheel_move or (lambda x, y: None)
+        self.on_open_island = on_open_island or (lambda: None)
+        self.hold_threshold = max(0.0, float(hold_threshold))
 
         self._pressed: set[str] = set()
         self._active: set[str] = set()
         self._lock = threading.RLock()
         self._bindings: Dict[str, HotkeyBinding] = {}
+        self._voice_hold_pending = False
+        self._voice_hold_timer: Optional[threading.Timer] = None
+        self._voice_hold_paired = False
         self._listener: Optional[keyboard.Listener] = None
         self.suspended = False
         self.drag_detector = DragShiftDetector(
@@ -57,12 +69,63 @@ class HotkeyManager:
     def reload(self, new_config: Optional[Dict[str, Any]] = None) -> None:
         """Applies new hotkey bindings immediately, without restarting listeners."""
         cfg = new_config if isinstance(new_config, dict) else config_manager.get("hotkeys") or {}
-        bindings = {action: parse_hotkey(str(cfg.get(action, ""))) for action in _ACTIONS}
+        # An empty binding must stay disabled. parse_hotkey("") produces a
+        # wildcard binding that matches every key press.
+        bindings = {}
+        for action in _ACTIONS:
+            raw = str(cfg.get(action, "")).strip()
+            if raw:
+                bindings[action] = parse_hotkey(raw)
         with self._lock:
+            self._clear_voice_hold()
             self._bindings = bindings
             self.drag_detector.set_modifier(
                 modifier_name(str(cfg.get("radial_wheel_modifier", "shift")))
             )
+
+    def _clear_voice_hold(self) -> None:
+        """Cancels a pending hold without touching an already-active voice run."""
+        timer = self._voice_hold_timer
+        self._voice_hold_timer = None
+        self._voice_hold_pending = False
+        self._voice_hold_paired = False
+        if timer is not None:
+            timer.cancel()
+
+    def _shares_voice_binding(self) -> bool:
+        open_binding = self._bindings.get("open_island")
+        voice_binding = self._bindings.get("toggle_drawer")
+        return bool(open_binding and voice_binding and open_binding == voice_binding)
+
+    def _arm_voice_hold(self, paired: bool) -> None:
+        """Defers voice capture so a tap can be recognised as an open gesture."""
+        if self._voice_hold_pending or "toggle_drawer" in self._active:
+            return
+        self._voice_hold_pending = True
+        self._voice_hold_paired = paired
+        timer = threading.Timer(self.hold_threshold, self._begin_voice_hold)
+        timer.daemon = True
+        self._voice_hold_timer = timer
+        timer.start()
+
+    def _begin_voice_hold(self) -> None:
+        with self._lock:
+            if not self._voice_hold_pending or self.suspended:
+                return
+            binding = self._bindings.get("toggle_drawer")
+            if not binding or not binding.matches(frozenset(self._pressed)):
+                self._clear_voice_hold()
+                return
+            self._voice_hold_pending = False
+            self._voice_hold_timer = None
+            self._start_action("toggle_drawer")
+
+    def _open_island(self) -> None:
+        if "open_island" in self._active:
+            return
+        # Track the held binding so auto-repeat cannot fire the callback again.
+        self._active.add("open_island")
+        self.on_open_island()
 
     def _handle_wheel_trigger(self, x: int, y: int, file_path: str, ext: str) -> None:
         self.on_show_wheel(x, y, file_path, ext)
@@ -75,6 +138,7 @@ class HotkeyManager:
         self.suspended = suspended
         with self._lock:
             self._pressed.clear()
+            self._clear_voice_hold()
             if suspended:
                 self._active.clear()
                 self._stop_recording_safe()
@@ -121,11 +185,32 @@ class HotkeyManager:
     def _on_key_press(self, key: Any) -> None:
         name = key_name(key)
         with self._lock:
+            # pynput repeats on_press while a key is held. Only the first event
+            # should arm a gesture or fire a one-shot callback.
+            if name in self._pressed:
+                return
             self._pressed.add(name)
             if self.suspended:
                 return
+
+            pressed = frozenset(self._pressed)
+            open_binding = self._bindings.get("open_island")
+            voice_binding = self._bindings.get("toggle_drawer")
+
+            if self._shares_voice_binding():
+                if voice_binding and voice_binding.matches(pressed):
+                    self._arm_voice_hold(paired=True)
+                    return
+            else:
+                if open_binding and open_binding.matches(pressed):
+                    self._open_island()
+                if voice_binding and voice_binding.matches(pressed):
+                    self._arm_voice_hold(paired=False)
+
             for action, binding in self._bindings.items():
-                if binding.matches(frozenset(self._pressed)):
+                if action in ("open_island", "toggle_drawer"):
+                    continue
+                if binding.matches(pressed):
                     self._start_action(action)
 
     def _on_key_release(self, key: Any) -> None:
@@ -135,9 +220,21 @@ class HotkeyManager:
             if self.suspended:
                 return
             pressed = frozenset(self._pressed)
+
+            # Releasing before the hold threshold is a tap. When the open and
+            # voice shortcuts share a binding, that tap opens the island; when
+            # they are separate, a voice tap does nothing.
+            if self._voice_hold_pending:
+                binding = self._bindings.get("toggle_drawer")
+                if not binding or not binding.matches(pressed):
+                    paired = self._voice_hold_paired
+                    self._clear_voice_hold()
+                    if paired:
+                        self.on_open_island()
+
             for action in list(self._active):
                 binding = self._bindings.get(action)
-                if binding and not binding.matches(pressed):
+                if not binding or not binding.matches(pressed):
                     self._stop_action(action)
 
     def _process_dictation_release(self) -> None:
@@ -211,6 +308,7 @@ class HotkeyManager:
             self._listener = None
         self.drag_detector.stop()
         with self._lock:
+            self._clear_voice_hold()
             self._active.clear()
             self._pressed.clear()
 

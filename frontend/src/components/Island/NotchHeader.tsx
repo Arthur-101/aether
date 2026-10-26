@@ -55,6 +55,7 @@ export const NotchHeader: React.FC<NotchHeaderProps> = ({
         </button>
         <button
           type="button"
+          data-aether-settings-trigger
           onClick={onOpenSettings}
           className={controlClass}
           title="Settings"

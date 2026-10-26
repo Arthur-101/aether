@@ -679,8 +679,27 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /*
+   * Global safety net for CSS transitions and keyframes. 1ms (rather than
+   * `none`) still reaches the final keyframe and fires transitionend so
+   * stateful controls do not get stuck mid-animation.
+   */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
   .notch-tilt {
     transition: none;
+  }
+
+  .aether-equalizer span {
+    transform: scaleY(0.35);
+    opacity: 0.7;
   }
 
   .media-bar {
@@ -699,9 +718,32 @@ main {
   }
 }
 
+/*
+ * One keyboard-focus language for every control. This is intentionally
+ * unlayered so it wins over component `outline-none` utilities. Mouse clicks
+ * stay ring-free because only :focus-visible matches.
+ */
+:where(
+  button,
+  [role='button'],
+  a[href],
+  input,
+  select,
+  textarea,
+  [tabindex]:not([tabindex='-1'])
+):focus-visible {
+  outline: 2px solid var(--aether-accent-text);
+  outline-offset: 2px;
+}
+
 .fluent-focus:focus-visible {
-  outline: 2px solid var(--aether-accent);
-  outline-offset: 1px;
+  outline: 2px solid var(--aether-accent-text);
+  outline-offset: 2px;
+}
+
+/* The collapsed pill fills an overflow-hidden shell; keep its ring inside. */
+.focus-inset:focus-visible {
+  outline-offset: -3px;
 }
 
 /* Windows 11 style range sliders */

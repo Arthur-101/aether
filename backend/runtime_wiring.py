@@ -69,6 +69,11 @@ def wire_hotkey_callbacks() -> None:
     def on_circle_to_ask() -> None:
         asyncio.run_coroutine_threadsafe(ws_manager.broadcast("CIRCLE_TO_ASK", {}), loop)
 
+    def on_open_island() -> None:
+        asyncio.run_coroutine_threadsafe(
+            ws_manager.broadcast("OPEN_ISLAND", {"source": "hotkey"}), loop
+        )
+
     def on_session_updated(data: Dict[str, Any]) -> None:
         asyncio.run_coroutine_threadsafe(
             ws_manager.broadcast("SESSION_UPDATED", data), loop
@@ -78,6 +83,7 @@ def wire_hotkey_callbacks() -> None:
     hotkey_manager.on_show_wheel = on_show_wheel
     hotkey_manager.on_wheel_move = on_wheel_move
     hotkey_manager.on_circle_to_ask = on_circle_to_ask
+    hotkey_manager.on_open_island = on_open_island
     hotkey_manager.on_session_updated = on_session_updated
     hotkey_manager.drag_detector.on_drop = on_wheel_drop
     hotkey_manager.start()

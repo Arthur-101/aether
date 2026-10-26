@@ -59,12 +59,13 @@ export const NotchPeek: React.FC<NotchPeekProps> = ({
 
       <button
         type="button"
+        data-aether-island-trigger
         onClick={(event) => {
           event.stopPropagation();
           onOpen();
         }}
         aria-label={`Open Aether command center. ${time}`}
-        className="absolute left-1/2 top-1/2 flex h-full w-[150px] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[var(--aether-text-1)] outline-none"
+        className="focus-inset absolute left-1/2 top-1/2 flex h-full w-[150px] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[var(--aether-text-1)]"
       >
         <span className="font-mono text-[13px] font-semibold tabular-nums tracking-[0.01em]">
           {time}

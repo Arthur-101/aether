@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   GripHorizontal,
@@ -33,6 +33,7 @@ import { HotkeySettings } from './tabs/HotkeySettings';
 import { StorageSettings } from './tabs/StorageSettings';
 import { WidgetSettings } from './tabs/WidgetSettings';
 import { useSettingsDrag } from './useSettingsDrag';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -97,7 +98,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [draft, setDraft] = useState<AppConfig | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [recordingHotkey, setRecordingHotkey] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const { offset, dragHandleProps } = useSettingsDrag(isOpen);
+
+  useFocusTrap(isOpen, panelRef, {
+    // The shortcut recorder owns Escape and Tab while it is listening.
+    suspended: recordingHotkey,
+    onEscape: onClose,
+    restoreFocus: () =>
+      document.querySelector<HTMLElement>('[data-aether-island-trigger]') ??
+      document.querySelector<HTMLElement>('[data-aether-settings-trigger]'),
+  });
+
+  const handleHotkeyCapture = useCallback(
+    (enabled: boolean) => {
+      setRecordingHotkey(enabled);
+      onHotkeyCapture(enabled);
+    },
+    [onHotkeyCapture]
+  );
+
+  const handleTabKeyDown = (event: React.KeyboardEvent, index: number) => {
+    const key = event.key;
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) return;
+    event.preventDefault();
+
+    const nextIndex =
+      key === 'Home'
+        ? 0
+        : key === 'End'
+          ? tabs.length - 1
+          : key === 'ArrowUp'
+            ? (index - 1 + tabs.length) % tabs.length
+            : (index + 1) % tabs.length;
+
+    setActiveTab(tabs[nextIndex].id);
+    tabRefs.current[nextIndex]?.focus();
+  };
 
   useEffect(() => {
     if (isOpen && config) setDraft(structuredClone(config));
@@ -177,8 +216,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
         >
           <motion.div
+            ref={panelRef}
             data-aether-interactive
             data-aether-settings-panel
+            role="dialog"
+            aria-modal="true"
+            aria-label="Aether settings"
             initial={{ scale: 0.97, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.97, opacity: 0 }}
@@ -229,15 +272,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   )}
                 </button>
               </div>
-              <div className="flex flex-col gap-1 text-xs">
-                {tabs.map((item) => {
+              <div
+                role="tablist"
+                aria-label="Settings sections"
+                aria-orientation="vertical"
+                className="flex flex-col gap-1 text-xs"
+              >
+                {tabs.map((item, index) => {
                   const Icon = item.icon;
                   const active = activeTab === item.id;
                   return (
                     <button
                       key={item.id}
+                      ref={(node) => {
+                        tabRefs.current[index] = node;
+                      }}
                       type="button"
+                      role="tab"
+                      id={`aether-settings-tab-${item.id}`}
+                      aria-selected={active}
+                      aria-controls="aether-settings-panel"
+                      tabIndex={active ? 0 : -1}
                       onClick={() => setActiveTab(item.id)}
+                      onKeyDown={(event) => handleTabKeyDown(event, index)}
                       aria-label={item.label}
                       title={sidebarCollapsed ? item.label : undefined}
                       className={`flex items-center rounded-md transition ${
@@ -278,7 +335,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col p-5">
+          <div
+            role="tabpanel"
+            id="aether-settings-panel"
+            aria-labelledby={`aether-settings-tab-${activeTab}`}
+            className="flex min-h-0 min-w-0 flex-1 flex-col p-5"
+          >
             <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
               <div
                 {...dragHandleProps}
@@ -294,7 +356,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'widgets' && 'Desktop Widgets'}
                 </h4>
                 <button
+                  type="button"
                   onClick={onClose}
+                  aria-label="Close settings"
+                  title="Close settings"
                   className="rounded-md p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
                 >
                   <X size={16} />
@@ -323,7 +388,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <HotkeySettings
                       hotkeys={draft.hotkeys}
                       onChange={updateHotkeys}
-                      onRecordingChange={onHotkeyCapture}
+                      onRecordingChange={handleHotkeyCapture}
                     />
                   )}
                   {activeTab === 'storage' && (
@@ -362,6 +427,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="mt-4 flex justify-end border-t border-[var(--aether-line)] pt-3">
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={!draft}
                 className="accent-fill flex items-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold transition disabled:opacity-40"

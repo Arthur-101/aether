@@ -9,6 +9,7 @@ import type {
   ClockConfig,
   DashboardTabId,
   DisplayInfo,
+  HotkeysConfig,
   MediaControlAction,
   MediaSnapshot,
   ModelStatus,
@@ -58,6 +59,7 @@ interface DesktopIslandProps {
   activeSessionId: string;
   activeSessionTitle: string;
   askRequest: { id: number; filePath: string } | null;
+  openIslandRequest: number;
   tasks: ScheduledTask[];
   weather: WeatherSnapshot | null;
   clockConfig: ClockConfig;
@@ -118,6 +120,7 @@ interface DesktopIslandProps {
   subscribeMouse: MouseSubscriber;
   brandName: string;
   appearance: AppearanceConfig;
+  hotkeys?: HotkeysConfig;
   peekEnabled?: boolean;
   media: MediaSnapshot | null;
   taskbarApps: TaskbarPinnedApp[];
@@ -145,6 +148,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   activeSessionId,
   activeSessionTitle,
   askRequest,
+  openIslandRequest,
   tasks,
   weather,
   clockConfig,
@@ -205,6 +209,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   subscribeMouse,
   brandName,
   appearance,
+  hotkeys,
   peekEnabled = true,
   media,
   taskbarApps,
@@ -219,6 +224,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   const effectiveTab = tabs.includes(activeTab) ? activeTab : tabs[0] ?? 'controls';
   const [contentHeight, setContentHeight] = useState(0);
   const [tabsWidth, setTabsWidth] = useState(0);
+  const [focusWithin, setFocusWithin] = useState(false);
   const [shellMetrics, setShellMetrics] = useState<AutoHidePillMetrics>({
     compactWidth: 140,
     activeWidth: 140,
@@ -239,7 +245,11 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
         : next
     );
   }, []);
-  const suspendAutoHide = hidden || autoHideSuspended || isExpanded;
+  const handleFocusWithinChange = useCallback((focused: boolean) => {
+    setFocusWithin(focused);
+  }, []);
+  // Keep the pill out while a keyboard user is somewhere inside it.
+  const suspendAutoHide = hidden || autoHideSuspended || isExpanded || focusWithin;
   const { tucked } = useAutoHidePill({
     enabled: appearance.auto_hide_pill && connected,
     suspended: suspendAutoHide,
@@ -253,6 +263,12 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
     onExpandedChange(true);
     setActiveTab('chat');
   }, [askRequest, onExpandedChange]);
+
+  useEffect(() => {
+    if (!openIslandRequest) return;
+    onExpandedChange(true);
+    setActiveTab('chat');
+  }, [openIslandRequest, onExpandedChange]);
 
   const browseForAsk = async () => {
     const filePath = await pickNativePath('file', 'all');
@@ -317,6 +333,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
           contentHeight={contentHeight}
           tucked={tucked}
           onMetricsChange={handleShellMetrics}
+          onFocusWithinChange={handleFocusWithinChange}
         >
           <IslandBody
             tabs={tabs}
@@ -373,6 +390,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               pending: chatPending,
               attachments,
               focusToken: askRequest?.id ?? 0,
+              openFocusToken: openIslandRequest,
+              hotkeys,
               model,
               notes,
               ai: aiConfig,

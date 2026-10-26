@@ -302,6 +302,7 @@ export const ScreenScale: React.FC<ScreenScaleProps> = ({
 
   return (
     <div
+      data-aether-escape-layer
       className="pointer-events-none fixed inset-0 z-[100] select-none"
       aria-label="On-screen scale"
     >

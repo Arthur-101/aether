@@ -70,6 +70,7 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
     <AnimatePresence>
       <div
         data-aether-interactive
+        data-aether-escape-layer
         className="aether-interactive fixed inset-0 z-50 cursor-crosshair select-none bg-black/25 backdrop-blur-xs"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

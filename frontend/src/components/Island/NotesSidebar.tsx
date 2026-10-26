@@ -214,6 +214,7 @@ export const NotesSidebar: React.FC<NotesSidebarProps> = ({
                 <div
                   key={note.id}
                   data-note-menu
+                  data-aether-escape-guard={menuOpen ? '' : undefined}
                   className={`group relative flex w-full items-start gap-1 rounded-lg border px-1.5 py-1.5 transition ${
                     active
                       ? 'border-[var(--aether-accent)]/35 bg-[var(--aether-accent)]/10'

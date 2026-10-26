@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
 import { useTauriFileDrop } from './hooks/useTauriFileDrop';
@@ -94,6 +96,7 @@ export function App() {
     powerResult,
     clockAlert,
     lastWheelResult,
+    openIslandRequest,
     subscribeMouse,
     requestScreenSample,
     sendChatMessage,
@@ -205,6 +208,16 @@ export function App() {
   useEffect(() => {
     settingsOpenRef.current = isSettingsOpen;
   }, [isSettingsOpen]);
+
+  // Global Open Island shortcut. Focus the overlay first so the composer can
+  // actually receive typing when Aether was summoned from another app.
+  useEffect(() => {
+    if (!openIslandRequest || settingsOpenRef.current) return;
+    if (isTauri()) {
+      void getCurrentWindow().setFocus().catch(() => undefined);
+    }
+    setIsIslandExpanded(true);
+  }, [openIslandRequest]);
 
   const showSettings = useCallback((tab: SettingsTab | null) => {
     if (!settingsOpenRef.current) {
@@ -405,6 +418,7 @@ export function App() {
         activeSessionId={activeSessionId}
         activeSessionTitle={activeSessionTitle}
         askRequest={askRequest}
+        openIslandRequest={openIslandRequest}
         tasks={tasks}
         weather={weather}
         clockConfig={clockConfig}
@@ -465,6 +479,7 @@ export function App() {
         subscribeMouse={subscribeMouse}
         brandName={brandName}
         appearance={liveAppearance}
+        hotkeys={config?.hotkeys}
         peekEnabled={!isSettingsOpen}
         media={media}
         taskbarApps={taskbarApps}

@@ -15,8 +15,9 @@ interface HotkeySettingsProps {
 }
 
 const rows = [
-  { label: 'Smart Dictation (Hold)', key: 'dictation' as const },
+  { label: 'Open Aether Island', key: 'open_island' as const },
   { label: 'Voice Assistant (Hold)', key: 'toggle_drawer' as const },
+  { label: 'Smart Dictation (Hold)', key: 'dictation' as const },
   { label: 'Circle to Ask (Hold)', key: 'circle_to_ask' as const },
   { label: 'Context Radial Wheel', key: 'radial_wheel_modifier' as const },
 ];
@@ -26,6 +27,7 @@ const DEFAULTS: HotkeysConfig = {
   toggle_drawer: 'Alt + Space',
   circle_to_ask: 'Ctrl + Shift',
   radial_wheel_modifier: 'shift',
+  open_island: 'Ctrl + Space',
 };
 
 function humanize(value: string): string {
@@ -164,7 +166,8 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
 
         <p className={settingsHintClass}>
           Tip: Radial Wheel accepts Ctrl, Shift, or Alt as the drag modifier. Other actions
-          require a main key such as Space, A–Z, or F1–F12.
+          require a main key such as Space, A–Z, or F1–F12. If Open and Voice use the same
+          shortcut, tap to open and hold to talk.
         </p>
       </SettingsGroup>
     </div>

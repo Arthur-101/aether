@@ -438,6 +438,7 @@ export interface HotkeysConfig {
   circle_to_ask: string;
   radial_wheel_modifier: string;
   toggle_drawer: string;
+  open_island: string;
 }
 
 export interface AppConfig {
