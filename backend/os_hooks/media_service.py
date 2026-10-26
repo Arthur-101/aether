@@ -212,6 +212,21 @@ async def control_media(action: str) -> bool:
         return False
 
 
+def control_media_sync(action: str) -> bool:
+    """Blocking counterpart to :func:`control_media` for the MCP tool thread.
+
+    MCP tools are synchronous and run in a worker thread, so they cannot await
+    the transport action. This pushes onto the same poller control queue and
+    waits for the result, keeping all SMTC access on the poller thread.
+    """
+    try:
+        future = media_poller.submit_control(action)
+        return bool(future.result(timeout=CONTROL_RESULT_TIMEOUT))
+    except Exception as exc:
+        logger.warning("Media control %s failed: %s", action, exc)
+        return False
+
+
 def latest_media_snapshot() -> Dict[str, Any]:
     """Returns the poller's cached snapshot without touching SMTC.
 

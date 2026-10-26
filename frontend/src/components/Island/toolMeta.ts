@@ -7,13 +7,18 @@
  */
 
 import {
+  AudioLines,
   CalendarClock,
   FileText,
   Image as ImageIcon,
   ListChecks,
   NotebookPen,
+  Pause,
   Pin,
+  Play,
   Search,
+  SkipBack,
+  SkipForward,
   StickyNote,
   Wrench,
 } from 'lucide-react';
@@ -40,6 +45,13 @@ const TOOL_META: Record<string, ToolMeta> = {
   create_note: { label: 'Create note', icon: NotebookPen },
   append_to_note: { label: 'Append to note', icon: NotebookPen },
   set_note_pinned: { label: 'Pin note', icon: Pin },
+  // Music transport
+  media_play: { label: 'Play', icon: Play },
+  media_pause: { label: 'Pause', icon: Pause },
+  media_toggle: { label: 'Toggle playback', icon: Play },
+  media_next: { label: 'Next track', icon: SkipForward },
+  media_previous: { label: 'Previous track', icon: SkipBack },
+  now_playing: { label: 'Now playing', icon: AudioLines },
   // Scheduling
   schedule_one_time_task: { label: 'Schedule task', icon: CalendarClock },
   schedule_recurring_routine: { label: 'Schedule routine', icon: CalendarClock },

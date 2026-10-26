@@ -32,6 +32,15 @@ from .clock_tools import (
     schedule_alarm,
     update_task_tool,
 )
+from .media_control_tools import (
+    get_media_control_tool_schemas,
+    media_next,
+    media_pause,
+    media_play,
+    media_previous,
+    media_toggle,
+    now_playing,
+)
 from .clock_scheduler import (
     schedule_custom_task,
     schedule_one_time_task,
@@ -54,6 +63,12 @@ mcp.tool()(read_note)
 mcp.tool()(create_note)
 mcp.tool()(append_to_note)
 mcp.tool()(set_note_pinned)
+mcp.tool()(media_play)
+mcp.tool()(media_pause)
+mcp.tool()(media_toggle)
+mcp.tool()(media_next)
+mcp.tool()(media_previous)
+mcp.tool()(now_playing)
 mcp.tool()(schedule_one_time_task)
 mcp.tool()(schedule_recurring_routine)
 mcp.tool()(schedule_custom_task)
@@ -78,6 +93,12 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "create_note": create_note,
     "append_to_note": append_to_note,
     "set_note_pinned": set_note_pinned,
+    "media_play": media_play,
+    "media_pause": media_pause,
+    "media_toggle": media_toggle,
+    "media_next": media_next,
+    "media_previous": media_previous,
+    "now_playing": now_playing,
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
     "schedule_custom_task": schedule_custom_task,
@@ -179,7 +200,7 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_clock_tool_schemas()
 
 
 def execute_tool(name: str, arguments: Dict[str, Any]) -> str:
