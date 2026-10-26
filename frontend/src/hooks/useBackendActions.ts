@@ -13,6 +13,7 @@ import type {
   PowerAction,
   SessionItem,
   TaskInput,
+  ToolCallEvent,
 } from '../types/ipc';
 import type { NoteSaveInput } from '../types/notes';
 
@@ -21,6 +22,7 @@ type Dispatch<T> = (value: T | ((prev: T) => T)) => void;
 interface ActionSetters {
   setChatHistory: Dispatch<ChatTurn[]>;
   setChatPending: Dispatch<string | null>;
+  setActiveToolCalls: Dispatch<ToolCallEvent[]>;
   setThinkingMode: Dispatch<boolean>;
   setConfig: Dispatch<AppConfig | null>;
   setAttachments: Dispatch<AttachmentItem[]>;
@@ -38,6 +40,7 @@ export function useBackendActions(
   const {
     setChatHistory,
     setChatPending,
+    setActiveToolCalls,
     setThinkingMode,
     setConfig,
     setAttachments,
@@ -47,18 +50,20 @@ export function useBackendActions(
   const sendChatMessage = useCallback(
     (text: string) => {
       if (!text.trim()) return;
+      setActiveToolCalls([]);
       setChatPending(text);
       sendEvent({ type: 'CHAT_MESSAGE', payload: { text } });
     },
-    [sendEvent, setChatPending]
+    [sendEvent, setChatPending, setActiveToolCalls]
   );
 
   const newSession = useCallback(() => {
     setChatHistory([]);
     setChatPending(null);
+    setActiveToolCalls([]);
     setAttachments([]);
     sendEvent({ type: 'NEW_SESSION', payload: {} });
-  }, [sendEvent, setChatHistory, setChatPending, setAttachments]);
+  }, [sendEvent, setChatHistory, setChatPending, setActiveToolCalls, setAttachments]);
 
   const switchSession = useCallback(
     (sessionId: string) => {

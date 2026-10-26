@@ -16,7 +16,6 @@ import {
   Server,
   Sparkles,
   StickyNote,
-  Wrench,
   X,
 } from 'lucide-react';
 import type {
@@ -27,17 +26,21 @@ import type {
   ModelStatus,
   SessionItem,
   TimeFormat,
+  ToolCallEvent,
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
 import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { AetherMark } from './AetherMark';
 import { ChatSessionMenu } from './ChatSessionMenu';
+import { ToolRunList } from './ToolRunList';
 import { parseBackendTimestamp } from './backendTime';
 import { formatClockTime } from './timeFormat';
+import { toolMeta } from './toolMeta';
 
 interface QuickChatProps {
   history: ChatTurn[];
   pending: string | null;
+  activeToolCalls?: ToolCallEvent[];
   attachments?: AttachmentItem[];
   focusToken?: number;
   openFocusToken?: number;
@@ -142,6 +145,7 @@ function shortcutLabel(value: string | undefined, fallback: string): string {
 export const QuickChat: React.FC<QuickChatProps> = ({
   history,
   pending,
+  activeToolCalls = [],
   attachments = [],
   focusToken = 0,
   openFocusToken = 0,
@@ -401,15 +405,18 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                         <div className="whitespace-pre-wrap break-words">{turn.ai}</div>
                         {turn.tools_used && turn.tools_used.length > 0 ? (
                           <div className="mt-2 flex flex-wrap gap-1">
-                            {turn.tools_used.map((tool, toolIndex) => (
-                              <span
-                                key={`${tool.name}-${toolIndex}`}
-                                className="inline-flex items-center gap-1 rounded-md border border-[var(--aether-line-soft)] bg-[var(--aether-fill)] px-1.5 py-0.5 text-[9px] text-[var(--aether-text-2)]"
-                              >
-                                <Wrench size={8} />
-                                {tool.name}
-                              </span>
-                            ))}
+                            {turn.tools_used.map((tool, toolIndex) => {
+                              const { label, icon: ToolIcon } = toolMeta(tool.name);
+                              return (
+                                <span
+                                  key={`${tool.name}-${toolIndex}`}
+                                  className="inline-flex items-center gap-1 rounded-md border border-[var(--aether-line-soft)] bg-[var(--aether-fill)] px-1.5 py-0.5 text-[9px] text-[var(--aether-text-2)]"
+                                >
+                                  <ToolIcon size={8} />
+                                  {label}
+                                </span>
+                              );
+                            })}
                           </div>
                         ) : null}
                       </div>
@@ -438,12 +445,15 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                       <p className="mb-1 text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--aether-text-3)]">
                         Aether
                       </p>
-                      <div className="inline-flex max-w-[92%] items-center gap-2 rounded-2xl rounded-bl-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3.5 py-2 text-[11px] text-[var(--aether-text-2)]">
-                        <Loader2
-                          size={11}
-                          className="animate-spin text-[var(--aether-accent-text)]"
-                        />
-                        <span>Thinking…</span>
+                      <div className="inline-block max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3.5 py-2 text-[11px] text-[var(--aether-text-2)]">
+                        <div className="flex items-center gap-2">
+                          <Loader2
+                            size={11}
+                            className="animate-spin text-[var(--aether-accent-text)]"
+                          />
+                          <span>Thinking...</span>
+                        </div>
+                        <ToolRunList calls={activeToolCalls} />
                       </div>
                     </div>
                   </div>

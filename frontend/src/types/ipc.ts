@@ -319,6 +319,19 @@ export interface ToolExecution {
   output?: string;
 }
 
+/**
+ * One live tool-run step streamed while a chat turn is in flight
+ * (`TOOL_CALL_STARTED` / `TOOL_CALL_FINISHED`).
+ */
+export interface ToolCallEvent {
+  call_id: string;
+  name: string;
+  phase: 'started' | 'finished';
+  args?: Record<string, unknown>;
+  ok?: boolean;
+  output?: string;
+}
+
 export interface ChatTurn {
   user: string;
   ai: string;

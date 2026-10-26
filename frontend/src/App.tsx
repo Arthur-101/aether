@@ -70,6 +70,7 @@ export function App() {
     activeSessionTitle,
     chatHistory,
     chatPending,
+    activeToolCalls,
     sessions,
     tasks,
     weather,
@@ -564,6 +565,7 @@ export function App() {
         onPowerAction={runPowerAction}
         chatHistory={chatHistory}
         chatPending={chatPending}
+        activeToolCalls={activeToolCalls}
         attachments={attachments}
         sessions={sessions}
         activeSessionId={activeSessionId}

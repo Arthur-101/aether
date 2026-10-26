@@ -17,6 +17,7 @@ from .config_manager import get_app_dir, get_data_dir
 from .db.sessions import session_manager
 from .mcp_tools.attachment_tools import image_attachment_paths
 from .mcp_tools.server import get_openai_tool_schemas
+from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether.chat")
 
@@ -30,6 +31,13 @@ CLOCK_MUTATION_TOOLS = {
     "complete_scheduled_task",
     "pause_scheduled_task",
     "resume_scheduled_task",
+}
+
+# Note tools that change the vault; the Notes tab is refreshed after such a turn.
+NOTE_MUTATION_TOOLS = {
+    "create_note",
+    "append_to_note",
+    "set_note_pinned",
 }
 
 
@@ -62,24 +70,45 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
             None, lambda: image_attachment_paths(session_id)
         ),
     )
+
+    def on_tool_call(event: Dict[str, Any]) -> None:
+        """Forwards a tool-run step from the worker thread onto the WS loop."""
+        event_type = (
+            "TOOL_CALL_STARTED"
+            if event.get("phase") == "started"
+            else "TOOL_CALL_FINISHED"
+        )
+        asyncio.run_coroutine_threadsafe(
+            ws_manager.broadcast(event_type, {"session_id": session_id, **event}),
+            loop,
+        )
+
     result = await loop.run_in_executor(
         None,
         lambda: llm_router.chat_completion(
-            messages, tools=get_openai_tool_schemas(), session_id=session_id
+            messages,
+            tools=get_openai_tool_schemas(),
+            session_id=session_id,
+            on_tool_call=on_tool_call,
         ),
     )
     reply = result.get("content", "") or "I could not produce a response."
     await loop.run_in_executor(
         None, lambda: session_manager.commit_turn(session_id, prompt, reply)
     )
-    if any(
-        call.get("name") in CLOCK_MUTATION_TOOLS
-        for call in result.get("tool_calls_executed", [])
-    ):
+    mutated = {call.get("name") for call in result.get("tool_calls_executed", [])}
+    if mutated & CLOCK_MUTATION_TOOLS:
         try:
             from .task_events import broadcast_tasks
 
             await broadcast_tasks()
         except Exception:
             logger.debug("Task list refresh after chat failed", exc_info=True)
+    if mutated & NOTE_MUTATION_TOOLS:
+        try:
+            from .note_events import broadcast_notes
+
+            await broadcast_notes()
+        except Exception:
+            logger.debug("Notes refresh after chat failed", exc_info=True)
     return {**result, "reply": reply}

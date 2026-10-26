@@ -21,6 +21,7 @@ import type {
   SystemStats,
   TaskInput,
   TaskbarPinnedApp,
+  ToolCallEvent,
   WallpaperState,
   WeatherSnapshot,
   WifiProfile,
@@ -54,6 +55,7 @@ interface DesktopIslandProps {
   onPowerAction: (action: PowerAction, confirm?: boolean) => void;
   chatHistory: ChatTurn[];
   chatPending: string | null;
+  activeToolCalls: ToolCallEvent[];
   attachments: AttachmentItem[];
   sessions: SessionItem[];
   activeSessionId: string;
@@ -143,6 +145,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onPowerAction,
   chatHistory,
   chatPending,
+  activeToolCalls,
   attachments,
   sessions,
   activeSessionId,
@@ -388,6 +391,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             chat={{
               history: chatHistory,
               pending: chatPending,
+              activeToolCalls,
               attachments,
               focusToken: askRequest?.id ?? 0,
               openFocusToken: openIslandRequest,

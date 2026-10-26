@@ -22,8 +22,13 @@ async def _broadcast_list() -> None:
     await ws_manager.broadcast("NOTES_LIST", payload)
 
 
-async def _handle_list_notes(_payload: Dict[str, Any]) -> None:
+async def broadcast_notes() -> None:
+    """Publishes the current note list so open Notes tabs refresh."""
     await _broadcast_list()
+
+
+async def _handle_list_notes(_payload: Dict[str, Any]) -> None:
+    await broadcast_notes()
 
 
 async def _handle_read_note(payload: Dict[str, Any]) -> None:

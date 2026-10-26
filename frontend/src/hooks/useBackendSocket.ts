@@ -29,6 +29,7 @@ import type {
   SpeedTestResult,
   SystemStats,
   TaskbarAppsState,
+  ToolCallEvent,
   VoiceState,
   WallpaperState,
   WeatherSnapshot,
@@ -48,6 +49,7 @@ export function useBackendSocket() {
   const [activeSessionTitle, setActiveSessionTitle] = useState('New Session');
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [chatPending, setChatPending] = useState<string | null>(null);
+  const [activeToolCalls, setActiveToolCalls] = useState<ToolCallEvent[]>([]);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [notes, setNotes] = useState<NoteMeta[]>([]);
@@ -141,6 +143,41 @@ export function useBackendSocket() {
             setChatHistory((prev) => [...prev, payload.turn as ChatTurn]);
           }
           setChatPending(null);
+          setActiveToolCalls([]);
+          break;
+        case 'TOOL_CALL_STARTED': {
+          // Only the active foreground turn renders live steps; background
+          // (scheduled) tool runs are ignored.
+          const belongsToActiveChat =
+            chatPending !== null &&
+            (!payload.session_id ||
+              !activeSessionId ||
+              payload.session_id === activeSessionId);
+          if (!belongsToActiveChat) break;
+          setActiveToolCalls((prev) => [
+            ...prev,
+            {
+              call_id: payload.call_id,
+              name: payload.name,
+              phase: 'started',
+              args: payload.args,
+            },
+          ]);
+          break;
+        }
+        case 'TOOL_CALL_FINISHED':
+          setActiveToolCalls((prev) =>
+            prev.map((call) =>
+              call.call_id === payload.call_id
+                ? {
+                    ...call,
+                    phase: 'finished',
+                    ok: Boolean(payload.ok),
+                    output: payload.output,
+                  }
+                : call
+            )
+          );
           break;
         case 'SESSION_SWITCHED':
           if (payload.session) {
@@ -158,12 +195,14 @@ export function useBackendSocket() {
           }
           setAttachments((payload.attachments as AttachmentItem[]) || []);
           setChatPending(null);
+          setActiveToolCalls([]);
           break;
         case 'SESSION_DELETED':
           setSessions((prev) => prev.filter((s) => s.id !== payload.session_id));
           if (payload.session_id === activeSessionId) {
             setChatHistory([]);
             setChatPending(null);
+            setActiveToolCalls([]);
             setAttachments([]);
             setActiveSessionId(payload.active_session_id || '');
             setActiveSessionTitle('New Session');
@@ -364,6 +403,7 @@ export function useBackendSocket() {
   const actions = useBackendActions(sendEvent, {
     setChatHistory,
     setChatPending,
+    setActiveToolCalls,
     setThinkingMode,
     setConfig,
     setAttachments,
@@ -403,6 +443,7 @@ export function useBackendSocket() {
     activeSessionTitle,
     chatHistory,
     chatPending,
+    activeToolCalls,
     sessions,
     tasks,
     notes,

@@ -98,11 +98,15 @@ class LLMRouter:
         thinking_mode: Optional[bool] = None,
         session_id: Optional[str] = None,
         max_tool_rounds: int = 3,
+        on_tool_call: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
         Runs a completion and executes any FastMCP tool calls deterministically.
         Raises ModelNotConfiguredError with an actionable message when the
         selected backend is unavailable.
+
+        `on_tool_call`, when given, is called synchronously from this thread
+        before and after each tool runs so callers can surface live progress.
         """
         if thinking_mode is None:
             thinking_mode = bool(config_manager.get("ai_provider", "thinking_mode", False))
@@ -138,15 +142,32 @@ class LLMRouter:
             for index, call in enumerate(tool_calls):
                 fn = call.get("function", {})
                 name = fn.get("name", "")
-                output = self._execute_tool(name, fn.get("arguments", "{}"), session_id)
+                raw_args = fn.get("arguments", "{}")
+                call_id = call.get("id") or f"call_{index}"
+                if on_tool_call is not None:
+                    on_tool_call({
+                        "phase": "started",
+                        "call_id": call_id,
+                        "name": name,
+                        "args": _parse_args(raw_args),
+                    })
+                output = self._execute_tool(name, raw_args, session_id)
                 executed.append({
                     "name": name,
-                    "args": fn.get("arguments", "{}"),
+                    "args": raw_args,
                     "output": output,
                 })
+                if on_tool_call is not None:
+                    on_tool_call({
+                        "phase": "finished",
+                        "call_id": call_id,
+                        "name": name,
+                        "ok": not str(output).lstrip().startswith(_ERROR_PREFIX),
+                        "output": str(output)[:2000],
+                    })
                 convo.append({
                     "role": "tool",
-                    "tool_call_id": call.get("id", f"call_{index}"),
+                    "tool_call_id": call_id,
                     "name": name,
                     "content": output,
                 })
