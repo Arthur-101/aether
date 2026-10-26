@@ -133,7 +133,12 @@ function normalizeWidgetAppearance(
   if (typeof raw.widget_clock_daydate === 'boolean') {
     out.widget_clock_daydate = raw.widget_clock_daydate;
   }
-  if (raw.widget_theme === 'default' || raw.widget_theme === 'cozy') {
+  if (
+    raw.widget_theme === 'default' ||
+    raw.widget_theme === 'cozy' ||
+    raw.widget_theme === 'newsprint' ||
+    raw.widget_theme === 'aura'
+  ) {
     out.widget_theme = raw.widget_theme;
   }
   return Object.keys(out).length ? out : undefined;

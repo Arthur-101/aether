@@ -7,7 +7,9 @@ import type {
   WidgetTheme,
 } from '../../types/ipc';
 import { formatTime, usePosition } from '../Island/MediaWidget';
+import { AuraMediaCard } from './AuraMediaCard';
 import { CozyMediaCard } from './CozyMediaCard';
+import { NewsprintMediaCard } from './NewsprintMediaCard';
 
 interface DesktopMediaWidgetProps {
   media: MediaSnapshot | null;
@@ -205,15 +207,32 @@ const DefaultMediaCard: React.FC<
  * It keeps the full session card even when nothing is playing, so the widget
  * never collapses into a different shape. The island's compact media row is a
  * separate component; this one is tuned for the desktop card. `theme` picks
- * between the original glass card and the alternate cozy artwork card.
+ * between the original glass card, the cozy artwork wash, the printed
+ * newsprint ticket, and the aura glass card.
  */
 export const DesktopMediaWidget: React.FC<DesktopMediaWidgetProps> = ({
   theme = 'default',
   ...props
 }) => {
   if (theme === 'cozy') {
+    return <CozyMediaCard media={props.media} onControl={props.onControl} />;
+  }
+  if (theme === 'newsprint') {
     return (
-      <CozyMediaCard media={props.media} onControl={props.onControl} />
+      <NewsprintMediaCard
+        media={props.media}
+        audioDevices={props.audioDevices}
+        onControl={props.onControl}
+      />
+    );
+  }
+  if (theme === 'aura') {
+    return (
+      <AuraMediaCard
+        media={props.media}
+        audioDevices={props.audioDevices}
+        onControl={props.onControl}
+      />
     );
   }
   return <DefaultMediaCard {...props} />;

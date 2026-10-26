@@ -587,6 +587,184 @@ main {
   }
 }
 
+/*
+ * E-Ink / newsprint theme.
+ *
+ * The card is a sheet of warm stock: an opaque paper base, 1px ink rules, and
+ * no shadow or blur anywhere. At lower transparency the paper alpha comes from
+ * the same `--glass-alpha` token as the glass surfaces, so the slider still
+ * works without the edge changing thickness.
+ */
+.newsprint-surface {
+  background: rgba(244, 241, 234, var(--glass-alpha, 1));
+  border: 1px solid #1c1b18;
+  box-shadow: none;
+  color: #1c1b18;
+}
+
+.widget-card.newsprint-surface {
+  box-shadow: none;
+}
+
+.newsprint-surface,
+.newsprint-surface .font-serif {
+  font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+}
+
+.newsprint-surface .font-mono {
+  font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;
+}
+
+/* Print a halftone screen over the cover. Hover lifts it to reveal colour. */
+.newsprint-art-img {
+  filter: grayscale(1) contrast(1.14) sepia(0.14);
+  transition: filter 260ms ease;
+}
+
+.newsprint-halftone {
+  background-image: radial-gradient(
+    rgba(28, 27, 24, 0.5) 0.6px,
+    transparent 0.7px
+  );
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.52;
+  transition: opacity 260ms ease;
+  -webkit-mask-image: linear-gradient(
+    125deg,
+    rgba(0, 0, 0, 0.95) 8%,
+    rgba(0, 0, 0, 0.3) 58%,
+    transparent 84%
+  );
+  mask-image: linear-gradient(
+    125deg,
+    rgba(0, 0, 0, 0.95) 8%,
+    rgba(0, 0, 0, 0.3) 58%,
+    transparent 84%
+  );
+}
+
+.newsprint-art:hover .newsprint-art-img,
+.newsprint-art:focus-within .newsprint-art-img {
+  filter: grayscale(0) contrast(1.02) sepia(0);
+}
+
+.newsprint-art:hover .newsprint-halftone,
+.newsprint-art:focus-within .newsprint-halftone {
+  opacity: 0.18;
+}
+
+/*
+ * Ambient aura theme.
+ *
+ * No border and no outer shadow: the card is a pane of frosted glass sitting on
+ * a static three-colour mesh sampled from the artwork or wallpaper. The mesh is
+ * painted once by CSS; only the media face adds a blurred full-bleed art layer.
+ * `--glass-alpha` fades the whole backdrop as one piece at lower transparency.
+ */
+.aura-surface {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.widget-card.aura-surface {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.aura-surface,
+.aura-surface .font-sans {
+  font-family:
+    'Segoe UI Variable Display',
+    'Segoe UI Variable',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+}
+
+.aura-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--glass-alpha, 1);
+  background: var(--aura-base, #171821);
+}
+
+.aura-mesh {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(
+      38% 44% at 18% 22%,
+      color-mix(in srgb, var(--aura-a, #7c6cf2) 84%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      42% 48% at 82% 18%,
+      color-mix(in srgb, var(--aura-b, #e887b0) 78%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      52% 56% at 55% 94%,
+      color-mix(in srgb, var(--aura-c, #5fc7be) 82%, transparent),
+      transparent 74%
+    );
+  filter: blur(26px) saturate(1.2);
+  transform: scale(1.14);
+}
+
+.aura-backdrop-art {
+  position: absolute;
+  inset: -14%;
+  background-position: center;
+  background-size: cover;
+  filter: blur(36px) saturate(1.3);
+  opacity: 0.62;
+  transform: scale(1.12);
+}
+
+.aura-wash {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--aura-base, #171821) 46%, transparent),
+      transparent 38%
+    ),
+    radial-gradient(
+      120% 120% at 50% 0%,
+      transparent 42%,
+      color-mix(in srgb, var(--aura-base, #171821) 52%, transparent) 100%
+    );
+  opacity: 0.78;
+}
+
+.aura-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      130% 115% at 50% 44%,
+      transparent 46%,
+      color-mix(in srgb, var(--aura-base, #171821) 58%, black) 100%
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.08), transparent 24%);
+  opacity: 0.5;
+}
+
+/* A soft local scrim keeps the thin clock numerals legible on bright art. */
+.aura-clock {
+  background: radial-gradient(
+    70% 86% at 50% 48%,
+    var(--aura-scrim, rgba(10, 10, 14, 0.55)),
+    transparent 76%
+  );
+}
+
 /* The media widget's source glow breathes gently behind the card. */
 @keyframes aether-media-glow {
   0%,

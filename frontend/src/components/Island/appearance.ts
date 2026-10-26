@@ -122,9 +122,12 @@ export function normalizeTimeFormat(value: unknown): TimeFormat {
   return String(value ?? '').trim().toLowerCase() === '24h' ? '24h' : '12h';
 }
 
-/** Unknown or stale values fall back to the original glass media card. */
+/** Unknown or stale values fall back to the original glass card. */
 export function normalizeWidgetTheme(value: unknown): WidgetTheme {
-  return String(value ?? '').trim().toLowerCase() === 'cozy' ? 'cozy' : 'default';
+  const theme = String(value ?? '').trim().toLowerCase();
+  return theme === 'cozy' || theme === 'newsprint' || theme === 'aura'
+    ? theme
+    : 'default';
 }
 
 export const GLOW_STYLES: GlowStyle[] = [

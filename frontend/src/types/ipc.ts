@@ -60,8 +60,8 @@ export interface AppearanceConfig {
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
-/** Alternate looks for the desktop media widget. */
-export type WidgetTheme = 'default' | 'cozy';
+/** Alternate looks for the desktop widgets. */
+export type WidgetTheme = 'default' | 'cozy' | 'newsprint' | 'aura';
 
 /** How times of day are displayed across the island. */
 export type TimeFormat = '12h' | '24h';

@@ -9,11 +9,12 @@ interface WidgetFrameProps {
   /** Corner radius of the card, in pixels. */
   radius: number;
   /**
-   * `cozy` swaps the dark glass for the warm media-card surface. The header
-   * floats over the content so the artwork can use the full height.
+   * `cozy` swaps the dark glass for the warm media-card surface, `newsprint`
+   * paints opaque paper with ink rules, and `aura` removes the border in
+   * favour of a colour mesh behind the content.
    */
-  tone?: 'default' | 'cozy';
-  /** Artwork used as the blurred colour wash behind the cozy card. */
+  tone?: 'default' | 'cozy' | 'newsprint' | 'aura';
+  /** Artwork used as the blurred colour wash behind cozy and aura cards. */
   backdrop?: string | null;
   /** Hides the card itself, leaving only the text and controls. */
   clearSurface?: boolean;
@@ -28,16 +29,17 @@ const controlClass =
   'flex h-5 w-5 items-center justify-center rounded-full text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]';
 
 /**
- * Shared chrome for every popped-out widget: one glass card, a slim title bar
- * that doubles as the drag handle, and the two placement controls.
+ * Shared chrome for every popped-out widget: a slim title bar that doubles as
+ * the drag handle and the two placement controls.
  *
  * The whole card drags the native window, so the handle is generous. Controls
  * stop the press from reaching the drag handler, and the drag handler also
  * ignores presses that land on a button.
  *
- * For every widget the header shows the kind and the placement controls only
- * while the card is hovered, so the content stays the focal point. The cozy
- * media theme floats that header over a full-bleed colour wash.
+ * Default keeps a reserved header row. The three themed surfaces float the
+ * header over the content so the card can use its full height. Newsprint and
+ * aura already carry their own mastheads, so their floating header is just a
+ * hover-revealed control pill in the top-right corner.
  */
 export const WidgetFrame: React.FC<WidgetFrameProps> = ({
   kind,
@@ -54,7 +56,12 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
   const [hovered, setHovered] = useState(false);
   const stop = (event: React.PointerEvent) => event.stopPropagation();
   const cozy = tone === 'cozy';
-  const showBackdrop = cozy && !clearSurface;
+  const newsprint = tone === 'newsprint';
+  const aura = tone === 'aura';
+  const floatingHeader = cozy || newsprint || aura;
+  const minimalHeader = newsprint || aura;
+  const showCozyBackdrop = cozy && !clearSurface;
+  const showAuraBackdrop = aura && !clearSurface;
 
   return (
     <div
@@ -80,9 +87,11 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
       }
       className={`glass-panel aether-grain widget-card relative flex h-full w-full flex-col overflow-hidden ${
         cozy ? 'cozy-surface' : ''
+      } ${newsprint ? 'newsprint-surface' : ''} ${
+        aura ? 'aura-surface' : ''
       } ${alwaysOnTop ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
     >
-      {showBackdrop ? (
+      {showCozyBackdrop ? (
         <div aria-hidden className="cozy-backdrop">
           {backdrop ? (
             <div
@@ -96,19 +105,51 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
         </div>
       ) : null}
 
+      {showAuraBackdrop ? (
+        <div aria-hidden className="aura-backdrop">
+          <div className="aura-mesh" />
+          {backdrop ? (
+            <div
+              className="aura-backdrop-art"
+              style={{ backgroundImage: `url("${backdrop}")` }}
+            />
+          ) : null}
+          <div className="aura-wash" />
+          <div className="aura-vignette" />
+        </div>
+      ) : null}
+
       {/* Header bar — the kind and controls fade in on hover. */}
       <div
         className={`${
-          cozy ? 'absolute inset-x-0 top-0 z-20' : 'relative shrink-0'
+          floatingHeader ? 'absolute inset-x-0 top-0 z-20' : 'relative shrink-0'
         } flex items-center gap-1.5 px-2.5 pt-1.5 transition-opacity duration-150 ${
-          hovered ? 'opacity-100' : 'opacity-0'
+          hovered
+            ? 'opacity-100'
+            : 'pointer-events-none opacity-0 focus-within:pointer-events-auto focus-within:opacity-100'
         }`}
       >
-        <GripVertical size={11} className="shrink-0 text-[var(--aether-text-4)]" aria-hidden />
-        <span className="truncate text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
-          {WIDGET_LABELS[kind]}
-        </span>
-        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+        {!minimalHeader ? (
+          <GripVertical
+            size={11}
+            className="shrink-0 text-[var(--aether-text-4)]"
+            aria-hidden
+          />
+        ) : null}
+        {!minimalHeader ? (
+          <span className="truncate text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+            {WIDGET_LABELS[kind]}
+          </span>
+        ) : null}
+        <div
+          className={`ml-auto flex shrink-0 items-center gap-0.5 ${
+            minimalHeader
+              ? `rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] px-1 py-0.5 ${
+                  aura ? 'backdrop-blur-sm' : ''
+                }`
+              : ''
+          }`}
+        >
           <button
             type="button"
             onPointerDown={stop}
@@ -141,7 +182,11 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
 
       <div
         className={`relative z-10 flex min-h-0 flex-1 flex-col ${
-          cozy ? 'px-3 pb-2.5 pt-2' : 'px-2.5 pt-1.5 pb-2.5'
+          newsprint || aura
+            ? 'p-0'
+            : cozy
+              ? 'px-3 pb-2.5 pt-2'
+              : 'px-2.5 pt-1.5 pb-2.5'
         }`}
       >
         {children}

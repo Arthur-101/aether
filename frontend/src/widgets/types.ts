@@ -99,6 +99,11 @@ export interface WidgetStatePayload {
   media: MediaSnapshot | null;
   /** The active output endpoint is shown in the media widget's header pill. */
   audioDevices: AudioOutputDevice[];
+  /**
+   * Current desktop wallpaper thumbnail as a data URI. The aura widget theme
+   * tints itself from this when no media artwork is available.
+   */
+  wallpaper: string | null;
   widgets: DesktopWidget[];
 }
 

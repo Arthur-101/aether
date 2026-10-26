@@ -7,7 +7,7 @@ import {
   Palette,
   SlidersHorizontal,
 } from 'lucide-react';
-import type { AppearanceConfig } from '../../../types/ipc';
+import type { AppearanceConfig, WidgetTheme } from '../../../types/ipc';
 import { resolveAppearance } from '../../Island/appearance';
 import {
   WIDGET_KINDS,
@@ -71,7 +71,9 @@ const ThemeRow: React.FC<{
         : 'border-[var(--aether-line)] bg-black/15 hover:border-[var(--aether-line-strong)]'
     }`}
   >
-    {preview}
+    <span aria-hidden className="shrink-0">
+      {preview}
+    </span>
     <span className="min-w-0 flex-1">
       <span className="block text-[10.5px] font-medium text-[var(--aether-text-1)]">{label}</span>
       <span className="mt-0.5 block text-[9px] leading-snug text-[var(--aether-text-3)]">
@@ -192,6 +194,114 @@ const CozyThemePreview: React.FC<{ kind?: WidgetKind }> = ({ kind }) => {
 };
 
 /**
+ * A tiny sheet of paper: ink rules, a printed numeral, and a halftone cover.
+ * The preview only needs to communicate the print language, so it uses the
+ * same palette as the real surface rather than theme tokens.
+ */
+const NewsprintThemePreview: React.FC<{ kind?: WidgetKind }> = ({ kind }) => {
+  if (kind === 'clock') {
+    return (
+      <span className="relative block h-7 w-11 shrink-0 overflow-hidden border border-[#1c1b18] bg-[#f4f1ea]">
+        <span className="absolute inset-x-1 top-1 flex items-center justify-between font-serif text-[3.5px] font-semibold uppercase tracking-[0.12em] text-[#1c1b18]/70">
+          <span>Local</span>
+          <span className="font-mono tracking-normal">12H</span>
+        </span>
+        <span className="absolute inset-x-1 top-2.5 border-t border-[#1c1b18]/25 pt-[3px] text-center font-mono text-[9px] font-semibold leading-none text-[#1c1b18]">
+          12:34
+        </span>
+        <span className="absolute inset-x-1 bottom-1 text-center font-serif text-[3.5px] leading-none text-[#1c1b18]/70">
+          Saturday, 24 October
+        </span>
+      </span>
+    );
+  }
+  if (kind === 'date') {
+    return (
+      <span className="relative block h-7 w-11 shrink-0 overflow-hidden border border-[#1c1b18] bg-[#f4f1ea]">
+        <span className="absolute inset-x-1 top-1 flex items-center justify-between border-b border-[#1c1b18]/25 pb-[2px] font-serif text-[3.5px] uppercase tracking-[0.12em] text-[#1c1b18]/70">
+          <span>The daily</span>
+          <span className="font-mono tracking-normal">2026</span>
+        </span>
+        <span className="absolute left-1 top-[9px] font-serif text-[16px] font-semibold leading-none text-[#1c1b18]">
+          24
+        </span>
+        <span className="absolute bottom-1 left-1 right-1 border-t border-[#1c1b18]/30 pt-[2px] font-serif text-[4px] uppercase tracking-[0.12em] text-[#1c1b18]/75">
+          October
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className="relative block h-7 w-11 shrink-0 overflow-hidden border border-[#1c1b18] bg-[#f4f1ea]">
+      <span
+        className="absolute left-1 top-1 h-[11px] w-[11px] border border-[#1c1b18]/40 bg-[#1c1b18]/10"
+        style={{
+          backgroundImage:
+            'radial-gradient(#1c1b18 0.35px, transparent 0.45px)',
+          backgroundSize: '2px 2px',
+        }}
+      />
+      <span className="absolute left-[15px] top-1 border-b border-[#1c1b18]/20 pb-[1px] font-serif text-[3.5px] font-semibold uppercase tracking-[0.12em] text-[#1c1b18]/70">
+        Now playing
+      </span>
+      <span className="absolute left-[15px] top-[13px] h-[2px] w-[17px] bg-[#1c1b18]/65" />
+      <span className="absolute left-[15px] top-[18px] h-[1px] w-[12px] bg-[#1c1b18]/30" />
+      <span className="absolute inset-x-1 bottom-[4px] flex items-center justify-between border-t border-dashed border-[#1c1b18]/25 pt-[1px] font-mono text-[2.8px] leading-none text-[#1c1b18]/70">
+        <span>[Prev]</span>
+        <span>[Play]</span>
+        <span>[Next]</span>
+      </span>
+    </span>
+  );
+};
+
+/** A static three-colour mesh behind frosted glass. */
+const AuraThemePreview: React.FC<{ kind?: WidgetKind }> = ({ kind }) => {
+  const mesh =
+    'radial-gradient(60% 70% at 18% 20%, rgba(124,108,242,0.92), transparent 72%), radial-gradient(55% 65% at 84% 20%, rgba(232,135,176,0.82), transparent 70%), radial-gradient(75% 80% at 48% 104%, rgba(95,199,190,0.9), transparent 74%)';
+
+  return (
+    <span
+      className="relative block h-7 w-11 shrink-0 overflow-hidden rounded-md"
+      style={{ backgroundColor: '#171821', backgroundImage: mesh }}
+    >
+      {kind === 'clock' ? (
+        <span className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-sans text-[10px] font-extralight leading-none tracking-[-0.04em] text-white">
+            12:34
+          </span>
+          <span className="mt-[2px] font-sans text-[3px] font-light tracking-[0.08em] text-white/65">
+            SATURDAY 24 OCT
+          </span>
+        </span>
+      ) : kind === 'date' ? (
+        <span className="absolute inset-[3px] rounded-[3px] border border-white/20 bg-white/10 p-[2px]">
+          <span className="grid grid-cols-4 gap-[1.5px]">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <span
+                key={index}
+                className={`h-[2px] rounded-[0.5px] ${
+                  index === 5 ? 'bg-[var(--aether-accent)]' : 'bg-white/40'
+                }`}
+              />
+            ))}
+          </span>
+        </span>
+      ) : (
+        <>
+          <span className="absolute left-[4px] top-1/2 h-[13px] w-[13px] -translate-y-1/2 rounded-[3px] bg-white/35 shadow-[0_2px_5px_rgba(0,0,0,0.25)] ring-1 ring-white/45" />
+          <span className="absolute left-[21px] top-[5px] h-[2px] w-[18px] rounded-full bg-white/80" />
+          <span className="absolute left-[21px] top-[10px] h-[1px] w-[13px] rounded-full bg-white/50" />
+          <span className="absolute inset-x-[4px] bottom-[4px] h-[1.5px] rounded-full bg-white/20">
+            <span className="block h-full w-3/5 rounded-full bg-white/85" />
+          </span>
+        </>
+      )}
+    </span>
+  );
+};
+
+/**
  * Desktop widgets.
  *
  * The popped-out widgets are their own windows, so their surface is styled
@@ -238,6 +348,36 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
     // default for widgets added later.
     onChange({ ...appearance, ...patch } as AppearanceConfig);
     widgets.forEach((widget) => onWidgetAppearanceChange(widget.id, patch));
+  };
+
+  /**
+   * A theme click also lays down its starting surface: paper wants square
+   * corners, no transparency, and heavier stock grain; aura wants the opposite.
+   * The sliders below keep working normally afterwards, so the preset is a
+   * starting point rather than a locked style.
+   */
+  const applyTheme = (theme: WidgetTheme) => {
+    if (theme === 'newsprint') {
+      update({
+        widget_theme: theme,
+        widget_opacity: 1,
+        widget_grain: 12,
+        widget_radius: 0,
+        widget_text_color: '',
+      });
+      return;
+    }
+    if (theme === 'aura') {
+      update({
+        widget_theme: theme,
+        widget_opacity: 0.88,
+        widget_grain: 6,
+        widget_radius: 28,
+        widget_text_color: '',
+      });
+      return;
+    }
+    update({ widget_theme: theme });
   };
 
   const textColor = effective.widget_text_color;
@@ -372,7 +512,7 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
         <SettingsGroup
           icon={<Palette size={13} />}
           title={themeTitle}
-          hint="Choose the look of this widget."
+          hint="Choose the look of this widget. Each theme starts from a matching surface preset."
         >
           <div className="space-y-1.5">
             <ThemeRow
@@ -385,21 +525,46 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
                     : 'Compact session card with progress and transport'
               }
               selected={effective.widget_theme === 'default'}
-              onClick={() => update({ widget_theme: 'default' })}
+              onClick={() => applyTheme('default')}
               preview={<DefaultThemePreview kind={selected?.kind} />}
             />
             <ThemeRow
               label="Cozy glow"
               hint="Warm translucent wash with soft accents"
               selected={effective.widget_theme === 'cozy'}
-              onClick={() => update({ widget_theme: 'cozy' })}
+              onClick={() => applyTheme('cozy')}
               preview={<CozyThemePreview kind={selected?.kind} />}
+            />
+            <ThemeRow
+              label="E-Ink / Newsprint"
+              hint="Warm paper, ink rules, serif and mono print"
+              selected={effective.widget_theme === 'newsprint'}
+              onClick={() => applyTheme('newsprint')}
+              preview={<NewsprintThemePreview kind={selected?.kind} />}
+            />
+            <ThemeRow
+              label="Ambient Aura"
+              hint="Borderless frosted glass over a colour mesh"
+              selected={effective.widget_theme === 'aura'}
+              onClick={() => applyTheme('aura')}
+              preview={<AuraThemePreview kind={selected?.kind} />}
             />
           </div>
           <p className="mt-1.5 text-[9px] leading-snug text-[var(--aether-text-3)]">
-            {selected?.kind === 'media'
-              ? 'Cozy drops the timeline and transport. Hover the artwork to play or pause; the waves follow the music and drift at rest.'
-              : 'Cozy swaps the dark glass for a warm wash and keeps the same layout and controls.'}
+            {effective.widget_theme === 'newsprint'
+              ? selected?.kind === 'media'
+                ? 'A printed ticket: halftone cover, bracket transport, and an ink progress rule. Hover the cover to bring colour back.'
+                : selected?.kind === 'clock'
+                  ? 'A printed clock: mono numerals under a serif masthead, with no glass, blur, or shadow.'
+                  : 'A daily front page: the date set large, with edition week and day counters.'
+              : effective.widget_theme === 'aura'
+                ? 'The static mesh follows the current cover, or the desktop wallpaper when nothing is playing.'
+                : selected?.kind === 'media'
+                  ? 'Cozy drops the timeline and transport. Hover the artwork to play or pause; the waves follow the music and drift at rest.'
+                  : 'Cozy swaps the dark glass for a warm wash and keeps the same layout and controls.'}
+          </p>
+          <p className="mt-1 text-[9px] leading-snug text-[var(--aether-text-3)]">
+            The theme sets opacity, grain, corners, and Auto text once. The surface controls below still change them.
           </p>
         </SettingsGroup>
       ) : null}

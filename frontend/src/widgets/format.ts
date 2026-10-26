@@ -38,6 +38,38 @@ export function clockParts(date: Date, format: TimeFormat): ClockParts {
   };
 }
 
+/** 1-based day of the year, computed in UTC so DST never shifts the count. */
+export function dayOfYear(date: Date): number {
+  const start = Date.UTC(date.getFullYear(), 0, 1);
+  const current = Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+  return Math.floor((current - start) / 86_400_000) + 1;
+}
+
+/** ISO-8601 week number: weeks start on Monday and week 1 has the first Thursday. */
+export function isoWeek(date: Date): number {
+  const target = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
+  const weekday = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - weekday + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const firstWeekday = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstWeekday + 3);
+  return (
+    1 +
+    Math.round((target.getTime() - firstThursday.getTime()) / 604_800_000)
+  );
+}
+
+export function daysInYear(date: Date): number {
+  const year = date.getFullYear();
+  return new Date(year, 1, 29).getMonth() === 1 ? 366 : 365;
+}
+
 export interface MonthGrid {
   label: string;
   weekdays: string[];

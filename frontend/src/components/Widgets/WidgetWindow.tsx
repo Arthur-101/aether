@@ -1,8 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emitTo, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { PhysicalPosition } from '@tauri-apps/api/dpi';
-import { appearanceCssVars, resolveAppearance } from '../Island/appearance';
+import {
+  appearanceCssVars,
+  DEFAULT_APPEARANCE,
+  resolveAppearance,
+} from '../Island/appearance';
 import type { MediaControlAction } from '../../types/ipc';
 import {
   WIDGET_MEDIA_CONTROL_EVENT,
@@ -18,21 +22,13 @@ import {
 import { ClockWidget } from './ClockWidget';
 import { DateWidget } from './DateWidget';
 import { DesktopMediaWidget } from './DesktopMediaWidget';
+import { useAuraPalette } from './useAuraPalette';
 import { WidgetFrame } from './WidgetFrame';
+import { buildWidgetSurfaceTheme } from './widgetSurfaceTheme';
 
 interface WidgetWindowProps {
   kind: WidgetKind;
   id: string;
-}
-
-/** The four text tokens every widget surface reads. */
-function textVarsFor(color: string): Record<string, string> {
-  return {
-    '--aether-text-1': color,
-    '--aether-text-2': `color-mix(in srgb, ${color} 84%, transparent)`,
-    '--aether-text-3': `color-mix(in srgb, ${color} 64%, transparent)`,
-    '--aether-text-4': `color-mix(in srgb, ${color} 46%, transparent)`,
-  };
 }
 
 /**
@@ -83,6 +79,26 @@ export const WidgetWindow: React.FC<WidgetWindowProps> = ({ kind, id }) => {
   // This widget's own entry in the list, which carries its placement.
   const self = state?.widgets.find((widget) => widget.id === id) ?? null;
   const alwaysOnTop = self?.always_on_top ?? true;
+
+  // Resolve the effective surface before the empty-state return so the aura
+  // palette hook below can run on every render, not just after state arrives.
+  const widgetAppearance = useMemo(
+    () =>
+      resolveAppearance({
+        ...(state?.appearance ?? DEFAULT_APPEARANCE),
+        ...(self?.appearance ?? {}),
+      }),
+    [state?.appearance, self?.appearance]
+  );
+  const widgetTheme = widgetAppearance.widget_theme;
+  const auraTheme = widgetTheme === 'aura';
+  const mediaArtwork = state?.media?.has_session
+    ? state.media.artwork
+    : null;
+  const auraSource = auraTheme
+    ? mediaArtwork ?? state?.wallpaper ?? null
+    : null;
+  const auraPalette = useAuraPalette(auraSource);
 
   /**
    * Moves the native window with the pointer. The stored layout is logical
@@ -180,52 +196,13 @@ export const WidgetWindow: React.FC<WidgetWindowProps> = ({ kind, id }) => {
 
   if (!state) return null;
 
-  // A widget may override the shared surface settings; resolveAppearance
-  // clamps the merged values back into the normal ranges.
-  const widgetAppearance = resolveAppearance({
-    ...state.appearance,
-    ...(self?.appearance ?? {}),
-  });
-
-  // A fully transparent surface hides the card, border, shadow, and grain while
-  // leaving the text and controls on the desktop.
-  const clearSurface = widgetAppearance.widget_opacity <= 0;
-  const textColor = widgetAppearance.widget_text_color;
-  // The cozy wash is available to every kind now: media gets the artwork
-  // backdrop, the clock and date get the same warm surface without it.
-  const cozyTheme = widgetAppearance.widget_theme === 'cozy';
-  // At opacity 0 there is no warm wash left, so Auto text follows the desktop
-  // theme again instead of the dark ink used on the cozy surface.
-  const cozySurface = cozyTheme && !clearSurface;
-  const textVars = textColor
-    ? textVarsFor(textColor)
-    : cozySurface
-      ? textVarsFor('#3a2a2c')
-      : {};
-
-  const cozyVars: Record<string, string> = cozyTheme
-    ? {
-        // Decorative waves follow the chosen text colour on a clear surface.
-        '--cozy-wave': textColor
-          ? `color-mix(in srgb, ${textColor} 62%, transparent)`
-          : cozySurface
-            ? 'rgba(255, 248, 240, 0.82)'
-            : 'var(--aether-text-3)',
-        ...(cozySurface
-          ? {
-              '--aether-line': 'rgba(58, 42, 47, 0.16)',
-              '--aether-line-soft': 'rgba(58, 42, 47, 0.1)',
-              '--aether-line-strong': 'rgba(58, 42, 47, 0.26)',
-              '--aether-fill': 'rgba(255, 255, 255, 0.26)',
-              '--aether-fill-2': 'rgba(255, 255, 255, 0.42)',
-              '--aether-fill-3': 'rgba(58, 42, 47, 0.14)',
-              '--aether-shadow': 'rgba(58, 42, 47, 0.1)',
-              '--aether-accent-text':
-                'color-mix(in srgb, var(--aether-accent) 48%, #3a2a2c)',
-            }
-          : {}),
-      }
-    : {};
+  const surface = buildWidgetSurfaceTheme(
+    widgetAppearance,
+    auraPalette,
+    kind,
+    mediaArtwork,
+    state.wallpaper
+  );
 
   return (
     <div
@@ -233,13 +210,15 @@ export const WidgetWindow: React.FC<WidgetWindowProps> = ({ kind, id }) => {
       style={
         {
           ...appearanceCssVars(widgetAppearance, state.theme),
-          ...textVars,
-          ...cozyVars,
+          ...surface.textVars,
+          ...surface.vars,
           // The widget is its own window with its own surface, so it reads the
           // widget settings rather than the island's. Pop is not exposed here:
           // the window is exactly card-sized, so an outward shadow would be
           // clipped into dark corner wedges.
-          '--aether-grain': clearSurface ? 0 : widgetAppearance.widget_grain,
+          '--aether-grain': surface.clearSurface
+            ? 0
+            : widgetAppearance.widget_grain,
           '--glass-alpha': widgetAppearance.widget_opacity,
         } as React.CSSProperties
       }
@@ -249,11 +228,9 @@ export const WidgetWindow: React.FC<WidgetWindowProps> = ({ kind, id }) => {
         kind={kind}
         alwaysOnTop={alwaysOnTop}
         radius={widgetAppearance.widget_radius}
-        tone={cozyTheme ? 'cozy' : 'default'}
-        backdrop={
-          cozyTheme && kind === 'media' ? state.media?.artwork ?? null : null
-        }
-        clearSurface={clearSurface}
+        tone={surface.tone}
+        backdrop={surface.backdrop}
+        clearSurface={surface.clearSurface}
         onTogglePinned={togglePinned}
         onClose={close}
         onDragStart={beginDrag}

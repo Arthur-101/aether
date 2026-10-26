@@ -51,6 +51,8 @@ interface UseDesktopWidgetsOptions {
   timeFormat: TimeFormat;
   media: MediaSnapshot | null;
   audioDevices: AudioOutputDevice[];
+  /** Current desktop wallpaper thumbnail, used by the aura widget theme. */
+  wallpaper: string | null;
   onMediaControl: (action: MediaControlAction) => void;
 }
 
@@ -69,13 +71,22 @@ export function useDesktopWidgets({
   timeFormat,
   media,
   audioDevices,
+  wallpaper,
   onMediaControl,
 }: UseDesktopWidgetsOptions): DesktopWidgetsApi {
   const [widgets, setWidgets] = useState<DesktopWidget[]>(() => loadWidgets());
 
   const payload = useMemo<WidgetStatePayload>(
-    () => ({ appearance, theme, timeFormat, media, audioDevices, widgets }),
-    [appearance, theme, timeFormat, media, audioDevices, widgets]
+    () => ({
+      appearance,
+      theme,
+      timeFormat,
+      media,
+      audioDevices,
+      wallpaper,
+      widgets,
+    }),
+    [appearance, theme, timeFormat, media, audioDevices, wallpaper, widgets]
   );
   const payloadRef = useRef(payload);
   payloadRef.current = payload;

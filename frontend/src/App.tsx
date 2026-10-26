@@ -381,6 +381,9 @@ export function App() {
     timeFormat: liveAppearance.time_format,
     media,
     audioDevices,
+    wallpaper:
+      (wallpaperState?.recent.find((item) => item.is_current) ??
+        wallpaperState?.recent[0])?.thumbnail ?? null,
     onMediaControl: handleMediaControl,
   });
 
