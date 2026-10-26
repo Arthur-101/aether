@@ -1,13 +1,18 @@
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
+mod autostart;
 mod external_window;
+mod tray;
 mod widgets;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![
+      autostart::get_autostart,
+      autostart::set_autostart,
       external_window::open_external,
+      tray::set_tray_visible,
       widgets::sync_widgets,
       widgets::ensure_on_top
     ])
@@ -39,6 +44,12 @@ pub fn run() {
       // at the widgets' rounded corners; repaint them whenever the foreground
       // window changes.
       widgets::install_repaint_hook();
+
+      // A missing tray must not stop the overlay from starting; the General
+      // settings toggle can rebuild it later in the session.
+      if let Err(error) = tray::install(app.handle()) {
+        log::warn!("Could not create the Aether tray icon: {error}");
+      }
 
       Ok(())
     })

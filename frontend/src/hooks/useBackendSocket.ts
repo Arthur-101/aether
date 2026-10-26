@@ -22,6 +22,7 @@ import type {
   RadialWheelCursor,
   RadialWheelDropPayload,
   RadialWheelPayload,
+  RegionCapture,
   ScreenSample,
   SessionItem,
   ScheduledTask,
@@ -63,7 +64,12 @@ export function useBackendSocket() {
   const [wheelCursor, setWheelCursor] = useState<RadialWheelCursor | null>(null);
   const [wheelDrop, setWheelDrop] = useState<RadialWheelDropPayload | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
-  const [isCircleOpen, setIsCircleOpen] = useState(false);
+  const [isRegionOpen, setIsRegionOpen] = useState(false);
+  const [regionCapture, setRegionCapture] = useState<RegionCapture | null>(null);
+  const [regionCaptureError, setRegionCaptureError] = useState<{
+    id: number;
+    message: string;
+  } | null>(null);
   const [wifiProfiles, setWifiProfiles] = useState<WifiProfile[]>([]);
   const [bluetoothDevices, setBluetoothDevices] = useState<BluetoothDeviceInfo[]>([]);
   const [clockAlert, setClockAlert] = useState<ClockAlert | null>(null);
@@ -316,8 +322,22 @@ export function useBackendSocket() {
             taskId: payload.task_id || '',
           });
           break;
-        case 'CIRCLE_TO_ASK':
-          setIsCircleOpen(true);
+        case 'REGION_TO_ASK':
+          setIsRegionOpen(true);
+          break;
+        case 'REGION_CAPTURED':
+          setRegionCapture({
+            id: Date.now(),
+            filePath: payload.file_path,
+            width: payload.width,
+            height: payload.height,
+          });
+          break;
+        case 'REGION_CAPTURE_FAILED':
+          setRegionCaptureError({
+            id: Date.now(),
+            message: payload.message || 'Could not capture the selected region.',
+          });
           break;
         case 'OPEN_ISLAND':
           setOpenIslandRequest((request) => request + 1);
@@ -365,7 +385,7 @@ export function useBackendSocket() {
     setWheelDrop(null);
   }, []);
 
-  const closeCircle = useCallback(() => setIsCircleOpen(false), []);
+  const closeRegion = useCallback(() => setIsRegionOpen(false), []);
   const clearClockEvent = useCallback(() => setClockAlert(null), []);
   const clearError = useCallback(() => setErrorMessage(null), []);
   const clearConfigError = useCallback(() => setConfigError(null), []);
@@ -399,7 +419,9 @@ export function useBackendSocket() {
     wheelCursor,
     wheelDrop,
     attachments,
-    isCircleOpen,
+    isRegionOpen,
+    regionCapture,
+    regionCaptureError,
     wifiProfiles,
     bluetoothDevices,
     clockAlert,
@@ -419,7 +441,7 @@ export function useBackendSocket() {
     requestScreenSample,
     refreshWeather,
     closeRadialWheel,
-    closeCircle,
+    closeRegion,
     clearClockEvent,
     clearError,
     clearConfigError,

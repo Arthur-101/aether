@@ -63,6 +63,52 @@ def test_load_merges_new_defaults_without_overwriting_user_values(app_dir):
     assert providers["openrouter"]["model"] == "legacy-model"
 
 
+def test_general_defaults_are_written(app_dir):
+    manager = ConfigManager()
+
+    assert manager.get("general", "start_on_startup") is False
+    assert manager.get("general", "show_tray_icon") is True
+    assert json.loads((app_dir / "config.json").read_text(encoding="utf-8"))[
+        "general"
+    ] == {"start_on_startup": False, "show_tray_icon": True}
+
+
+def test_general_preferences_are_normalized(app_dir):
+    (app_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "general": {
+                    "start_on_startup": True,
+                    "show_tray_icon": False,
+                    "unknown": "dropped",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manager = ConfigManager()
+
+    assert manager.get("general") == {
+        "start_on_startup": True,
+        "show_tray_icon": False,
+    }
+
+
+def test_general_wrong_types_fall_back_to_defaults(app_dir):
+    (app_dir / "config.json").write_text(
+        json.dumps(
+            {"general": {"start_on_startup": "yes", "show_tray_icon": 0}}
+        ),
+        encoding="utf-8",
+    )
+
+    manager = ConfigManager()
+
+    assert manager.get("general", "start_on_startup") is False
+    assert manager.get("general", "show_tray_icon") is True
+
+
 def test_corrupt_config_is_preserved_before_defaults_are_written(app_dir):
     original = '{"brand_name": "Broken", '
     (app_dir / "config.json").write_text(original, encoding="utf-8")

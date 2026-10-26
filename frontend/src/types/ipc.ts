@@ -440,15 +440,31 @@ export interface VoiceConfig {
 
 export interface HotkeysConfig {
   dictation: string;
+  /** Legacy key name; the UI calls this Region to Ask. */
   circle_to_ask: string;
   radial_wheel_modifier: string;
   toggle_drawer: string;
   open_island: string;
 }
 
+export interface GeneralConfig {
+  /** Register the desktop app in the Windows sign-in startup list. */
+  start_on_startup: boolean;
+  /** Keep the Aether icon in the Windows notification area. */
+  show_tray_icon: boolean;
+}
+
+export interface RegionCapture {
+  id: number;
+  filePath: string;
+  width: number;
+  height: number;
+}
+
 export interface AppConfig {
   first_run_completed?: boolean;
   brand_name?: string;
+  general?: GeneralConfig;
   ai_provider: AIProviderConfig;
   voice: VoiceConfig;
   hotkeys: HotkeysConfig;
@@ -476,6 +492,10 @@ export type OutgoingEvent =
   | { type: 'FILE_DROPPED_ISLAND'; payload: { file_path: string } }
   | { type: 'ATTACH_FILE'; payload: { file_path: string } }
   | { type: 'DETACH_FILE'; payload: { file_path: string } }
+  | {
+      type: 'CAPTURE_REGION';
+      payload: { x: number; y: number; width: number; height: number };
+    }
   | { type: 'DELETE_SESSION'; payload: { session_id: string } }
   | { type: 'LIST_TASKS'; payload: Record<string, never> }
   | { type: 'CREATE_TASK'; payload: TaskInput }

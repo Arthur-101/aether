@@ -67,7 +67,7 @@ def wire_hotkey_callbacks() -> None:
         )
 
     def on_circle_to_ask() -> None:
-        asyncio.run_coroutine_threadsafe(ws_manager.broadcast("CIRCLE_TO_ASK", {}), loop)
+        asyncio.run_coroutine_threadsafe(ws_manager.broadcast("REGION_TO_ASK", {}), loop)
 
     def on_open_island() -> None:
         asyncio.run_coroutine_threadsafe(

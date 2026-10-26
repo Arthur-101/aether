@@ -182,6 +182,7 @@ def _register_builtin_handlers() -> None:
     from .model_events import register_model_events
     from .note_events import register_note_events
     from .power_events import register_power_events
+    from .region_events import register_region_events
     from .task_events import register_task_events
     from .tool_events import register_tool_events
     from .wallpaper_events import register_wallpaper_events
@@ -189,6 +190,7 @@ def _register_builtin_handlers() -> None:
 
     register_config_events()
     register_tool_events()
+    register_region_events()
     register_task_events()
     register_weather_events()
     register_model_events()

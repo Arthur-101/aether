@@ -15,6 +15,7 @@ from platformdirs import user_data_dir
 from .config_schema import (
     default_appearance,
     default_clock,
+    default_general,
     default_taskbar_apps,
     default_wallpaper,
     normalize_config,
@@ -82,6 +83,7 @@ def get_default_config() -> Dict[str, Any]:
     return {
         "first_run_completed": False,
         "brand_name": "Aether",
+        "general": default_general(),
         "ai_provider": {
             "mode": "local_gguf",  # local_gguf | ollama | cloud
             "local_engine": "llama_cpp",

@@ -99,17 +99,24 @@ async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
     )
 
 
-async def attach_file(file_path: str) -> None:
-    """Attaches a file to the active session and reports indexing status."""
+async def attach_file(file_path: str, session_title: str = "") -> bool:
+    """Attaches a file to the active session and reports indexing status.
+
+    Returns True when the attachment reached the session store. Region to Ask
+    and the file picker both use this path so images share the same vision
+    pipeline.
+    """
     import asyncio
 
     if not file_path:
-        return
+        return False
     path = Path(file_path)
     sid = session_manager.active_session_id
     created = False
     if not sid:
-        sid = session_manager.get_or_create_session(path.stem or "Attached file")
+        sid = session_manager.get_or_create_session(
+            session_title or path.stem or "Attached file"
+        )
         created = True
     loop = asyncio.get_running_loop()
     try:
@@ -121,7 +128,7 @@ async def attach_file(file_path: str) -> None:
             "FILE_ATTACH_ERROR", {"file_path": file_path, "message": str(exc)}
         )
         await ws_manager.broadcast("ERROR", {"message": str(exc)})
-        return
+        return False
 
     attachments = await loop.run_in_executor(None, lambda: list_attachments(sid))
     if created:
@@ -137,6 +144,7 @@ async def attach_file(file_path: str) -> None:
         "ATTACHMENTS_STATE",
         {"session_id": sid, "attachments": attachments},
     )
+    return True
 
 
 async def _handle_attach_file(payload: Dict[str, Any]) -> None:

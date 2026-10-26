@@ -212,6 +212,13 @@ export function useBackendActions(
     [sendEvent, setAttachments]
   );
 
+  const captureRegion = useCallback(
+    (rect: { x: number; y: number; width: number; height: number }) => {
+      sendEvent({ type: 'CAPTURE_REGION', payload: rect });
+    },
+    [sendEvent]
+  );
+
   const deleteSession = useCallback(
     (sessionId: string) => {
       setSessions((prev) => prev.filter((session) => session.id !== sessionId));
@@ -391,6 +398,7 @@ export function useBackendActions(
     triggerWheelAction,
     attachFile,
     detachFile,
+    captureRegion,
     deleteSession,
     toggleThinking,
     saveConfig,

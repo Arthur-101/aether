@@ -18,7 +18,7 @@ const rows = [
   { label: 'Open Aether Island', key: 'open_island' as const },
   { label: 'Voice Assistant (Hold)', key: 'toggle_drawer' as const },
   { label: 'Smart Dictation (Hold)', key: 'dictation' as const },
-  { label: 'Circle to Ask (Hold)', key: 'circle_to_ask' as const },
+  { label: 'Region to Ask (Hold)', key: 'circle_to_ask' as const },
   { label: 'Context Radial Wheel', key: 'radial_wheel_modifier' as const },
 ];
 

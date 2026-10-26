@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { isTauri } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
@@ -9,7 +10,10 @@ import { RadialWheel } from './components/RadialWheel/RadialWheel';
 import { CropModal } from './components/MicroModals/CropModal';
 import { AddBgModal } from './components/MicroModals/AddBgModal';
 import { SettingsModal, type SettingsTab } from './components/SettingsModal/SettingsModal';
-import { CircleToAsk } from './components/CircleToAsk/CircleToAsk';
+import {
+  RegionToAsk,
+  type RegionSelection,
+} from './components/RegionToAsk/RegionToAsk';
 import { ScreenScale } from './components/Island/ScreenScale';
 import { useDesktopWidgets } from './hooks/useDesktopWidgets';
 import { useIslandOnTop } from './hooks/useIslandOnTop';
@@ -85,7 +89,9 @@ export function App() {
     wheelCursor,
     wheelDrop,
     attachments,
-    isCircleOpen,
+    isRegionOpen,
+    regionCapture,
+    regionCaptureError,
     wifiProfiles,
     bluetoothDevices,
     audioDevices,
@@ -127,6 +133,7 @@ export function App() {
     triggerWheelAction,
     attachFile,
     detachFile,
+    captureRegion,
     deleteSession,
     toggleThinking,
     saveConfig,
@@ -153,7 +160,7 @@ export function App() {
     runPowerAction,
     openSettingsPage,
     closeRadialWheel,
-    closeCircle,
+    closeRegion,
     clearClockEvent,
     clearError,
     clearConfigError,
@@ -161,6 +168,17 @@ export function App() {
   } = useBackendSocket();
 
   useClickThrough(subscribeMouse, connected);
+
+  const showMainWindow = useCallback(async () => {
+    if (!isTauri()) return;
+    const appWindow = getCurrentWindow();
+    try {
+      await appWindow.show();
+      await appWindow.setFocus();
+    } catch (error) {
+      console.warn('Could not restore the Aether overlay:', error);
+    }
+  }, []);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab | null>(null);
@@ -174,6 +192,8 @@ export function App() {
   const islandExpandedRef = useRef(false);
   const islandExpandedBeforeSettings = useRef(false);
   const settingsOpenRef = useRef(false);
+  const regionRestoreTimer = useRef<number | null>(null);
+  const appliedGeneralRef = useRef('');
   const [previewAppearance, setPreviewAppearance] = useState<AppearanceConfig | null>(
     null
   );
@@ -209,15 +229,45 @@ export function App() {
     settingsOpenRef.current = isSettingsOpen;
   }, [isSettingsOpen]);
 
-  // Global Open Island shortcut. Focus the overlay first so the composer can
-  // actually receive typing when Aether was summoned from another app.
+  // Global Open Island shortcut. Restore and focus the overlay first so it can
+  // receive typing even after the user hid it from the system tray.
   useEffect(() => {
     if (!openIslandRequest || settingsOpenRef.current) return;
-    if (isTauri()) {
-      void getCurrentWindow().setFocus().catch(() => undefined);
-    }
+    void showMainWindow();
     setIsIslandExpanded(true);
-  }, [openIslandRequest]);
+  }, [openIslandRequest, showMainWindow]);
+
+  // Region to Ask is also reachable while the overlay is hidden in the tray.
+  useEffect(() => {
+    if (!isRegionOpen) return;
+    void showMainWindow();
+  }, [isRegionOpen, showMainWindow]);
+
+  // Keep the OS integrations in sync with the saved General settings. The
+  // signature guard avoids rewriting the registry when unrelated config
+  // sections change.
+  useEffect(() => {
+    const general = config?.general;
+    if (!isTauri() || !general) return;
+    const signature = `${general.start_on_startup}:${general.show_tray_icon}`;
+    if (appliedGeneralRef.current === signature) return;
+    appliedGeneralRef.current = signature;
+    void invoke('set_autostart', {
+      enabled: Boolean(general.start_on_startup),
+    }).catch((error) => console.error('Could not update startup setting:', error));
+    void invoke('set_tray_visible', {
+      visible: general.show_tray_icon !== false,
+    }).catch((error) => console.error('Could not update tray visibility:', error));
+  }, [config?.general]);
+
+  useEffect(
+    () => () => {
+      if (regionRestoreTimer.current !== null) {
+        window.clearTimeout(regionRestoreTimer.current);
+      }
+    },
+    []
+  );
 
   const showSettings = useCallback((tab: SettingsTab | null) => {
     if (!settingsOpenRef.current) {
@@ -230,6 +280,39 @@ export function App() {
   }, []);
 
   const openSettings = useCallback(() => showSettings(null), [showSettings]);
+
+  // Native tray actions are emitted by the Rust shell.
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen('aether:open-settings', () => {
+      if (!disposed) showSettings(null);
+    }).then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [showSettings]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void listen('aether:quit', () => {
+      if (!disposed) killApp();
+    }).then((stop) => {
+      if (disposed) stop();
+      else unlisten = stop;
+    });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [killApp]);
 
   const openTaskbarSettings = useCallback(
     () => showSettings('appearance'),
@@ -299,6 +382,71 @@ export function App() {
     },
     [attachFile, closeRadialWheel]
   );
+
+  /**
+   * Converts the CSS selection into absolute physical pixels, hides the
+   * transparent overlay so it is not baked into the screenshot, then asks the
+   * Python daemon to capture and attach the region.
+   */
+  const handleRegionCapture = useCallback(
+    async (bbox: RegionSelection) => {
+      closeRegion();
+      setIsIslandExpanded(false);
+      const appWindow = getCurrentWindow();
+      let origin = { x: 0, y: 0 };
+      let scale = 1;
+
+      if (isTauri()) {
+        try {
+          const position = await appWindow.outerPosition();
+          origin = { x: position.x, y: position.y };
+          scale = await appWindow.scaleFactor();
+          await appWindow.hide();
+        } catch (error) {
+          console.warn('Could not hide the overlay before capture:', error);
+        }
+        // Let the compositor remove the selection highlight before mss grabs.
+        await new Promise((resolve) => window.setTimeout(resolve, 140));
+      }
+
+      captureRegion({
+        x: Math.round(origin.x + bbox.x1 * scale),
+        y: Math.round(origin.y + bbox.y1 * scale),
+        width: Math.max(1, Math.round((bbox.x2 - bbox.x1) * scale)),
+        height: Math.max(1, Math.round((bbox.y2 - bbox.y1) * scale)),
+      });
+
+      if (regionRestoreTimer.current !== null) {
+        window.clearTimeout(regionRestoreTimer.current);
+      }
+      regionRestoreTimer.current = window.setTimeout(() => {
+        regionRestoreTimer.current = null;
+        void showMainWindow();
+      }, 6000);
+    },
+    [captureRegion, closeRegion, showMainWindow]
+  );
+
+  useEffect(() => {
+    if (!regionCapture) return;
+    if (regionRestoreTimer.current !== null) {
+      window.clearTimeout(regionRestoreTimer.current);
+      regionRestoreTimer.current = null;
+    }
+    void showMainWindow();
+    // The daemon already attached the image; only the Quick Chat focus request
+    // is needed here.
+    setAskRequest({ id: regionCapture.id, filePath: regionCapture.filePath });
+  }, [regionCapture, showMainWindow]);
+
+  useEffect(() => {
+    if (!regionCaptureError) return;
+    if (regionRestoreTimer.current !== null) {
+      window.clearTimeout(regionRestoreTimer.current);
+      regionRestoreTimer.current = null;
+    }
+    void showMainWindow();
+  }, [regionCaptureError, showMainWindow]);
 
   const openScale = useCallback((unit: ScaleUnit) => {
     setIsIslandExpanded(false);
@@ -555,14 +703,12 @@ export function App() {
         onClose={closeSettings}
       />
 
-      <CircleToAsk
-        isOpen={isCircleOpen}
+      <RegionToAsk
+        isOpen={isRegionOpen}
         onCapture={(bbox) => {
-          sendChatMessage(
-            `Circle to ask on region: (${bbox.x1}, ${bbox.y1}) to (${bbox.x2}, ${bbox.y2})`
-          );
+          void handleRegionCapture(bbox);
         }}
-        onClose={closeCircle}
+        onClose={closeRegion}
       />
 
       {scaleUnit ? (

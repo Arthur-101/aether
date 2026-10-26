@@ -138,7 +138,16 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   }, [clearTimers, isTucked]);
 
   const handlePointerEnter = () => {
-    if (isTucked || isExpanded || !peekEnabled || focusWithinRef.current) return;
+    if (isTucked || isExpanded || !peekEnabled) return;
+    if (focusWithinRef.current) {
+      // Escape returns focus to the pill trigger. Re-entering the pill with the
+      // pointer is mouse intent, so release that focus instead of locking the
+      // peek out until the user clicks somewhere else.
+      const active = document.activeElement as HTMLElement | null;
+      if (!active?.hasAttribute('data-aether-island-trigger')) return;
+      active.blur();
+      updateFocusWithin(false);
+    }
     clearTimers();
     enterTimer.current = window.setTimeout(() => {
       enterTimer.current = null;
@@ -167,6 +176,16 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     focusWithinRef.current = value;
     setFocusWithin(value);
   }, []);
+
+  // Closing the island unmounts the header control that was focused. The
+  // browser does not emit a blur for a removed node, so without this check the
+  // focus lock would stay stuck and the idle pill would ignore hover.
+  useEffect(() => {
+    if (isExpanded || !focusWithinRef.current) return;
+    if (!shellRef.current?.contains(document.activeElement)) {
+      updateFocusWithin(false);
+    }
+  }, [isExpanded, updateFocusWithin]);
 
   // The idle pill and the peek deck use different buttons. Give the swap time
   // to settle, then return focus unless the user has clicked away.

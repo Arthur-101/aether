@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   GripHorizontal,
   Settings,
+  Settings2,
   X,
   Cpu,
   Mic,
@@ -18,6 +19,7 @@ import {
 import type {
   AppearanceConfig,
   AppConfig,
+  GeneralConfig,
   TaskbarAppsConfig,
   TaskbarAppsState,
 } from '../../types/ipc';
@@ -28,6 +30,7 @@ import type {
 import { resolveAppearance, resolveTaskbarApps } from '../Island/appearance';
 import { AiSettings } from './tabs/AiSettings';
 import { AppearanceSettings } from './tabs/AppearanceSettings';
+import { GeneralSettings } from './tabs/GeneralSettings';
 import { VoiceSettings } from './tabs/VoiceSettings';
 import { HotkeySettings } from './tabs/HotkeySettings';
 import { StorageSettings } from './tabs/StorageSettings';
@@ -57,6 +60,7 @@ interface SettingsModalProps {
 }
 
 export type SettingsTab =
+  | 'general'
   | 'ai'
   | 'voice'
   | 'hotkeys'
@@ -66,6 +70,7 @@ export type SettingsTab =
 type Tab = SettingsTab;
 
 const tabs = [
+  { id: 'general' as const, label: 'General', icon: Settings2 },
   { id: 'ai' as const, label: 'AI & Models', icon: Cpu },
   { id: 'voice' as const, label: 'Voice Engine', icon: Mic },
   { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
@@ -154,6 +159,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen && activeTab === 'appearance') onRefreshTaskbar();
   }, [isOpen, activeTab, onRefreshTaskbar]);
+
+  const updateGeneral = (patch: Partial<GeneralConfig>) => {
+    setDraft((prev) =>
+      prev
+        ? {
+            ...prev,
+            general: {
+              start_on_startup: false,
+              show_tray_icon: true,
+              ...prev.general,
+              ...patch,
+            },
+          }
+        : prev
+    );
+  };
 
   const updateAi = (patch: Partial<AppConfig['ai_provider']>) => {
     setDraft((prev) =>
@@ -348,6 +369,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 title="Drag to move Settings"
               >
                 <h4 className="text-sm font-semibold text-[var(--aether-text-1)]">
+                  {activeTab === 'general' && 'General & Desktop'}
                   {activeTab === 'ai' && 'AI Engine & Inference'}
                   {activeTab === 'voice' && 'Voice Pipeline'}
                   {activeTab === 'hotkeys' && 'Global System Hotkeys'}
@@ -372,6 +394,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               ) : (
                 <>
+                  {activeTab === 'general' && (
+                    <GeneralSettings
+                      general={
+                        draft.general ?? {
+                          start_on_startup: false,
+                          show_tray_icon: true,
+                        }
+                      }
+                      onChange={updateGeneral}
+                    />
+                  )}
                   {activeTab === 'ai' && (
                     <AiSettings
                       ai={draft.ai_provider}

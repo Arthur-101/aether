@@ -4,13 +4,20 @@ import { Sparkles, X, Camera } from 'lucide-react';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-interface CircleToAskProps {
+export interface RegionSelection {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+interface RegionToAskProps {
   isOpen: boolean;
-  onCapture: (bbox: { x1: number; y1: number; x2: number; y2: number }) => void;
+  onCapture: (bbox: RegionSelection) => void;
   onClose: () => void;
 }
 
-export const CircleToAsk: React.FC<CircleToAskProps> = ({
+export const RegionToAsk: React.FC<RegionToAskProps> = ({
   isOpen,
   onCapture,
   onClose,
@@ -18,6 +25,13 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentBox, setCurrentBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setIsDrawing(false);
+    setStartPoint(null);
+    setCurrentBox(null);
+  }, [isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -34,6 +48,7 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
   }, [isOpen]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
     setIsDrawing(true);
     setStartPoint({ x: e.clientX, y: e.clientY });
     setCurrentBox({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
@@ -76,27 +91,34 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
-        {/* Helper Top Banner */}
         <motion.div
           initial={{ y: -30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -30, opacity: 0 }}
-          className="fixed top-6 left-1/2 -translate-x-1/2 glass-panel px-4 py-2 rounded-full flex items-center gap-2.5 text-xs text-[var(--aether-text-1)] shadow-xl pointer-events-auto"
+          onMouseDown={(event) => event.stopPropagation()}
+          onMouseUp={(event) => event.stopPropagation()}
+          className="pointer-events-auto fixed top-6 left-1/2 flex -translate-x-1/2 items-center gap-2.5 rounded-full px-4 py-2 text-xs text-[var(--aether-text-1)] shadow-xl glass-panel"
         >
           <Camera size={14} className="text-cyan-400" />
-          <span>Drag to select any area on screen • Press ESC to cancel</span>
+          <span className="font-medium">Region to Ask</span>
+          <span className="text-[var(--aether-text-3)]">
+            Drag to select an area
+          </span>
+          <span className="text-[var(--aether-text-3)]">•</span>
+          <span className="text-[var(--aether-text-3)]">Esc to cancel</span>
           <button
             onClick={onClose}
-            className="p-1 rounded-full hover:bg-[var(--aether-fill-2)] text-slate-400 hover:text-[var(--aether-text-1)] transition"
+            aria-label="Cancel region selection"
+            title="Cancel region selection"
+            className="rounded-full p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
           >
             <X size={12} />
           </button>
         </motion.div>
 
-        {/* Drawn Bounding Box */}
         {currentBox && (
           <div
-            className="absolute border-2 border-cyan-400 bg-cyan-500/10 rounded shadow-[0_0_20px_#38bdf8] pointer-events-none"
+            className="pointer-events-none absolute rounded border-2 border-cyan-400 bg-cyan-500/10 shadow-[0_0_20px_#38bdf8]"
             style={{
               left: currentBox.x,
               top: currentBox.y,
@@ -104,7 +126,7 @@ export const CircleToAsk: React.FC<CircleToAskProps> = ({
               height: currentBox.h,
             }}
           >
-            <div className="absolute top-1 right-2 flex items-center gap-1 text-[10px] font-mono text-cyan-300 bg-slate-950/80 px-1.5 py-0.5 rounded border border-cyan-400/40">
+            <div className="absolute top-1 right-2 flex items-center gap-1 rounded border border-cyan-400/40 bg-slate-950/80 px-1.5 py-0.5 font-mono text-[10px] text-cyan-300">
               <Sparkles size={10} />
               <span>
                 {currentBox.w} × {currentBox.h}

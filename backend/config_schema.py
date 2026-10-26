@@ -22,6 +22,11 @@ VALID_DASHBOARD_TABS = frozenset(DEFAULT_DASHBOARD_TABS)
 DEFAULT_BRAND_NAME = "Aether"
 MAX_BRAND_NAME_LENGTH = 24
 
+DEFAULT_GENERAL: Dict[str, Any] = {
+    "start_on_startup": False,
+    "show_tray_icon": True,
+}
+
 DEFAULT_CLOCK: Dict[str, Any] = {
     "weather_mode": "auto",
     "weather_city": "",
@@ -86,6 +91,11 @@ _HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 def default_appearance() -> Dict[str, Any]:
     """Returns a fresh appearance section with a copied tab list."""
     return {**DEFAULT_APPEARANCE, "dashboard_tabs": list(DEFAULT_DASHBOARD_TABS)}
+
+
+def default_general() -> Dict[str, Any]:
+    """Returns a fresh desktop-integration section."""
+    return dict(DEFAULT_GENERAL)
 
 
 def default_taskbar_apps() -> Dict[str, Any]:
@@ -335,6 +345,19 @@ def normalize_wallpaper(value: Any) -> Dict[str, Any]:
     return {"folder": _optional_text(raw.get("folder"), 260)}
 
 
+def normalize_general(value: Any) -> Dict[str, Any]:
+    """Sanitizes desktop integration preferences."""
+    raw = value if isinstance(value, dict) else {}
+    return {
+        "start_on_startup": _as_bool(
+            raw.get("start_on_startup"), DEFAULT_GENERAL["start_on_startup"]
+        ),
+        "show_tray_icon": _as_bool(
+            raw.get("show_tray_icon"), DEFAULT_GENERAL["show_tray_icon"]
+        ),
+    }
+
+
 def normalize_ai_provider(value: Any) -> Dict[str, Any]:
     """
     Sanitizes the cloud credential store and migrates the original single key.
@@ -379,6 +402,7 @@ def normalize_config(config: Any) -> Dict[str, Any]:
     """Returns the config with valid brand/appearance/clock/taskbar sections."""
     normalized = dict(config) if isinstance(config, dict) else {}
     normalized["brand_name"] = normalize_brand_name(normalized.get("brand_name"))
+    normalized["general"] = normalize_general(normalized.get("general"))
     normalized["ai_provider"] = normalize_ai_provider(normalized.get("ai_provider"))
     normalized["appearance"] = normalize_appearance(normalized.get("appearance"))
     normalized["clock"] = normalize_clock(normalized.get("clock"))
