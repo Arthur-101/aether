@@ -137,7 +137,8 @@ function normalizeWidgetAppearance(
     raw.widget_theme === 'default' ||
     raw.widget_theme === 'cozy' ||
     raw.widget_theme === 'newsprint' ||
-    raw.widget_theme === 'aura'
+    raw.widget_theme === 'aura' ||
+    raw.widget_theme === 'blueprint'
   ) {
     out.widget_theme = raw.widget_theme;
   }

@@ -8,6 +8,7 @@ import type {
 } from '../../types/ipc';
 import { formatTime, usePosition } from '../Island/MediaWidget';
 import { AuraMediaCard } from './AuraMediaCard';
+import { BlueprintMediaCard } from './BlueprintMediaCard';
 import { CozyMediaCard } from './CozyMediaCard';
 import { NewsprintMediaCard } from './NewsprintMediaCard';
 
@@ -208,7 +209,7 @@ const DefaultMediaCard: React.FC<
  * never collapses into a different shape. The island's compact media row is a
  * separate component; this one is tuned for the desktop card. `theme` picks
  * between the original glass card, the cozy artwork wash, the printed
- * newsprint ticket, and the aura glass card.
+ * newsprint ticket, the aura glass card, and the blueprint readout.
  */
 export const DesktopMediaWidget: React.FC<DesktopMediaWidgetProps> = ({
   theme = 'default',
@@ -229,6 +230,15 @@ export const DesktopMediaWidget: React.FC<DesktopMediaWidgetProps> = ({
   if (theme === 'aura') {
     return (
       <AuraMediaCard
+        media={props.media}
+        audioDevices={props.audioDevices}
+        onControl={props.onControl}
+      />
+    );
+  }
+  if (theme === 'blueprint') {
+    return (
+      <BlueprintMediaCard
         media={props.media}
         audioDevices={props.audioDevices}
         onControl={props.onControl}

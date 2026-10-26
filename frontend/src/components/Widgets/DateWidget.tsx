@@ -458,6 +458,153 @@ const AuraDateFace: React.FC<{ model: CalendarModel }> = ({ model }) => {
 };
 
 /**
+ * The blueprint calendar: the standard month grid ruled like a drafting table.
+ * Every cell is bounded by a thin line, the current week gets a faint fill, and
+ * today is a solid accent block. The footer carries the ISO date plus week and
+ * day-of-year counters, so the face reads as an instrument rather than a page.
+ */
+const BlueprintDateFace: React.FC<{ model: CalendarModel }> = ({ model }) => {
+  const { now, grid, viewingCurrentMonth, previous, today, next } = model;
+  const year = now.getFullYear();
+  const isoDate = `${year}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate()
+  ).padStart(2, '0')}`;
+  const week = isoWeek(now);
+  const dayNumber = dayOfYear(now);
+  const totalDays = daysInYear(now);
+  const navClass =
+    'flex h-5 w-5 items-center justify-center border border-[var(--aether-line)] text-[var(--aether-text-3)] transition hover:border-[var(--aether-line-strong)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]';
+
+  return (
+    <div className="flex h-full w-full flex-col px-3.5 pb-3 pt-2.5">
+      <div className="flex items-start justify-between gap-2 pr-14">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 font-mono text-[7px] font-semibold uppercase tracking-[0.2em] text-[var(--aether-text-2)]">
+            <span className="h-1 w-1 bg-[var(--aether-accent)]" />
+            Calendar grid
+          </div>
+          <div className="mt-0.5 truncate font-mono text-[15px] font-semibold leading-tight tracking-[-0.02em] text-[var(--aether-text-1)]">
+            {grid.label}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1 pt-0.5">
+          <button
+            type="button"
+            aria-label="Previous month"
+            title="Previous month"
+            onClick={previous}
+            className={navClass}
+          >
+            <ChevronLeft size={11} />
+          </button>
+          <button
+            type="button"
+            aria-label="Jump to today"
+            title="Jump to today"
+            onClick={today}
+            className={navClass}
+          >
+            <span
+              className={`h-1.5 w-1.5 ${
+                viewingCurrentMonth
+                  ? 'bg-[var(--aether-accent)]'
+                  : 'border border-[var(--aether-line-strong)]'
+              }`}
+            />
+          </button>
+          <button
+            type="button"
+            aria-label="Next month"
+            title="Next month"
+            onClick={next}
+            className={navClass}
+          >
+            <ChevronRight size={11} />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-2 flex min-h-0 flex-1 flex-col border border-[var(--aether-line)] bg-[var(--aether-fill)] p-1.5">
+        <div className="grid grid-cols-7 border-b border-[var(--aether-line-soft)] pb-1">
+          {grid.weekdays.map((day, index) => (
+            <span
+              key={`${day}-${index}`}
+              className={`text-center font-mono text-[7px] uppercase tracking-[0.08em] ${
+                index === 0 || index === 6
+                  ? 'text-[var(--aether-accent-text)]'
+                  : 'text-[var(--aether-text-3)]'
+              }`}
+            >
+              {day}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-7 border-l border-t border-[var(--aether-line-soft)]">
+          {grid.weeks.flatMap((weekRow, weekIndex) =>
+            weekRow.map((day, dayIndex) => {
+              const isToday = day !== null && day === grid.today;
+              const isCurrentWeek = weekIndex === grid.todayWeek;
+              return (
+                <span
+                  key={`${weekIndex}-${dayIndex}`}
+                  className={`flex items-center justify-center border-b border-r border-[var(--aether-line-soft)] ${
+                    isCurrentWeek ? 'bg-[var(--aether-fill)]' : ''
+                  }`}
+                >
+                  {day === null ? null : (
+                    <span
+                      className={`flex h-full w-full items-center justify-center font-mono text-[10px] tabular-nums ${
+                        isToday
+                          ? 'bg-[var(--aether-accent)] font-semibold text-[var(--aether-accent-contrast)]'
+                          : 'text-[var(--aether-text-2)]'
+                      }`}
+                    >
+                      {day}
+                    </span>
+                  )}
+                </span>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      <div className="mt-1.5 grid grid-cols-3 gap-2 border-t border-[var(--aether-line)] pt-1.5">
+        <div>
+          <div className="font-mono text-[6.5px] uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+            Today
+          </div>
+          <div className="font-mono text-[9px] tabular-nums text-[var(--aether-text-1)]">
+            {isoDate}
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="font-mono text-[6.5px] uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+            Week
+          </div>
+          <div className="font-mono text-[9px] tabular-nums text-[var(--aether-text-1)]">
+            {week}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="font-mono text-[6.5px] uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+            Day
+          </div>
+          <div className="font-mono text-[9px] tabular-nums text-[var(--aether-text-1)]">
+            {dayNumber}
+            <span className="text-[7px] text-[var(--aether-text-3)]">
+              /{totalDays}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * The date widget: a month grid with today marked.
  *
  * The arrows move one month at a time and the centre dot returns to the
@@ -465,13 +612,14 @@ const AuraDateFace: React.FC<{ model: CalendarModel }> = ({ model }) => {
  * app. A minute tick is enough to roll the calendar over at midnight.
  *
  * `theme` picks between the original glass face, the warm cozy face, the
- * printed newsprint today card, and the aura glass month grid; the widget
- * frame owns the surrounding card and backdrop.
+ * printed newsprint today card, the aura glass month grid, and the blueprint
+ * ruled grid; the widget frame owns the surrounding card and backdrop.
  */
 export const DateWidget: React.FC<DateWidgetProps> = ({ theme = 'default' }) => {
   const model = useCalendar();
   if (theme === 'cozy') return <CozyDateFace model={model} />;
   if (theme === 'newsprint') return <NewsprintDateFace model={model} />;
   if (theme === 'aura') return <AuraDateFace model={model} />;
+  if (theme === 'blueprint') return <BlueprintDateFace model={model} />;
   return <DefaultDateFace model={model} />;
 };

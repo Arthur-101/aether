@@ -11,7 +11,7 @@ import type { WidgetKind } from '../../widgets/types';
 import type { AuraPalette } from './useAuraPalette';
 
 export interface WidgetSurfaceTheme {
-  /** Frame tone: default glass, cozy, newsprint, or aura. */
+  /** Frame tone: default glass, cozy, newsprint, aura, or blueprint. */
   tone: WidgetTheme;
   /** The surface has been taken to full transparency. */
   clearSurface: boolean;
@@ -46,8 +46,10 @@ export function buildWidgetSurfaceTheme(
   const cozyTheme = theme === 'cozy';
   const newsprintTheme = theme === 'newsprint';
   const auraTheme = theme === 'aura';
+  const blueprintTheme = theme === 'blueprint';
   const newsprintSurface = newsprintTheme && !clearSurface;
   const auraSurface = auraTheme && !clearSurface;
+  const blueprintSurface = blueprintTheme && !clearSurface;
   // At opacity 0 there is no themed wash left, so Auto text follows the desktop
   // theme again instead of the surface ink.
   const cozySurface = cozyTheme && !clearSurface;
@@ -56,11 +58,13 @@ export function buildWidgetSurfaceTheme(
     ? textVarsFor(textColor)
     : newsprintSurface
       ? textVarsFor('#1C1B18')
-      : auraSurface
-        ? textVarsFor(palette.ink)
-        : cozySurface
-          ? textVarsFor('#3a2a2c')
-          : {};
+      : blueprintSurface
+        ? textVarsFor('#DCEBF7')
+        : auraSurface
+          ? textVarsFor(palette.ink)
+          : cozySurface
+            ? textVarsFor('#3a2a2c')
+            : {};
 
   const cozyVars: Record<string, string> = cozyTheme
     ? {
@@ -98,6 +102,21 @@ export function buildWidgetSurfaceTheme(
         '--aether-fill-3': 'rgba(28, 27, 24, 0.14)',
         '--aether-shadow': 'rgba(28, 27, 24, 0.08)',
         '--aether-accent-text': `color-mix(in srgb, ${appearance.button_primary} 42%, #1C1B18)`,
+      }
+    : {};
+
+  // Blueprint ink. The CSS surface paints the deep grid stock; these tokens keep
+  // rules, fills, and the accent label legible against it without any blur.
+  const blueprintVars: Record<string, string> = blueprintSurface
+    ? {
+        '--aether-line': 'rgba(128, 190, 232, 0.24)',
+        '--aether-line-soft': 'rgba(128, 190, 232, 0.13)',
+        '--aether-line-strong': 'rgba(128, 190, 232, 0.52)',
+        '--aether-fill': 'rgba(128, 190, 232, 0.06)',
+        '--aether-fill-2': 'rgba(128, 190, 232, 0.12)',
+        '--aether-fill-3': 'rgba(128, 190, 232, 0.18)',
+        '--aether-shadow': 'rgba(0, 0, 0, 0.32)',
+        '--aether-accent-text': `color-mix(in srgb, ${appearance.button_primary} 62%, #DCEBF7)`,
       }
     : {};
 
@@ -150,7 +169,12 @@ export function buildWidgetSurfaceTheme(
     tone: theme,
     clearSurface,
     textVars,
-    vars: { ...cozyVars, ...newsprintVars, ...auraVars },
+    vars: {
+      ...cozyVars,
+      ...newsprintVars,
+      ...blueprintVars,
+      ...auraVars,
+    },
     backdrop,
   };
 }

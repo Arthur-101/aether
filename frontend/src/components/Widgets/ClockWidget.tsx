@@ -194,12 +194,66 @@ const AuraClockFace: React.FC<ClockFaceProps> = ({
 };
 
 /**
+ * The blueprint clock: a drafting-table instrument. Mono numerals sit between
+ * thin header and date rules, with the format tag and a boxed seconds readout
+ * acting as the small technical annotations.
+ */
+const BlueprintClockFace: React.FC<ClockFaceProps> = ({
+  timeFormat,
+  showSeconds,
+  showDayDate,
+}) => {
+  const parts = clockParts(useNow(), timeFormat);
+
+  return (
+    <div className="flex h-full w-full flex-col px-3.5 py-2.5">
+      <div className="flex items-center justify-between border-b border-[var(--aether-line)] pb-1 pr-14">
+        <span className="flex items-center gap-1.5 font-mono text-[7.5px] font-semibold uppercase tracking-[0.22em] text-[var(--aether-text-2)]">
+          <span className="h-1 w-1 bg-[var(--aether-accent)]" />
+          Local time
+        </span>
+        <span className="font-mono text-[7.5px] uppercase tracking-[0.16em] text-[var(--aether-text-4)]">
+          Ref / {timeFormat === '24h' ? '24H' : '12H'}
+        </span>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center gap-2">
+        <span className="font-mono text-[54px] font-semibold leading-[0.85] tracking-[-0.06em] tabular-nums text-[var(--aether-text-1)]">
+          {parts.time}
+        </span>
+        {showSeconds ? (
+          <span className="border border-[var(--aether-line)] px-1 py-0.5 font-mono text-[13px] leading-none tabular-nums text-[var(--aether-text-2)]">
+            {parts.seconds}
+          </span>
+        ) : null}
+        {parts.meridiem ? (
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--aether-accent-text)]">
+            {parts.meridiem}
+          </span>
+        ) : null}
+      </div>
+
+      {showDayDate ? (
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--aether-line-soft)] pt-1">
+          <span className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--aether-text-2)]">
+            {parts.dayDate}
+          </span>
+          <span className="shrink-0 font-mono text-[7px] uppercase tracking-[0.16em] text-[var(--aether-text-4)]">
+            Aether
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+/**
  * The clock widget. It ticks locally once a second, which is the only work it
  * does, and reads the app's 12/24-hour preference rather than hardcoding one.
  *
  * `theme` picks between the original glass face, the warm cozy face, the
- * printed newsprint face, and the aura glass face; the widget frame owns the
- * surrounding card and backdrop.
+ * printed newsprint face, the aura glass face, and the blueprint readout; the
+ * widget frame owns the surrounding card and backdrop.
  */
 export const ClockWidget: React.FC<ClockWidgetProps> = ({
   theme = 'default',
@@ -208,5 +262,6 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
   if (theme === 'cozy') return <CozyClockFace {...props} />;
   if (theme === 'newsprint') return <NewsprintClockFace {...props} />;
   if (theme === 'aura') return <AuraClockFace {...props} />;
+  if (theme === 'blueprint') return <BlueprintClockFace {...props} />;
   return <DefaultClockFace {...props} />;
 };

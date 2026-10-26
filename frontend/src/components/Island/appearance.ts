@@ -125,7 +125,10 @@ export function normalizeTimeFormat(value: unknown): TimeFormat {
 /** Unknown or stale values fall back to the original glass card. */
 export function normalizeWidgetTheme(value: unknown): WidgetTheme {
   const theme = String(value ?? '').trim().toLowerCase();
-  return theme === 'cozy' || theme === 'newsprint' || theme === 'aura'
+  return theme === 'cozy' ||
+    theme === 'newsprint' ||
+    theme === 'aura' ||
+    theme === 'blueprint'
     ? theme
     : 'default';
 }

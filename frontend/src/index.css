@@ -655,6 +655,72 @@ main {
 }
 
 /*
+ * Technical / blueprint theme.
+ *
+ * A deep drafting-sheet surface: opaque navy stock, a static minor/major grid,
+ * 1px rules, mono type, and square controls. The grid is a pseudo-element so
+ * the transparency slider fades the base and the ruling together; no blur or
+ * shadow is used anywhere.
+ */
+.blueprint-surface {
+  background-color: rgba(9, 24, 40, var(--glass-alpha, 1));
+  border: 1px solid rgba(141, 203, 240, 0.42);
+  box-shadow: none;
+  color: #dcebf7;
+}
+
+.widget-card.blueprint-surface {
+  box-shadow: none;
+}
+
+.blueprint-surface,
+.blueprint-surface .font-mono {
+  font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace;
+}
+
+.blueprint-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: calc(var(--glass-alpha, 1) * 0.92);
+  background-image:
+    linear-gradient(rgba(138, 200, 238, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 200, 238, 0.055) 1px, transparent 1px),
+    linear-gradient(rgba(138, 200, 238, 0.11) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(138, 200, 238, 0.11) 1px, transparent 1px);
+  background-size:
+    12px 12px,
+    12px 12px,
+    60px 60px,
+    60px 60px;
+}
+
+/* Duotone cover: a cool blue proof print with a fine registration grid. */
+.blueprint-art-img {
+  filter: grayscale(1) sepia(1) hue-rotate(156deg) saturate(2.1) brightness(0.8)
+    contrast(1.12);
+  transition: filter 240ms ease;
+}
+
+.blueprint-art-grid {
+  background-image:
+    linear-gradient(rgba(224, 244, 255, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(224, 244, 255, 0.18) 1px, transparent 1px);
+  background-size: 10px 10px;
+  mix-blend-mode: screen;
+  opacity: 0.45;
+}
+
+.blueprint-art:hover .blueprint-art-img,
+.blueprint-art:focus-within .blueprint-art-img {
+  filter: grayscale(0.2) sepia(0.35) hue-rotate(150deg) saturate(1.5)
+    brightness(0.94) contrast(1.05);
+}
+
+/*
  * Ambient aura theme.
  *
  * No border and no outer shadow: the card is a pane of frosted glass sitting on

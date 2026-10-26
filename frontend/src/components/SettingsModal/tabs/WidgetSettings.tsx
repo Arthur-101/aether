@@ -255,6 +255,95 @@ const NewsprintThemePreview: React.FC<{ kind?: WidgetKind }> = ({ kind }) => {
   );
 };
 
+/**
+ * A blue drafting slip: navy stock, a fine grid, square mono blocks, and a
+ * cyan rule. The preview only needs to communicate the technical language, so
+ * it uses the surface palette directly rather than theme tokens.
+ */
+const BlueprintThemePreview: React.FC<{ kind?: WidgetKind }> = ({ kind }) => {
+  const shell =
+    'relative block h-7 w-11 shrink-0 overflow-hidden border border-[#8dcbf0]/50';
+  const grid = {
+    backgroundColor: '#091828',
+    backgroundImage:
+      'linear-gradient(rgba(138,200,238,0.14) 1px, transparent 1px), linear-gradient(90deg, rgba(138,200,238,0.14) 1px, transparent 1px)',
+    backgroundSize: '5px 5px',
+  };
+
+  if (kind === 'clock') {
+    return (
+      <span className={shell} style={grid}>
+        <span className="absolute inset-x-1 top-[3px] flex items-center justify-between border-b border-[#8dcbf0]/40 pb-[1px] font-mono text-[2.8px] uppercase tracking-[0.14em] text-[#8dcbf0]/80">
+          <span>Local</span>
+          <span>24H</span>
+        </span>
+        <span className="absolute inset-x-0 top-[10px] text-center font-mono text-[9px] font-semibold leading-none tracking-[-0.04em] text-[#dcebf7]">
+          12:34
+        </span>
+        <span className="absolute inset-x-1 bottom-[3px] flex items-center justify-between border-t border-[#8dcbf0]/30 pt-[1px] font-mono text-[2.5px] uppercase tracking-[0.1em] text-[#8dcbf0]/70">
+          <span>Sat 24 Oct</span>
+          <span className="h-[2px] w-[2px] bg-[var(--aether-accent)]" />
+        </span>
+      </span>
+    );
+  }
+  if (kind === 'date') {
+    return (
+      <span className={shell} style={grid}>
+        <span className="absolute inset-x-1 top-[3px] flex items-baseline justify-between border-b border-[#8dcbf0]/40 pb-[1px]">
+          <span className="font-mono text-[4px] font-semibold uppercase tracking-[0.1em] text-[#dcebf7]">
+            October
+          </span>
+          <span className="font-mono text-[2.6px] text-[#8dcbf0]/70">2026</span>
+        </span>
+        <span className="absolute inset-x-1 top-[10px] grid grid-cols-7 gap-px">
+          {Array.from({ length: 21 }).map((_, index) => (
+            <span
+              key={index}
+              className={`h-[3px] ${
+                index === 16
+                  ? 'bg-[var(--aether-accent)]'
+                  : 'border border-[#8dcbf0]/25 bg-[#8dcbf0]/5'
+              }`}
+            />
+          ))}
+        </span>
+        <span className="absolute inset-x-1 bottom-[2.5px] border-t border-[#8dcbf0]/30 pt-[1px] font-mono text-[2.4px] uppercase tracking-[0.1em] text-[#8dcbf0]/70">
+          W43 / D297
+        </span>
+      </span>
+    );
+  }
+  return (
+    <span className={shell} style={grid}>
+      <span className="absolute left-[3px] top-[3px] h-[11px] w-[11px] overflow-hidden border border-[#8dcbf0]/55">
+        <span
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(220,240,255,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(220,240,255,0.25) 1px, transparent 1px)',
+            backgroundSize: '4px 4px',
+          }}
+        />
+        <span className="absolute inset-[3px] bg-[#8dcbf0]/25" />
+      </span>
+      <span className="absolute left-[17px] top-[4px] h-[1.5px] w-[20px] bg-[#dcebf7]/80" />
+      <span className="absolute left-[17px] top-[8px] h-[1px] w-[14px] bg-[#8dcbf0]/50" />
+      <span className="absolute left-[17px] top-[12px] border-l border-[#8dcbf0]/40 pl-[2px] font-mono text-[2.6px] uppercase leading-none tracking-[0.08em] text-[#8dcbf0]/70">
+        Audio in
+      </span>
+      <span className="absolute inset-x-[3px] bottom-[5px] h-[1.5px] bg-[#8dcbf0]/20">
+        <span className="block h-full w-1/2 bg-[var(--aether-accent)]" />
+      </span>
+      <span className="absolute inset-x-[3px] bottom-[2px] flex items-center justify-between font-mono text-[2.4px] uppercase tracking-[0.1em] text-[#8dcbf0]/70">
+        <span>01:12</span>
+        <span>Transmit</span>
+      </span>
+    </span>
+  );
+};
+
 /** A static three-colour mesh behind frosted glass. */
 const AuraThemePreview: React.FC<{ kind?: WidgetKind }> = ({ kind }) => {
   const mesh =
@@ -351,10 +440,10 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
   };
 
   /**
-   * A theme click also lays down its starting surface: paper wants square
-   * corners, no transparency, and heavier stock grain; aura wants the opposite.
-   * The sliders below keep working normally afterwards, so the preset is a
-   * starting point rather than a locked style.
+   * A theme click also lays down its starting surface: paper and blueprint want
+   * square corners, full opacity, and heavier stock or grid grain; aura wants
+   * the opposite. The sliders below keep working normally afterwards, so the
+   * preset is a starting point rather than a locked style.
    */
   const applyTheme = (theme: WidgetTheme) => {
     if (theme === 'newsprint') {
@@ -362,6 +451,16 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
         widget_theme: theme,
         widget_opacity: 1,
         widget_grain: 12,
+        widget_radius: 0,
+        widget_text_color: '',
+      });
+      return;
+    }
+    if (theme === 'blueprint') {
+      update({
+        widget_theme: theme,
+        widget_opacity: 1,
+        widget_grain: 4,
         widget_radius: 0,
         widget_text_color: '',
       });
@@ -543,6 +642,13 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
               preview={<NewsprintThemePreview kind={selected?.kind} />}
             />
             <ThemeRow
+              label="Technical / Blueprint"
+              hint="Deep drafting grid, mono type, square rules"
+              selected={effective.widget_theme === 'blueprint'}
+              onClick={() => applyTheme('blueprint')}
+              preview={<BlueprintThemePreview kind={selected?.kind} />}
+            />
+            <ThemeRow
               label="Ambient Aura"
               hint="Borderless frosted glass over a colour mesh"
               selected={effective.widget_theme === 'aura'}
@@ -557,11 +663,17 @@ export const WidgetSettings: React.FC<WidgetSettingsProps> = ({
                 : selected?.kind === 'clock'
                   ? 'A printed clock: mono numerals under a serif masthead, with no glass, blur, or shadow.'
                   : 'A daily front page: the date set large, with edition week and day counters.'
-              : effective.widget_theme === 'aura'
-                ? 'The static mesh follows the current cover, or the desktop wallpaper when nothing is playing.'
-                : selected?.kind === 'media'
-                  ? 'Cozy drops the timeline and transport. Hover the artwork to play or pause; the waves follow the music and drift at rest.'
-                  : 'Cozy swaps the dark glass for a warm wash and keeps the same layout and controls.'}
+              : effective.widget_theme === 'blueprint'
+                ? selected?.kind === 'media'
+                  ? 'A test-bench readout: duotone proof cover, mono data fields, and a ticked progress rail. Hover the cover to bring colour back.'
+                  : selected?.kind === 'clock'
+                    ? 'A drafting-table instrument: mono numerals between thin rules, with the format tag and a boxed seconds readout.'
+                    : 'A ruled calendar grid: thin cell lines, a solid accent block for today, and ISO week and day counters.'
+                : effective.widget_theme === 'aura'
+                  ? 'The static mesh follows the current cover, or the desktop wallpaper when nothing is playing.'
+                  : selected?.kind === 'media'
+                    ? 'Cozy drops the timeline and transport. Hover the artwork to play or pause; the waves follow the music and drift at rest.'
+                    : 'Cozy swaps the dark glass for a warm wash and keeps the same layout and controls.'}
           </p>
           <p className="mt-1 text-[9px] leading-snug text-[var(--aether-text-3)]">
             The theme sets opacity, grain, corners, and Auto text once. The surface controls below still change them.

@@ -107,6 +107,14 @@ def test_widget_theme_defaults_and_accepts_built_ins():
     assert normalize_appearance({"widget_theme": " COZY "})["widget_theme"] == "cozy"
     assert normalize_appearance({"widget_theme": "newsprint"})["widget_theme"] == "newsprint"
     assert normalize_appearance({"widget_theme": " AURA "})["widget_theme"] == "aura"
+    assert (
+        normalize_appearance({"widget_theme": "blueprint"})["widget_theme"]
+        == "blueprint"
+    )
+    assert (
+        normalize_appearance({"widget_theme": " BLUEPRINT "})["widget_theme"]
+        == "blueprint"
+    )
     assert normalize_appearance({"widget_theme": "neon"})["widget_theme"] == "default"
     assert normalize_appearance({"widget_theme": None})["widget_theme"] == "default"
 

@@ -10,10 +10,11 @@ interface WidgetFrameProps {
   radius: number;
   /**
    * `cozy` swaps the dark glass for the warm media-card surface, `newsprint`
-   * paints opaque paper with ink rules, and `aura` removes the border in
-   * favour of a colour mesh behind the content.
+   * paints opaque paper with ink rules, `blueprint` paints a deep drafting
+   * grid, and `aura` removes the border in favour of a colour mesh behind the
+   * content.
    */
-  tone?: 'default' | 'cozy' | 'newsprint' | 'aura';
+  tone?: 'default' | 'cozy' | 'newsprint' | 'aura' | 'blueprint';
   /** Artwork used as the blurred colour wash behind cozy and aura cards. */
   backdrop?: string | null;
   /** Hides the card itself, leaving only the text and controls. */
@@ -25,9 +26,6 @@ interface WidgetFrameProps {
   children: React.ReactNode;
 }
 
-const controlClass =
-  'flex h-5 w-5 items-center justify-center rounded-full text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]';
-
 /**
  * Shared chrome for every popped-out widget: a slim title bar that doubles as
  * the drag handle and the two placement controls.
@@ -36,10 +34,10 @@ const controlClass =
  * stop the press from reaching the drag handler, and the drag handler also
  * ignores presses that land on a button.
  *
- * Default keeps a reserved header row. The three themed surfaces float the
- * header over the content so the card can use its full height. Newsprint and
- * aura already carry their own mastheads, so their floating header is just a
- * hover-revealed control pill in the top-right corner.
+ * Default keeps a reserved header row. The themed surfaces float the header
+ * over the content so the card can use its full height. Newsprint, blueprint,
+ * and aura already carry their own mastheads, so their floating header is just
+ * a hover-revealed control pill in the top-right corner.
  */
 export const WidgetFrame: React.FC<WidgetFrameProps> = ({
   kind,
@@ -58,10 +56,14 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
   const cozy = tone === 'cozy';
   const newsprint = tone === 'newsprint';
   const aura = tone === 'aura';
-  const floatingHeader = cozy || newsprint || aura;
-  const minimalHeader = newsprint || aura;
+  const blueprint = tone === 'blueprint';
+  const floatingHeader = cozy || newsprint || aura || blueprint;
+  const minimalHeader = newsprint || aura || blueprint;
   const showCozyBackdrop = cozy && !clearSurface;
   const showAuraBackdrop = aura && !clearSurface;
+  const controlClass = `flex h-5 w-5 items-center justify-center ${
+    blueprint ? 'rounded-none' : 'rounded-full'
+  } text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]`;
 
   return (
     <div
@@ -89,7 +91,9 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
         cozy ? 'cozy-surface' : ''
       } ${newsprint ? 'newsprint-surface' : ''} ${
         aura ? 'aura-surface' : ''
-      } ${alwaysOnTop ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+      } ${blueprint ? 'blueprint-surface' : ''} ${
+        alwaysOnTop ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+      }`}
     >
       {showCozyBackdrop ? (
         <div aria-hidden className="cozy-backdrop">
@@ -144,9 +148,9 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
         <div
           className={`ml-auto flex shrink-0 items-center gap-0.5 ${
             minimalHeader
-              ? `rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] px-1 py-0.5 ${
-                  aura ? 'backdrop-blur-sm' : ''
-                }`
+              ? `border border-[var(--aether-line)] bg-[var(--aether-fill)] px-1 py-0.5 ${
+                  blueprint ? 'rounded-none' : 'rounded-full'
+                } ${aura ? 'backdrop-blur-sm' : ''}`
               : ''
           }`}
         >
@@ -182,7 +186,7 @@ export const WidgetFrame: React.FC<WidgetFrameProps> = ({
 
       <div
         className={`relative z-10 flex min-h-0 flex-1 flex-col ${
-          newsprint || aura
+          newsprint || aura || blueprint
             ? 'p-0'
             : cozy
               ? 'px-3 pb-2.5 pt-2'

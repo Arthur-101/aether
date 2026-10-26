@@ -66,7 +66,7 @@ _THEME_MODES = ("system", "light", "dark")
 _GLOW_STYLES = ("off", "soft", "glass", "neon", "pulse")
 _GLOW_COLORS = ("source", "theme")
 _TIME_FORMATS = ("12h", "24h")
-_WIDGET_THEMES = ("default", "cozy", "newsprint", "aura")
+_WIDGET_THEMES = ("default", "cozy", "newsprint", "aura", "blueprint")
 
 DEFAULT_TASKBAR_APPS: Dict[str, Any] = {
     "mode": "mirror",
