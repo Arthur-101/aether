@@ -61,6 +61,40 @@ def test_plain_chat_does_not_refresh_task_list(monkeypatch):
     assert refreshes == []
 
 
+def test_pending_approval_does_not_commit_a_partial_turn(monkeypatch):
+    committed, _refreshes = _prepare(monkeypatch, [])
+    monkeypatch.setattr(
+        chat_execution.llm_router,
+        "chat_completion",
+        lambda *_args, **_kwargs: {
+            "content": "I can do that.",
+            "tool_calls_executed": [],
+            "approval_required": {"approval_id": "a1", "name": "test_delete"},
+        },
+    )
+
+    result = asyncio.run(chat_execution.execute_chat_turn("session-1", "Delete it"))
+
+    assert result["approval_required"]["approval_id"] == "a1"
+    assert committed == []
+
+
+def test_resolved_approval_commits_one_final_turn(monkeypatch):
+    committed, _refreshes = _prepare(monkeypatch, [])
+    monkeypatch.setattr(
+        chat_execution.llm_router,
+        "resolve_approval",
+        lambda *_args, **_kwargs: {"content": "Done after approval.", "tool_calls_executed": []},
+    )
+
+    result = asyncio.run(
+        chat_execution.resolve_tool_approval("session-1", "Delete it", "a1", True)
+    )
+
+    assert result["reply"] == "Done after approval."
+    assert committed == [("session-1", "Delete it", "Done after approval.")]
+
+
 def test_note_tool_use_refreshes_notes(monkeypatch):
     committed, _refreshes = _prepare(monkeypatch, ["create_note"])
     note_refreshes = []

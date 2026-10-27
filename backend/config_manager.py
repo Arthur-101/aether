@@ -93,6 +93,7 @@ def get_default_config() -> Dict[str, Any]:
             "cloud_provider": "gemini",
             "cloud_model": "gemini-2.5-flash",
             "api_key": "",
+            "tavily_api_key": "",
             "context_length": 8192,
             "gpu_layers": -1,
             "kv_cache_type": "q8_0",

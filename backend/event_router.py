@@ -9,7 +9,7 @@ import logging
 from typing import Any, Callable, Dict
 
 from .ai.errors import ModelNotConfiguredError
-from .chat_execution import execute_chat_turn
+from .chat_execution import execute_chat_turn, resolve_tool_approval
 from .db.attachments import list_attachments
 from .db.sessions import session_manager
 from .ws_manager import ws_manager
@@ -85,6 +85,15 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
         await _chat_error(sid, prompt, f"Model request failed: {exc}")
         return
 
+    approval = result.get("approval_required")
+    if approval:
+        await ws_manager.broadcast("TOOL_APPROVAL_REQUIRED", {
+            "session_id": sid,
+            "prompt": prompt,
+            **approval,
+        })
+        return
+
     await ws_manager.broadcast("SESSION_UPDATED", {
         "session_id": sid,
         "title": _get_session_title(sid),
@@ -98,6 +107,29 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
     from .model_events import broadcast_model_status
 
     await broadcast_model_status()
+
+
+@_handler("RESOLVE_TOOL_APPROVAL")
+async def _handle_tool_approval(payload: Dict[str, Any]) -> None:
+    """Runs or declines a paused guarded tool call, then finishes its turn."""
+    approval_id = str(payload.get("approval_id") or "")
+    session_id = str(payload.get("session_id") or "")
+    prompt = str(payload.get("prompt") or "")
+    approved = bool(payload.get("approved"))
+    if not approval_id or not session_id or not prompt:
+        await ws_manager.broadcast("ERROR", {"message": "Invalid tool approval."})
+        return
+    result = await resolve_tool_approval(session_id, prompt, approval_id, approved)
+    if result.get("error"):
+        await ws_manager.broadcast("ERROR", {"message": result["error"]})
+        return
+    await ws_manager.broadcast("SESSION_UPDATED", {
+        "session_id": session_id,
+        "title": _get_session_title(session_id),
+        "turn": {"user": prompt, "ai": result["reply"]},
+        "reasoning": result.get("reasoning", ""),
+        "tools_used": result.get("tool_calls_executed", []),
+    })
 
 
 @_handler("NEW_SESSION")
@@ -201,4 +233,3 @@ def _register_builtin_handlers() -> None:
 
 
 _register_builtin_handlers()
-

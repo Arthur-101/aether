@@ -82,6 +82,7 @@ DEFAULT_CLOUD_PROVIDERS: Dict[str, Dict[str, str]] = {
     "gemini": {"api_key": "", "model": "gemini-2.5-flash"},
     "groq": {"api_key": "", "model": "llama-3.3-70b-versatile"},
     "openai": {"api_key": "", "model": "gpt-4o-mini"},
+    "mistral": {"api_key": "", "model": "mistral-small-latest"},
     "openrouter": {"api_key": "", "model": "openai/gpt-4o-mini"},
 }
 
@@ -395,6 +396,7 @@ def normalize_ai_provider(value: Any) -> Dict[str, Any]:
     raw["cloud_providers"] = providers
     raw["api_key"] = providers[selected]["api_key"]
     raw["cloud_model"] = providers[selected]["model"]
+    raw["tavily_api_key"] = _optional_text(raw.get("tavily_api_key"), 400)
     return raw
 
 

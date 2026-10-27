@@ -30,6 +30,7 @@ import type {
   SystemStats,
   TaskbarAppsState,
   ToolCallEvent,
+  ToolApprovalRequest,
   VoiceState,
   WallpaperState,
   WeatherSnapshot,
@@ -50,6 +51,7 @@ export function useBackendSocket() {
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [chatPending, setChatPending] = useState<string | null>(null);
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallEvent[]>([]);
+  const [toolApproval, setToolApproval] = useState<ToolApprovalRequest | null>(null);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [notes, setNotes] = useState<NoteMeta[]>([]);
@@ -144,6 +146,7 @@ export function useBackendSocket() {
           }
           setChatPending(null);
           setActiveToolCalls([]);
+          setToolApproval(null);
           break;
         case 'TOOL_CALL_STARTED': {
           // Only the active foreground turn renders live steps; background
@@ -179,6 +182,9 @@ export function useBackendSocket() {
             )
           );
           break;
+        case 'TOOL_APPROVAL_REQUIRED':
+          setToolApproval(payload as ToolApprovalRequest);
+          break;
         case 'SESSION_SWITCHED':
           if (payload.session) {
             setActiveSessionId(payload.session.id);
@@ -196,6 +202,7 @@ export function useBackendSocket() {
           setAttachments((payload.attachments as AttachmentItem[]) || []);
           setChatPending(null);
           setActiveToolCalls([]);
+          setToolApproval(null);
           break;
         case 'SESSION_DELETED':
           setSessions((prev) => prev.filter((s) => s.id !== payload.session_id));
@@ -404,6 +411,7 @@ export function useBackendSocket() {
     setChatHistory,
     setChatPending,
     setActiveToolCalls,
+    setToolApproval,
     setThinkingMode,
     setConfig,
     setAttachments,
@@ -444,6 +452,7 @@ export function useBackendSocket() {
     chatHistory,
     chatPending,
     activeToolCalls,
+    toolApproval,
     sessions,
     tasks,
     notes,

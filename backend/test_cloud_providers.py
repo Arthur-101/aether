@@ -84,10 +84,20 @@ def test_each_provider_keeps_its_own_key_and_model():
 
 
 def test_unknown_provider_falls_back_without_losing_other_settings():
-    ai = normalize_ai_provider({"mode": "cloud", "cloud_provider": "mistral"})
+    ai = normalize_ai_provider({"mode": "cloud", "cloud_provider": "not-a-provider"})
 
     assert ai["cloud_provider"] == "gemini"
     assert ai["mode"] == "cloud"
+
+
+def test_mistral_is_a_supported_cloud_provider(monkeypatch):
+    ai = normalize_ai_provider({"mode": "cloud", "cloud_provider": "mistral"})
+
+    assert ai["cloud_provider"] == "mistral"
+    assert ai["cloud_providers"]["mistral"] == DEFAULT_CLOUD_PROVIDERS["mistral"]
+    assert _select(monkeypatch, "mistral", "mistral-small-latest")._qualified_model() == (
+        "mistral/mistral-small-latest"
+    )
 
 
 def test_normalize_config_keeps_cloud_credentials_alongside_other_sections():

@@ -27,6 +27,7 @@ import type {
   SessionItem,
   TimeFormat,
   ToolCallEvent,
+  ToolApprovalRequest,
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
 import { useTimeFormat } from '../../hooks/useTimeFormat';
@@ -41,6 +42,8 @@ interface QuickChatProps {
   history: ChatTurn[];
   pending: string | null;
   activeToolCalls?: ToolCallEvent[];
+  toolApproval?: ToolApprovalRequest | null;
+  onResolveToolApproval?: (approval: ToolApprovalRequest, approved: boolean) => void;
   attachments?: AttachmentItem[];
   focusToken?: number;
   openFocusToken?: number;
@@ -146,6 +149,8 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   history,
   pending,
   activeToolCalls = [],
+  toolApproval = null,
+  onResolveToolApproval,
   attachments = [],
   focusToken = 0,
   openFocusToken = 0,
@@ -454,6 +459,32 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                           <span>Thinking...</span>
                         </div>
                         <ToolRunList calls={activeToolCalls} />
+                        {toolApproval ? (
+                          <div className="mt-2 rounded-lg border border-amber-400/35 bg-amber-400/10 p-2 text-[10px] text-[var(--aether-text-1)]">
+                            <p className="font-semibold text-amber-200">
+                              Approval needed · {toolApproval.risk}
+                            </p>
+                            <p className="mt-0.5 text-[var(--aether-text-2)]">
+                              Allow Aether to {toolMeta(toolApproval.name).label.toLowerCase()}?
+                            </p>
+                            <div className="mt-2 flex gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => onResolveToolApproval?.(toolApproval, false)}
+                                className="rounded-md border border-[var(--aether-line-strong)] px-2 py-1 text-[9px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)]"
+                              >
+                                Decline
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onResolveToolApproval?.(toolApproval, true)}
+                                className="rounded-md bg-amber-300 px-2 py-1 text-[9px] font-semibold text-amber-950 transition hover:bg-amber-200"
+                              >
+                                Approve
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>

@@ -71,6 +71,7 @@ export function App() {
     chatHistory,
     chatPending,
     activeToolCalls,
+    toolApproval,
     sessions,
     tasks,
     weather,
@@ -107,6 +108,7 @@ export function App() {
     subscribeMouse,
     requestScreenSample,
     sendChatMessage,
+    resolveToolApproval,
     newSession,
     switchSession,
     refreshSessions,
@@ -566,6 +568,8 @@ export function App() {
         chatHistory={chatHistory}
         chatPending={chatPending}
         activeToolCalls={activeToolCalls}
+        toolApproval={toolApproval}
+        onResolveToolApproval={resolveToolApproval}
         attachments={attachments}
         sessions={sessions}
         activeSessionId={activeSessionId}

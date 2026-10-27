@@ -9,7 +9,9 @@
 import {
   AudioLines,
   CalendarClock,
+  ExternalLink,
   FileText,
+  Globe,
   Image as ImageIcon,
   ListChecks,
   NotebookPen,
@@ -52,6 +54,9 @@ const TOOL_META: Record<string, ToolMeta> = {
   media_next: { label: 'Next track', icon: SkipForward },
   media_previous: { label: 'Previous track', icon: SkipBack },
   now_playing: { label: 'Now playing', icon: AudioLines },
+  // Web
+  web_search: { label: 'Web search', icon: Globe },
+  fetch_url: { label: 'Read page', icon: ExternalLink },
   // Scheduling
   schedule_one_time_task: { label: 'Schedule task', icon: CalendarClock },
   schedule_recurring_routine: { label: 'Schedule routine', icon: CalendarClock },

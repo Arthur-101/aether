@@ -22,6 +22,7 @@ import type {
   TaskInput,
   TaskbarPinnedApp,
   ToolCallEvent,
+  ToolApprovalRequest,
   WallpaperState,
   WeatherSnapshot,
   WifiProfile,
@@ -56,6 +57,8 @@ interface DesktopIslandProps {
   chatHistory: ChatTurn[];
   chatPending: string | null;
   activeToolCalls: ToolCallEvent[];
+  toolApproval: ToolApprovalRequest | null;
+  onResolveToolApproval: (approval: ToolApprovalRequest, approved: boolean) => void;
   attachments: AttachmentItem[];
   sessions: SessionItem[];
   activeSessionId: string;
@@ -146,6 +149,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   chatHistory,
   chatPending,
   activeToolCalls,
+  toolApproval,
+  onResolveToolApproval,
   attachments,
   sessions,
   activeSessionId,
@@ -392,6 +397,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               history: chatHistory,
               pending: chatPending,
               activeToolCalls,
+              toolApproval,
+              onResolveToolApproval,
               attachments,
               focusToken: askRequest?.id ?? 0,
               openFocusToken: openIslandRequest,
@@ -439,4 +446,3 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
     </TimeFormatContext.Provider>
   );
 };
-

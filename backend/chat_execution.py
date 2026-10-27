@@ -92,10 +92,18 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
             on_tool_call=on_tool_call,
         ),
     )
+    if result.get("approval_required"):
+        return result
     reply = result.get("content", "") or "I could not produce a response."
     await loop.run_in_executor(
         None, lambda: session_manager.commit_turn(session_id, prompt, reply)
     )
+    await _refresh_mutated_views(result)
+    return {**result, "reply": reply}
+
+
+async def _refresh_mutated_views(result: Dict[str, Any]) -> None:
+    """Refreshes widget data after a completed tool turn."""
     mutated = {call.get("name") for call in result.get("tool_calls_executed", [])}
     if mutated & CLOCK_MUTATION_TOOLS:
         try:
@@ -111,4 +119,38 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
             await broadcast_notes()
         except Exception:
             logger.debug("Notes refresh after chat failed", exc_info=True)
+
+
+async def resolve_tool_approval(
+    session_id: str,
+    prompt: str,
+    approval_id: str,
+    approved: bool,
+) -> Dict[str, Any]:
+    """Resumes one paused tool turn and persists its single final reply."""
+    loop = asyncio.get_running_loop()
+
+    def on_tool_call(event: Dict[str, Any]) -> None:
+        event_type = (
+            "TOOL_CALL_STARTED" if event.get("phase") == "started"
+            else "TOOL_CALL_FINISHED"
+        )
+        asyncio.run_coroutine_threadsafe(
+            ws_manager.broadcast(event_type, {"session_id": session_id, **event}),
+            loop,
+        )
+
+    result = await loop.run_in_executor(
+        None,
+        lambda: llm_router.resolve_approval(
+            approval_id, session_id, approved, on_tool_call=on_tool_call
+        ),
+    )
+    if result.get("error"):
+        return result
+    reply = result.get("content", "") or "I could not produce a response."
+    await loop.run_in_executor(
+        None, lambda: session_manager.commit_turn(session_id, prompt, reply)
+    )
+    await _refresh_mutated_views(result)
     return {**result, "reply": reply}

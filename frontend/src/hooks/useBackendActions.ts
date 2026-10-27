@@ -13,6 +13,7 @@ import type {
   PowerAction,
   SessionItem,
   TaskInput,
+  ToolApprovalRequest,
   ToolCallEvent,
 } from '../types/ipc';
 import type { NoteSaveInput } from '../types/notes';
@@ -23,6 +24,7 @@ interface ActionSetters {
   setChatHistory: Dispatch<ChatTurn[]>;
   setChatPending: Dispatch<string | null>;
   setActiveToolCalls: Dispatch<ToolCallEvent[]>;
+  setToolApproval: Dispatch<ToolApprovalRequest | null>;
   setThinkingMode: Dispatch<boolean>;
   setConfig: Dispatch<AppConfig | null>;
   setAttachments: Dispatch<AttachmentItem[]>;
@@ -41,6 +43,7 @@ export function useBackendActions(
     setChatHistory,
     setChatPending,
     setActiveToolCalls,
+    setToolApproval,
     setThinkingMode,
     setConfig,
     setAttachments,
@@ -61,9 +64,26 @@ export function useBackendActions(
     setChatHistory([]);
     setChatPending(null);
     setActiveToolCalls([]);
+    setToolApproval(null);
     setAttachments([]);
     sendEvent({ type: 'NEW_SESSION', payload: {} });
-  }, [sendEvent, setChatHistory, setChatPending, setActiveToolCalls, setAttachments]);
+  }, [sendEvent, setChatHistory, setChatPending, setActiveToolCalls, setToolApproval, setAttachments]);
+
+  const resolveToolApproval = useCallback(
+    (approval: ToolApprovalRequest, approved: boolean) => {
+      setToolApproval(null);
+      sendEvent({
+        type: 'RESOLVE_TOOL_APPROVAL',
+        payload: {
+          approval_id: approval.approval_id,
+          session_id: approval.session_id,
+          prompt: approval.prompt,
+          approved,
+        },
+      });
+    },
+    [sendEvent, setToolApproval]
+  );
 
   const switchSession = useCallback(
     (sessionId: string) => {
@@ -377,6 +397,7 @@ export function useBackendActions(
 
   return {
     sendChatMessage,
+    resolveToolApproval,
     newSession,
     switchSession,
     refreshSessions,

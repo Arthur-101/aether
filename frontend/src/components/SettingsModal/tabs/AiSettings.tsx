@@ -37,6 +37,7 @@ const CLOUD_PROVIDERS = [
   { id: 'gemini', label: 'Google Gemini', placeholder: 'gemini-2.5-flash' },
   { id: 'groq', label: 'Groq', placeholder: 'llama-3.3-70b-versatile' },
   { id: 'openai', label: 'OpenAI', placeholder: 'gpt-4o-mini' },
+  { id: 'mistral', label: 'Mistral', placeholder: 'mistral-small-latest' },
   { id: 'openrouter', label: 'OpenRouter', placeholder: 'anthropic/claude-sonnet-4.5' },
 ] as const;
 
@@ -246,6 +247,19 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
             </label>
           </div>
         ) : null}
+        <label className="flex flex-col gap-1">
+          <span className={settingsLabelClass}>Tavily web search API key</span>
+          <input
+            type="password"
+            value={ai.tavily_api_key ?? ''}
+            onChange={(event) => onChange({ tavily_api_key: event.target.value })}
+            placeholder="Optional · stored locally in %APPDATA%/Aether"
+            className={`${settingsMonoInputClass} w-full`}
+          />
+          <span className={settingsHintClass}>
+            Enables live web search. Direct URL reading works without a key.
+          </span>
+        </label>
       </SettingsGroup>
     </div>
   );

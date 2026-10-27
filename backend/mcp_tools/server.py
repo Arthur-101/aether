@@ -47,6 +47,7 @@ from .clock_scheduler import (
     schedule_recurring_routine,
 )
 from .clock_tool_schemas import get_clock_tool_schemas
+from .web_tools import fetch_url, get_web_tool_schemas, web_search
 
 # FastMCP Server Instance
 mcp = FastMCP("AetherTools")
@@ -69,6 +70,8 @@ mcp.tool()(media_toggle)
 mcp.tool()(media_next)
 mcp.tool()(media_previous)
 mcp.tool()(now_playing)
+mcp.tool()(web_search)
+mcp.tool()(fetch_url)
 mcp.tool()(schedule_one_time_task)
 mcp.tool()(schedule_recurring_routine)
 mcp.tool()(schedule_custom_task)
@@ -99,6 +102,8 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "media_next": media_next,
     "media_previous": media_previous,
     "now_playing": now_playing,
+    "web_search": web_search,
+    "fetch_url": fetch_url,
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
     "schedule_custom_task": schedule_custom_task,
@@ -200,7 +205,7 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_clock_tool_schemas()
 
 
 def execute_tool(name: str, arguments: Dict[str, Any]) -> str:

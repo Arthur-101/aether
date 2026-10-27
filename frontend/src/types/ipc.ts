@@ -332,6 +332,15 @@ export interface ToolCallEvent {
   output?: string;
 }
 
+export interface ToolApprovalRequest {
+  approval_id: string;
+  session_id: string;
+  prompt: string;
+  name: string;
+  args: Record<string, unknown>;
+  risk: 'destructive' | 'system';
+}
+
 export interface ChatTurn {
   user: string;
   ai: string;
@@ -435,6 +444,7 @@ export interface AIProviderConfig {
   cloud_providers: Record<string, CloudProviderEntry>;
   cloud_model: string;
   api_key: string;
+  tavily_api_key?: string;
   context_length: number;
   gpu_layers: number;
   kv_cache_type?: string;
@@ -495,6 +505,15 @@ export interface AppConfig {
 
 export type OutgoingEvent =
   | { type: 'CHAT_MESSAGE'; payload: { text: string } }
+  | {
+      type: 'RESOLVE_TOOL_APPROVAL';
+      payload: {
+        approval_id: string;
+        session_id: string;
+        prompt: string;
+        approved: boolean;
+      };
+    }
   | { type: 'NEW_SESSION'; payload: Record<string, never> }
   | { type: 'SWITCH_SESSION'; payload: { session_id: string } }
   | { type: 'LIST_SESSIONS'; payload: Record<string, never> }

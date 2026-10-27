@@ -10,6 +10,12 @@ from typing import Any, Callable, Dict, List, Optional
 from ..config_manager import config_manager
 from ..db.sessions import session_manager
 from ..mcp_tools.server import SESSION_SCOPED_TOOLS, execute_tool, get_openai_tool_schemas
+from ..mcp_tools.tool_permissions import (
+    PendingApproval,
+    approval_store,
+    requires_approval,
+    tool_permission,
+)
 from .cloud_engine import CloudEngine
 from .errors import ModelNotConfiguredError
 from .local_engine import LocalGGUFEngine
@@ -89,6 +95,97 @@ class LLMRouter:
             )
         return execute_tool(name, arguments)
 
+    def _complete(
+        self,
+        engine: Any,
+        conversation: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]],
+        max_tokens: int,
+        temperature: Optional[float],
+        thinking_mode: Optional[bool],
+        session_id: Optional[str],
+        max_tool_rounds: int,
+        executed: List[Dict[str, Any]],
+        on_tool_call: Optional[Callable[[Dict[str, Any]], None]],
+    ) -> Dict[str, Any]:
+        """Runs the tool loop, pausing if a guarded action needs approval."""
+        temp, top_p, presence_penalty = self._sampling(thinking_mode, temperature)
+        for _ in range(max_tool_rounds + 1):
+            result = engine.complete(
+                conversation,
+                tools=tools,
+                max_tokens=max_tokens,
+                temperature=temp,
+                top_p=top_p,
+                presence_penalty=presence_penalty,
+                thinking_mode=thinking_mode,
+            )
+            tool_calls = result.get("tool_calls") or []
+            if not tool_calls:
+                content = result.get("content") or result.get("reasoning") or ""
+                return {
+                    "content": content.strip(),
+                    "reasoning": result.get("reasoning", ""),
+                    "tool_calls_executed": executed,
+                }
+
+            conversation.append({
+                "role": "assistant",
+                "content": result.get("content", ""),
+                "tool_calls": tool_calls,
+            })
+            for index, call in enumerate(tool_calls):
+                fn = call.get("function", {})
+                name = fn.get("name", "")
+                raw_args = fn.get("arguments", "{}")
+                args = _parse_args(raw_args)
+                call_id = call.get("id") or f"call_{index}"
+                if requires_approval(name):
+                    approval_id = approval_store.create_id()
+                    approval_store.put(PendingApproval(
+                        approval_id=approval_id,
+                        session_id=session_id or "",
+                        name=name,
+                        args=args,
+                        call_id=call_id,
+                        conversation=conversation,
+                        tools=list(tools or []),
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        thinking_mode=thinking_mode,
+                    ))
+                    return {
+                        "content": result.get("content", "").strip(),
+                        "reasoning": result.get("reasoning", ""),
+                        "tool_calls_executed": executed,
+                        "approval_required": {
+                            "approval_id": approval_id,
+                            "name": name,
+                            "args": args,
+                            "risk": tool_permission(name).risk,
+                        },
+                    }
+                if on_tool_call is not None:
+                    on_tool_call({
+                        "phase": "started", "call_id": call_id, "name": name, "args": args,
+                    })
+                output = self._execute_tool(name, raw_args, session_id)
+                executed.append({"name": name, "args": raw_args, "output": output})
+                if on_tool_call is not None:
+                    on_tool_call({
+                        "phase": "finished", "call_id": call_id, "name": name,
+                        "ok": not str(output).lstrip().startswith(_ERROR_PREFIX),
+                        "output": str(output)[:2000],
+                    })
+                conversation.append({
+                    "role": "tool", "tool_call_id": call_id, "name": name, "content": output,
+                })
+        return {
+            "content": "I reached the maximum number of tool steps for this request.",
+            "reasoning": "",
+            "tool_calls_executed": executed,
+        }
+
     def chat_completion(
         self,
         messages: List[Dict[str, Any]],
@@ -110,73 +207,54 @@ class LLMRouter:
         """
         if thinking_mode is None:
             thinking_mode = bool(config_manager.get("ai_provider", "thinking_mode", False))
-        temp, top_p, presence_penalty = self._sampling(thinking_mode, temperature)
         engine = self._engine()
         convo = [dict(m) for m in messages]
-        executed: List[Dict[str, Any]] = []
+        return self._complete(
+            engine, convo, tools, max_tokens, temperature, thinking_mode,
+            session_id, max_tool_rounds, [], on_tool_call,
+        )
 
-        for _ in range(max_tool_rounds + 1):
-            result = engine.complete(
-                convo,
-                tools=tools,
-                max_tokens=max_tokens,
-                temperature=temp,
-                top_p=top_p,
-                presence_penalty=presence_penalty,
-                thinking_mode=thinking_mode,
-            )
-            tool_calls = result.get("tool_calls") or []
-            if not tool_calls:
-                content = result.get("content") or result.get("reasoning") or ""
-                return {
-                    "content": content.strip(),
-                    "reasoning": result.get("reasoning", ""),
-                    "tool_calls_executed": executed,
-                }
+    def resolve_approval(
+        self,
+        approval_id: str,
+        session_id: str,
+        approved: bool,
+        on_tool_call: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> Dict[str, Any]:
+        """Consumes a pending approval and resumes its original model turn."""
+        pending = approval_store.take(approval_id, session_id)
+        if pending is None:
+            return {"error": "This approval request is no longer available."}
 
-            convo.append({
-                "role": "assistant",
-                "content": result.get("content", ""),
-                "tool_calls": tool_calls,
-            })
-            for index, call in enumerate(tool_calls):
-                fn = call.get("function", {})
-                name = fn.get("name", "")
-                raw_args = fn.get("arguments", "{}")
-                call_id = call.get("id") or f"call_{index}"
-                if on_tool_call is not None:
-                    on_tool_call({
-                        "phase": "started",
-                        "call_id": call_id,
-                        "name": name,
-                        "args": _parse_args(raw_args),
-                    })
-                output = self._execute_tool(name, raw_args, session_id)
-                executed.append({
-                    "name": name,
-                    "args": raw_args,
-                    "output": output,
+        if not approved:
+            output = "The user declined this action."
+        else:
+            if on_tool_call is not None:
+                on_tool_call({
+                    "phase": "started", "call_id": pending.call_id,
+                    "name": pending.name, "args": pending.args,
                 })
-                if on_tool_call is not None:
-                    on_tool_call({
-                        "phase": "finished",
-                        "call_id": call_id,
-                        "name": name,
-                        "ok": not str(output).lstrip().startswith(_ERROR_PREFIX),
-                        "output": str(output)[:2000],
-                    })
-                convo.append({
-                    "role": "tool",
-                    "tool_call_id": call_id,
-                    "name": name,
-                    "content": output,
+            output = self._execute_tool(pending.name, pending.args, session_id)
+            if on_tool_call is not None:
+                on_tool_call({
+                    "phase": "finished", "call_id": pending.call_id,
+                    "name": pending.name,
+                    "ok": not str(output).lstrip().startswith(_ERROR_PREFIX),
+                    "output": str(output)[:2000],
                 })
 
-        return {
-            "content": "I reached the maximum number of tool steps for this request.",
-            "reasoning": "",
-            "tool_calls_executed": executed,
-        }
+        pending.conversation.append({
+            "role": "tool",
+            "tool_call_id": pending.call_id,
+            "name": pending.name,
+            "content": output,
+        })
+        executed = [{"name": pending.name, "args": pending.args, "output": output}]
+        return self._complete(
+            self._engine(), pending.conversation, pending.tools,
+            pending.max_tokens, pending.temperature, pending.thinking_mode,
+            session_id, 3, executed, on_tool_call,
+        )
 
     def clean_dictation(self, raw_text: str) -> str:
         """Cleans stutters and filler words using the configured backend."""

@@ -1,6 +1,6 @@
 """
 Aether Cloud Engine
-Routes chat completions to Gemini, Groq, OpenAI, or any LiteLLM provider using
+Routes chat completions to Gemini, Groq, OpenAI, Mistral, or any LiteLLM provider using
 the API key stored in %APPDATA%/Aether/config.json. Zero local VRAM.
 """
 
