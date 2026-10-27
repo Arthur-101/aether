@@ -10,6 +10,8 @@ import base64
 import mimetypes
 from pathlib import Path
 
+from ..tool_groups import normalize_disabled_tools, normalize_enabled_tool_groups
+
 DICTATION_SYSTEM_PROMPT = """You clean dictated text.
 Return ONLY the cleaned text. Never explain, never think aloud, never add quotes, labels, or preamble.
 1. Remove stutters, filler words (uh, um, like, you know, ah), and false starts.
@@ -23,8 +25,17 @@ Rules:
 1. Be concise, direct, and actionable. Avoid robotic pleasantries.
 2. When the user requests an OS action, file conversion, search, or routine, call the appropriate tool.
 3. If relevant past context or active window information is provided, ground your reply on it.
-4. Keep spoken responses brief and natural so they sound great via text-to-speech.
-5. For reminders or routines, call a scheduling tool with a future date/time. Use list_scheduled_tasks before editing/cancelling so you have the real task ID, and use schedule_alarm for audible alarms. Recurring tasks can be paused/resumed; one-time tasks can be completed. Use schedule_custom_task when a daily routine must stop at an end date/time. Never claim something changed unless the tool returned a success message."""
+4. Keep spoken responses brief and natural so they sound great via text-to-speech."""
+
+CLOCK_TOOL_PROMPT = """5. For reminders or routines, call a scheduling tool with a future date/time. Use list_scheduled_tasks before editing/cancelling so you have the real task ID, and use schedule_alarm for audible alarms. Recurring tasks can be paused/resumed; one-time tasks can be completed. Use schedule_custom_task when a daily routine must stop at an end date/time. Never claim something changed unless the tool returned a success message."""
+
+CLOCK_TOOL_PROMPT_GENERIC = """5. For reminders or routines, call an available scheduling tool with a future date/time. Never claim something changed unless the tool returned a success message."""
+
+_NAMED_CLOCK_TOOLS = {
+    "list_scheduled_tasks",
+    "schedule_alarm",
+    "schedule_custom_task",
+}
 
 VISION_SYSTEM_PROMPT = """You are Aether Vision. You analyze screenshots cropped from the user's desktop.
 Rules:
@@ -54,6 +65,8 @@ def build_assistant_messages(
     window_context: Optional[Dict[str, Any]] = None,
     user_preferences: Optional[Dict[str, Any]] = None,
     image_paths: Optional[List[str]] = None,
+    enabled_tool_groups: Optional[List[str]] = None,
+    disabled_tools: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Assembles a compact prompt payload strictly under 2,500 tokens:
@@ -63,6 +76,19 @@ def build_assistant_messages(
     templates (including Ternary-Bonsai) reject a second system role.
     """
     system_sections = [ASSISTANT_SYSTEM_PROMPT]
+    if enabled_tool_groups is None and disabled_tools is None:
+        system_sections.append(CLOCK_TOOL_PROMPT)
+    else:
+        clock_enabled = "clock" in set(
+            normalize_enabled_tool_groups(enabled_tool_groups)
+        )
+        blocked = set(normalize_disabled_tools(disabled_tools))
+        if clock_enabled and not (_NAMED_CLOCK_TOOLS & blocked):
+            system_sections.append(CLOCK_TOOL_PROMPT)
+        elif clock_enabled:
+            # Keep the scheduling guidance without naming tools the user has
+            # individually switched off.
+            system_sections.append(CLOCK_TOOL_PROMPT_GENERIC)
     local_now = datetime.now().astimezone()
     timezone_label = local_now.tzname() or local_now.strftime("UTC%z")
     system_sections.append(

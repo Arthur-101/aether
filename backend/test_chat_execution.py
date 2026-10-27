@@ -21,10 +21,11 @@ def _prepare(monkeypatch, tool_names):
         chat_execution, "build_assistant_messages", lambda *_args, **_kwargs: []
     )
     monkeypatch.setattr(chat_execution, "image_attachment_paths", lambda _sid: [])
+    monkeypatch.setattr(chat_execution, "list_attachments", lambda _sid: [])
     monkeypatch.setattr(
         chat_execution.session_manager,
         "commit_turn",
-        lambda sid, prompt, reply: committed.append((sid, prompt, reply)),
+        lambda sid, prompt, reply, **kwargs: committed.append((sid, prompt, reply)),
     )
     monkeypatch.setattr(
         chat_execution.llm_router,
@@ -49,6 +50,7 @@ def test_clock_tool_use_refreshes_task_list(monkeypatch):
     result = asyncio.run(chat_execution.execute_chat_turn("session-1", "Remind me"))
 
     assert result["reply"] == "Done."
+    assert result["tools_used"] == [{"name": "schedule_one_time_task", "ok": True}]
     assert committed == [("session-1", "Remind me", "Done.")]
     assert refreshes == [True]
 
@@ -59,6 +61,42 @@ def test_plain_chat_does_not_refresh_task_list(monkeypatch):
     asyncio.run(chat_execution.execute_chat_turn("session-1", "Hello"))
 
     assert refreshes == []
+
+
+def test_turn_result_keeps_attachment_labels_and_tool_status(monkeypatch):
+    _prepare(monkeypatch, [])
+    monkeypatch.setattr(
+        chat_execution,
+        "list_attachments",
+        lambda _sid: [
+            {
+                "file_name": "Q3.pdf",
+                "mode": "inline",
+                "file_path": "C:/private/Q3.pdf",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        chat_execution.llm_router,
+        "chat_completion",
+        lambda *_args, **_kwargs: {
+            "content": "It was a strong quarter.",
+            "tool_calls_executed": [
+                {"name": "read_note", "output": "ok"},
+                {"name": "web_search", "output": "Error: missing key"},
+            ],
+        },
+    )
+
+    result = asyncio.run(
+        chat_execution.execute_chat_turn("session-1", "Summarize the report")
+    )
+
+    assert result["attachments"][0]["file_name"] == "Q3.pdf"
+    assert result["tools_used"] == [
+        {"name": "read_note", "ok": True},
+        {"name": "web_search", "ok": False},
+    ]
 
 
 def test_pending_approval_does_not_commit_a_partial_turn(monkeypatch):

@@ -279,6 +279,11 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshToolGroups = useCallback(
+    () => sendEvent({ type: 'GET_TOOL_GROUPS', payload: {} }),
+    [sendEvent]
+  );
+
   const connectSpotify = useCallback(
     (clientId: string) =>
       sendEvent({ type: 'SPOTIFY_CONNECT', payload: { client_id: clientId } }),
@@ -446,6 +451,7 @@ export function useBackendActions(
     saveConfig,
     updateConfigValue,
     refreshSpotify,
+    refreshToolGroups,
     connectSpotify,
     disconnectSpotify,
     setVolume,

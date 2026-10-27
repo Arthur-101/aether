@@ -87,6 +87,7 @@ export function App() {
     config,
     configError,
     spotifyAuth,
+    toolGroups,
     errorMessage,
     radialWheel,
     wheelCursor,
@@ -129,6 +130,7 @@ export function App() {
     refreshWeather,
     updateConfigValue,
     refreshSpotify,
+    refreshToolGroups,
     connectSpotify,
     disconnectSpotify,
     refreshNotes,
@@ -706,6 +708,8 @@ export function App() {
         onSpotifyConnect={connectSpotify}
         onSpotifyDisconnect={disconnectSpotify}
         onSpotifyRefresh={refreshSpotify}
+        toolGroups={toolGroups}
+        onRefreshToolGroups={refreshToolGroups}
         taskbarState={taskbarState}
         widgets={desktopWidgets.widgets}
         onWidgetAppearanceChange={desktopWidgets.setWidgetAppearance}

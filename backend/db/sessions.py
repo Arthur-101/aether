@@ -4,11 +4,48 @@ Implements the 1-Turn Buffer + Session-Scoped Vector Memory and 5-word title rul
 Strictly isolates chat turns by session_id and bounds LLM context under 2,500 tokens.
 """
 
+import json
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from .database import get_db
 from ..ai.embedder import embed_text
+
+
+def _json_list(value: Any) -> List[Any]:
+    """Parses a JSON list column, tolerating old or corrupt values."""
+    if isinstance(value, list):
+        return value
+    try:
+        parsed = json.loads(value or "[]")
+    except (TypeError, ValueError):
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def _attachment_metadata(rows: Optional[List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+    """Keeps only the label and kind; the file itself is never stored."""
+    metadata: List[Dict[str, str]] = []
+    for row in rows or []:
+        name = str(row.get("file_name") or "").strip()
+        if not name:
+            continue
+        metadata.append({"file_name": name, "mode": str(row.get("mode") or "")})
+    return metadata
+
+
+def _tool_metadata(rows: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """Keeps only the tool name and outcome; outputs stay out of history."""
+    metadata: List[Dict[str, Any]] = []
+    for row in rows or []:
+        name = str(row.get("name") or "").strip()
+        if not name:
+            continue
+        ok = row.get("ok")
+        if ok is None:
+            ok = not str(row.get("output") or "").lstrip().startswith("Error")
+        metadata.append({"name": name, "ok": bool(ok)})
+    return metadata
 
 
 def generate_session_title(prompt: str) -> str:
@@ -80,19 +117,24 @@ class SessionManager:
         if not row:
             conn.close()
             raise ValueError(f"Session {session_id} does not exist.")
+        session_data = dict(row)
 
         self.active_session_id = session_id
         self.last_interaction = datetime.now()
 
         cur.execute(
-            """SELECT user_prompt, ai_reply, timestamp 
+            """SELECT user_prompt, ai_reply, timestamp, attachments, tools_used
                FROM chat_memory 
                WHERE session_id = ? 
                ORDER BY id ASC""",
             (session_id,)
         )
-        history = [dict(r) for r in cur.fetchall()]
-        session_data = dict(row)
+        history = []
+        for memory_row in cur.fetchall():
+            turn = dict(memory_row)
+            turn["attachments"] = _json_list(turn.get("attachments"))
+            turn["tools_used"] = _json_list(turn.get("tools_used"))
+            history.append(turn)
         conn.close()
         return {"session": session_data, "history": history}
 
@@ -192,8 +234,20 @@ class SessionManager:
             self.last_interaction = datetime.min
         return deleted
 
-    def commit_turn(self, session_id: str, user_prompt: str, ai_reply: str) -> None:
-        """Saves current turn to chat_memory + vec_chat_memory and updates 1-turn buffer."""
+    def commit_turn(
+        self,
+        session_id: str,
+        user_prompt: str,
+        ai_reply: str,
+        attachments: Optional[List[Dict[str, Any]]] = None,
+        tools_used: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
+        """Saves current turn to chat_memory + vec_chat_memory and updates 1-turn buffer.
+
+        `attachments` and `tools_used` are display metadata only: attachment
+        labels/kinds and tool names/outcomes. File contents and tool outputs are
+        deliberately excluded so history stays small and safe.
+        """
         conn = get_db()
         cur = conn.cursor()
 
@@ -201,9 +255,17 @@ class SessionManager:
         vec_bytes = embed_text(combined)
 
         cur.execute("""
-            INSERT INTO chat_memory (session_id, user_prompt, ai_reply, combined_text)
-            VALUES (?, ?, ?, ?)
-        """, (session_id, user_prompt, ai_reply, combined))
+            INSERT INTO chat_memory
+                (session_id, user_prompt, ai_reply, combined_text, attachments, tools_used)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            session_id,
+            user_prompt,
+            ai_reply,
+            combined,
+            json.dumps(_attachment_metadata(attachments), ensure_ascii=False),
+            json.dumps(_tool_metadata(tools_used), ensure_ascii=False),
+        ))
         memory_id = cur.lastrowid
 
         cur.execute("""

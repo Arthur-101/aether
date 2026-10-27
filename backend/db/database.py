@@ -52,6 +52,8 @@ def init_db(db_path: Optional[Path] = None) -> None:
         user_prompt TEXT NOT NULL,
         ai_reply TEXT NOT NULL,
         combined_text TEXT NOT NULL,
+        attachments TEXT DEFAULT '[]',
+        tools_used TEXT DEFAULT '[]',
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
     );
@@ -145,6 +147,16 @@ def init_db(db_path: Optional[Path] = None) -> None:
         SET schedule_type = CASE WHEN is_recurring = 1 THEN 'daily' ELSE 'once' END
         WHERE schedule_type IS NULL OR schedule_type = ''
     """)
+
+    # Migrate older chat rows to keep per-turn attachment labels and tool runs.
+    cur.execute("PRAGMA table_info(chat_memory)")
+    chat_columns = {row["name"] for row in cur.fetchall()}
+    for name, ddl in {
+        "attachments": "TEXT DEFAULT '[]'",
+        "tools_used": "TEXT DEFAULT '[]'",
+    }.items():
+        if name not in chat_columns:
+            cur.execute(f"ALTER TABLE chat_memory ADD COLUMN {name} {ddl}")
 
     conn.commit()
     conn.close()

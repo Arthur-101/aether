@@ -16,6 +16,7 @@ import {
   Plug,
   Save,
   Check,
+  Wrench,
 } from 'lucide-react';
 import type {
   AppearanceConfig,
@@ -24,6 +25,7 @@ import type {
   SpotifyAuthState,
   TaskbarAppsConfig,
   TaskbarAppsState,
+  ToolGroupsState,
 } from '../../types/ipc';
 import type {
   DesktopWidget,
@@ -38,6 +40,7 @@ import { HotkeySettings } from './tabs/HotkeySettings';
 import { StorageSettings } from './tabs/StorageSettings';
 import { WidgetSettings } from './tabs/WidgetSettings';
 import { IntegrationsSettings } from './tabs/IntegrationsSettings';
+import { ToolsSettings } from './tabs/ToolsSettings';
 import { useSettingsDrag } from './useSettingsDrag';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
@@ -47,6 +50,7 @@ interface SettingsModalProps {
   config: AppConfig | null;
   configError: string | null;
   spotifyAuth: SpotifyAuthState;
+  toolGroups: ToolGroupsState | null;
   notesDirectory: string;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
@@ -55,6 +59,7 @@ interface SettingsModalProps {
   onSpotifyConnect: (clientId: string) => void;
   onSpotifyDisconnect: () => void;
   onSpotifyRefresh: () => void;
+  onRefreshToolGroups: () => void;
   taskbarState: TaskbarAppsState | null;
   widgets: DesktopWidget[];
   onWidgetAppearanceChange: (id: string, patch: WidgetAppearanceOverrides) => void;
@@ -69,6 +74,7 @@ interface SettingsModalProps {
 export type SettingsTab =
   | 'general'
   | 'ai'
+  | 'tools'
   | 'voice'
   | 'hotkeys'
   | 'storage'
@@ -80,6 +86,7 @@ type Tab = SettingsTab;
 const tabs = [
   { id: 'general' as const, label: 'General', icon: Settings2 },
   { id: 'ai' as const, label: 'AI & Models', icon: Cpu },
+  { id: 'tools' as const, label: 'Tools', icon: Wrench },
   { id: 'voice' as const, label: 'Voice Engine', icon: Mic },
   { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
   { id: 'storage' as const, label: 'Storage & Files', icon: HardDrive },
@@ -94,6 +101,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   config,
   configError,
   spotifyAuth,
+  toolGroups,
   notesDirectory,
   onToggleThinking,
   onSave,
@@ -102,6 +110,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSpotifyConnect,
   onSpotifyDisconnect,
   onSpotifyRefresh,
+  onRefreshToolGroups,
   taskbarState,
   widgets,
   onWidgetAppearanceChange,
@@ -213,6 +222,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setDraft((prev) =>
       prev ? { ...prev, spotify: { ...prev.spotify, client_id } } : prev
     );
+  };
+
+  const updateTools = (tools: NonNullable<AppConfig['tools']>) => {
+    setDraft((prev) => (prev ? { ...prev, tools } : prev));
   };
 
   const updateAppearance = (appearance: AppearanceConfig) => {
@@ -390,6 +403,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h4 className="text-sm font-semibold text-[var(--aether-text-1)]">
                   {activeTab === 'general' && 'General & Desktop'}
                   {activeTab === 'ai' && 'AI Engine & Inference'}
+                  {activeTab === 'tools' && 'Assistant Tool Loadout'}
                   {activeTab === 'voice' && 'Voice Pipeline'}
                   {activeTab === 'hotkeys' && 'Global System Hotkeys'}
                   {activeTab === 'storage' && 'Output & Session Storage'}
@@ -432,6 +446,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       configError={configError}
                       onToggleThinking={handleToggleThinking}
                       onChange={updateAi}
+                    />
+                  )}
+                  {activeTab === 'tools' && (
+                    <ToolsSettings
+                      enabledGroups={
+                        draft.tools?.enabled_groups ??
+                        toolGroups?.groups.map((group) => group.id) ??
+                        []
+                      }
+                      disabledTools={draft.tools?.disabled_tools ?? []}
+                      state={toolGroups}
+                      onChange={updateTools}
+                      onRefresh={onRefreshToolGroups}
                     />
                   )}
                   {activeTab === 'voice' && (

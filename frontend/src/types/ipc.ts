@@ -317,6 +317,13 @@ export interface ToolExecution {
   name: string;
   args?: unknown;
   output?: string;
+  ok?: boolean;
+}
+
+/** Label-only attachment metadata kept with a finished chat turn. */
+export interface TurnAttachment {
+  file_name: string;
+  mode: string;
 }
 
 /**
@@ -346,6 +353,7 @@ export interface ChatTurn {
   ai: string;
   timestamp?: string;
   reasoning?: string;
+  attachments?: TurnAttachment[];
   tools_used?: ToolExecution[];
   error?: boolean;
 }
@@ -493,6 +501,38 @@ export interface RegionCapture {
   height: number;
 }
 
+export type ToolRisk = 'read' | 'write' | 'destructive' | 'system';
+
+export interface ToolLoadoutEntry {
+  name: string;
+  risk: ToolRisk;
+  tokens: number;
+  enabled: boolean;
+}
+
+export interface ToolGroupLoadout {
+  id: string;
+  label: string;
+  hint: string;
+  tokens: number;
+  enabled: boolean;
+  tools: ToolLoadoutEntry[];
+}
+
+export interface ToolGroupsState {
+  groups: ToolGroupLoadout[];
+  total_tools: number;
+  total_tokens: number;
+  enabled_tools: number;
+  enabled_tokens: number;
+  lean_groups: string[];
+}
+
+export interface ToolsConfig {
+  enabled_groups: string[];
+  disabled_tools: string[];
+}
+
 export interface AppConfig {
   first_run_completed?: boolean;
   brand_name?: string;
@@ -513,6 +553,7 @@ export interface AppConfig {
   spotify?: {
     client_id?: string;
   };
+  tools?: ToolsConfig;
 }
 
 export type OutgoingEvent =
@@ -561,6 +602,7 @@ export type OutgoingEvent =
   | { type: 'ATTACH_NOTE'; payload: { note_id: string } }
   | { type: 'TOGGLE_THINKING_MODE'; payload: { enabled: boolean } }
   | { type: 'GET_CONFIG'; payload: Record<string, never> }
+  | { type: 'GET_TOOL_GROUPS'; payload: Record<string, never> }
   | { type: 'GET_SYSTEM_STATE'; payload: Record<string, never> }
   | { type: 'GET_MODEL_STATUS'; payload: Record<string, never> }
   | { type: 'LOAD_MODEL'; payload: Record<string, never> }

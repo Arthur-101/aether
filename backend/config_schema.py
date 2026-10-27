@@ -8,6 +8,12 @@ the user's real %APPDATA% directory.
 import re
 from typing import Any, Dict, List
 
+from .tool_groups import (
+    DEFAULT_ENABLED_TOOL_GROUPS,
+    normalize_disabled_tools,
+    normalize_enabled_tool_groups,
+)
+
 DEFAULT_DASHBOARD_TABS: List[str] = [
     "controls",
     "chat",
@@ -42,6 +48,11 @@ DEFAULT_WALLPAPER: Dict[str, Any] = {
 
 DEFAULT_SPOTIFY: Dict[str, Any] = {
     "client_id": "",
+}
+
+DEFAULT_TOOLS: Dict[str, Any] = {
+    "enabled_groups": list(DEFAULT_ENABLED_TOOL_GROUPS),
+    "disabled_tools": [],
 }
 
 DEFAULT_APPEARANCE: Dict[str, Any] = {
@@ -125,6 +136,14 @@ def default_wallpaper() -> Dict[str, Any]:
 def default_spotify() -> Dict[str, Any]:
     """Returns a fresh Spotify integration section."""
     return dict(DEFAULT_SPOTIFY)
+
+
+def default_tools() -> Dict[str, Any]:
+    """Returns a fresh tool-loadout section with every group enabled."""
+    return {
+        "enabled_groups": list(DEFAULT_ENABLED_TOOL_GROUPS),
+        "disabled_tools": [],
+    }
 
 
 def normalize_brand_name(value: Any) -> str:
@@ -347,6 +366,20 @@ def normalize_spotify(value: Any) -> Dict[str, Any]:
     return {"client_id": _optional_text(raw.get("client_id"), 200)}
 
 
+def normalize_tools(value: Any) -> Dict[str, Any]:
+    """Sanitizes the tool-loadout section.
+
+    Missing groups mean all groups on, so older configs keep every tool. An
+    explicit empty list stays empty; individual tool exceptions are stored as
+    a denylist so newly registered tools remain enabled by default.
+    """
+    raw = value if isinstance(value, dict) else {}
+    return {
+        "enabled_groups": normalize_enabled_tool_groups(raw.get("enabled_groups")),
+        "disabled_tools": normalize_disabled_tools(raw.get("disabled_tools")),
+    }
+
+
 def normalize_clock(value: Any) -> Dict[str, Any]:
     """Sanitizes the weather/timer configuration section."""
     raw = value if isinstance(value, dict) else {}
@@ -440,4 +473,5 @@ def normalize_config(config: Any) -> Dict[str, Any]:
     normalized["taskbar_apps"] = normalize_taskbar_apps(normalized.get("taskbar_apps"))
     normalized["wallpaper"] = normalize_wallpaper(normalized.get("wallpaper"))
     normalized["spotify"] = normalize_spotify(normalized.get("spotify"))
+    normalized["tools"] = normalize_tools(normalized.get("tools"))
     return normalized

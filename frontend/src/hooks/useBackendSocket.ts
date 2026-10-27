@@ -32,6 +32,7 @@ import type {
   TaskbarAppsState,
   ToolCallEvent,
   ToolApprovalRequest,
+  ToolGroupsState,
   VoiceState,
   WallpaperState,
   WeatherSnapshot,
@@ -71,6 +72,7 @@ export function useBackendSocket() {
     client_id_set: false,
     message: '',
   });
+  const [toolGroups, setToolGroups] = useState<ToolGroupsState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [radialWheel, setRadialWheel] = useState<RadialWheelPayload | null>(null);
   const [wheelCursor, setWheelCursor] = useState<RadialWheelCursor | null>(null);
@@ -205,6 +207,8 @@ export function useBackendSocket() {
                 user: h.user_prompt,
                 ai: h.ai_reply,
                 timestamp: h.timestamp,
+                attachments: h.attachments ?? [],
+                tools_used: h.tools_used ?? [],
               }))
             );
           }
@@ -366,6 +370,9 @@ export function useBackendSocket() {
         case 'SPOTIFY_AUTH_STATE':
           setSpotifyAuth(payload as SpotifyAuthState);
           break;
+        case 'TOOL_GROUPS_STATE':
+          setToolGroups(payload as ToolGroupsState);
+          break;
         case 'ERROR_CONFIG_MISSING':
           setConfigError(payload.message || 'AI engine is not configured.');
           break;
@@ -489,6 +496,7 @@ export function useBackendSocket() {
     config,
     configError,
     spotifyAuth,
+    toolGroups,
     errorMessage,
     radialWheel,
     wheelCursor,

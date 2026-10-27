@@ -33,6 +33,16 @@ async def _broadcast_taskbar_state() -> None:
         logger.debug("Taskbar state broadcast skipped: %s", exc)
 
 
+async def _broadcast_tool_groups() -> None:
+    from .mcp_tools.server import tool_group_summary
+
+    loadout = config_manager.get_tool_loadout()
+    await ws_manager.broadcast(
+        "TOOL_GROUPS_STATE",
+        tool_group_summary(loadout["enabled_groups"], loadout["disabled_tools"]),
+    )
+
+
 async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
     """Persists a partial/full config and applies runtime side effects."""
     old = dict(config_manager.get("ai_provider") or {})
@@ -68,6 +78,8 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
     await broadcast_model_status()
     if "taskbar_apps" in updates:
         await _broadcast_taskbar_state()
+    if "tools" in updates:
+        await _broadcast_tool_groups()
     if "wallpaper" in updates:
         from .wallpaper_events import broadcast_wallpaper_state
 
@@ -85,6 +97,11 @@ async def _handle_toggle_thinking(payload: Dict[str, Any]) -> None:
 async def _handle_get_config(payload: Dict[str, Any]) -> None:
     """Returns the current configuration to the frontend."""
     await ws_manager.broadcast("CONFIG_STATE", config_manager.load())
+
+
+async def _handle_get_tool_groups(payload: Dict[str, Any]) -> None:
+    """Returns the tool groups, their token cost, and the current selection."""
+    await _broadcast_tool_groups()
 
 
 async def _handle_save_config(payload: Dict[str, Any]) -> None:
@@ -136,6 +153,7 @@ def register_config_events() -> None:
     """Registers configuration event handlers."""
     register_handler("TOGGLE_THINKING_MODE", _handle_toggle_thinking)
     register_handler("GET_CONFIG", _handle_get_config)
+    register_handler("GET_TOOL_GROUPS", _handle_get_tool_groups)
     register_handler("SAVE_CONFIG", _handle_save_config)
     register_handler("UPDATE_CONFIG", _handle_update_config)
     register_handler("SET_HOTKEY_CAPTURE", _handle_hotkey_capture)

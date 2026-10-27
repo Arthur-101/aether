@@ -4,8 +4,18 @@ Exposes deterministic media, document RAG, and clock scheduling tools to the LLM
 Translates FastMCP tool definitions into OpenAI/GGUF function schemas.
 """
 
-from typing import Any, Callable, Dict, List
+import json
+from typing import Any, Callable, Dict, Iterable, List, Optional
 from fastmcp import FastMCP
+from ..tool_groups import (
+    LEAN_ENABLED_TOOL_GROUPS,
+    TOOL_GROUP_HINTS,
+    TOOL_GROUP_IDS,
+    TOOL_GROUP_LABELS,
+    normalize_disabled_tools,
+    normalize_enabled_tool_groups,
+)
+from .tool_permissions import tool_permission
 from .media_tools import (
     add_background,
     compress_media,
@@ -166,9 +176,36 @@ SESSION_SCOPED_TOOLS = {
 }
 
 
-def get_openai_tool_schemas() -> List[Dict[str, Any]]:
+def filter_tool_schemas(
+    schemas: Iterable[Dict[str, Any]],
+    enabled_groups: Optional[Iterable[str]] = None,
+    disabled_tools: Optional[Iterable[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Keeps schemas whose group is enabled and whose tool is not excepted.
+
+    Unknown groups fail open: a newly registered tool is visible until it is
+    assigned to a loadout group, so it can never silently vanish.
+    """
+    enabled = set(normalize_enabled_tool_groups(enabled_groups))
+    blocked = set(normalize_disabled_tools(disabled_tools))
+    selected: List[Dict[str, Any]] = []
+    for schema in schemas:
+        name = str((schema.get("function") or {}).get("name") or "")
+        if name in blocked:
+            continue
+        group = tool_permission(name).group
+        if group in TOOL_GROUP_IDS and group not in enabled:
+            continue
+        selected.append(schema)
+    return selected
+
+
+def get_openai_tool_schemas(
+    enabled_groups: Optional[Iterable[str]] = None,
+    disabled_tools: Optional[Iterable[str]] = None,
+) -> List[Dict[str, Any]]:
     """Returns OpenAI/GGUF function calling schemas for the local LLM."""
-    return [
+    schemas = [
         {
             "type": "function",
             "function": {
@@ -245,10 +282,29 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
             }
         },
     ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
+    return filter_tool_schemas(schemas, enabled_groups, disabled_tools)
 
 
-def execute_tool(name: str, arguments: Dict[str, Any]) -> str:
-    """Dispatches tool execution deterministically."""
+def execute_tool(
+    name: str,
+    arguments: Dict[str, Any],
+    enabled_groups: Optional[Iterable[str]] = None,
+    disabled_tools: Optional[Iterable[str]] = None,
+) -> str:
+    """Dispatches tool execution deterministically.
+
+    The loadout is a second gate behind schema filtering: a model can invent a
+    tool name or reuse one from earlier in the conversation, so disabled tools
+    must be rejected here as well.
+    """
+    if name in set(normalize_disabled_tools(disabled_tools)):
+        return f"Error: Tool '{name}' is disabled in Settings -> Tools."
+    if enabled_groups is not None:
+        group = tool_permission(name).group
+        if group in TOOL_GROUP_IDS and group not in set(
+            normalize_enabled_tool_groups(enabled_groups)
+        ):
+            return f"Error: Tool '{name}' is disabled in Settings -> Tools."
     fn = TOOL_DISPATCH.get(name)
     if not fn:
         return f"Error: Tool '{name}' not found."
@@ -257,3 +313,62 @@ def execute_tool(name: str, arguments: Dict[str, Any]) -> str:
         return str(result)
     except Exception as e:
         return f"Error executing tool '{name}': {str(e)}"
+
+
+def tool_group_summary(
+    enabled_groups: Optional[Iterable[str]] = None,
+    disabled_tools: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    """Returns per-group tool counts, token costs, and the current selection."""
+    enabled = set(normalize_enabled_tool_groups(enabled_groups))
+    blocked = set(normalize_disabled_tools(disabled_tools))
+    schemas = get_openai_tool_schemas()
+
+    groups: List[Dict[str, Any]] = []
+    total_tools = 0
+    total_tokens = 0
+    enabled_tools = 0
+    enabled_tokens = 0
+    for group_id in TOOL_GROUP_IDS:
+        entries: List[Dict[str, Any]] = []
+        group_tokens = 0
+        group_enabled_tools = 0
+        for schema in schemas:
+            function = schema.get("function") or {}
+            name = str(function.get("name") or "")
+            if tool_permission(name).group != group_id:
+                continue
+            tokens = max(1, len(json.dumps(schema)) // 4)
+            is_enabled = group_id in enabled and name not in blocked
+            entries.append({
+                "name": name,
+                "risk": tool_permission(name).risk,
+                "tokens": tokens,
+                "enabled": is_enabled,
+            })
+            group_tokens += tokens
+            if is_enabled:
+                group_enabled_tools += 1
+        groups.append({
+            "id": group_id,
+            "label": TOOL_GROUP_LABELS[group_id],
+            "hint": TOOL_GROUP_HINTS[group_id],
+            "tokens": group_tokens,
+            "enabled": group_id in enabled,
+            "tools": entries,
+        })
+        total_tools += len(entries)
+        total_tokens += group_tokens
+        enabled_tools += group_enabled_tools
+        enabled_tokens += sum(
+            entry["tokens"] for entry in entries if entry["enabled"]
+        )
+
+    return {
+        "groups": groups,
+        "total_tools": total_tools,
+        "total_tokens": total_tokens,
+        "enabled_tools": enabled_tools,
+        "enabled_tokens": enabled_tokens,
+        "lean_groups": list(LEAN_ENABLED_TOOL_GROUPS),
+    }

@@ -19,9 +19,11 @@ from .config_schema import (
     default_general,
     default_spotify,
     default_taskbar_apps,
+    default_tools,
     default_wallpaper,
     normalize_config,
 )
+from .tool_groups import normalize_disabled_tools, normalize_enabled_tool_groups
 
 APP_NAME = "Aether"
 logger = logging.getLogger("aether.config")
@@ -129,6 +131,7 @@ def get_default_config() -> Dict[str, Any]:
         "taskbar_apps": default_taskbar_apps(),
         "wallpaper": default_wallpaper(),
         "spotify": default_spotify(),
+        "tools": default_tools(),
     }
 
 
@@ -235,6 +238,17 @@ class ConfigManager:
             self._config[section] = {}
         self._config[section][key] = value
         self.save(self._config)
+
+    def get_tool_loadout(self) -> Dict[str, List[str]]:
+        """Returns the normalized enabled groups and per-tool denylist."""
+        return {
+            "enabled_groups": normalize_enabled_tool_groups(
+                self.get("tools", "enabled_groups")
+            ),
+            "disabled_tools": normalize_disabled_tools(
+                self.get("tools", "disabled_tools")
+            ),
+        }
 
 
 # Global singleton instance

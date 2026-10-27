@@ -10,7 +10,12 @@ from typing import Any, Callable, Dict, List, Optional
 from ..config_manager import config_manager
 from ..config_schema import DEFAULT_MAX_TOOL_ROUNDS, normalize_max_tool_rounds
 from ..db.sessions import session_manager
-from ..mcp_tools.server import SESSION_SCOPED_TOOLS, execute_tool, get_openai_tool_schemas
+from ..mcp_tools.server import (
+    SESSION_SCOPED_TOOLS,
+    execute_tool,
+    filter_tool_schemas,
+    get_openai_tool_schemas,
+)
 from ..mcp_tools.tool_permissions import (
     PendingApproval,
     approval_store,
@@ -93,6 +98,7 @@ class LLMRouter:
         name: str,
         raw_args: Any,
         session_id: Optional[str],
+        loadout: Optional[Dict[str, List[str]]] = None,
     ) -> str:
         arguments = _parse_args(raw_args)
         if name in SESSION_SCOPED_TOOLS:
@@ -101,7 +107,14 @@ class LLMRouter:
             arguments["session_id"] = (
                 session_id or session_manager.active_session_id or ""
             )
-        return execute_tool(name, arguments)
+        if loadout is None:
+            return execute_tool(name, arguments)
+        return execute_tool(
+            name,
+            arguments,
+            enabled_groups=loadout.get("enabled_groups"),
+            disabled_tools=loadout.get("disabled_tools"),
+        )
 
     def _complete(
         self,
@@ -113,6 +126,7 @@ class LLMRouter:
         thinking_mode: Optional[bool],
         session_id: Optional[str],
         max_tool_rounds: int,
+        loadout: Optional[Dict[str, List[str]]],
         executed: List[Dict[str, Any]],
         on_tool_call: Optional[Callable[[Dict[str, Any]], None]],
     ) -> Dict[str, Any]:
@@ -161,6 +175,7 @@ class LLMRouter:
                         max_tokens=max_tokens,
                         temperature=temperature,
                         thinking_mode=thinking_mode,
+                        loadout=loadout,
                     ))
                     return {
                         "content": result.get("content", "").strip(),
@@ -177,7 +192,7 @@ class LLMRouter:
                     on_tool_call({
                         "phase": "started", "call_id": call_id, "name": name, "args": args,
                     })
-                output = self._execute_tool(name, raw_args, session_id)
+                output = self._execute_tool(name, raw_args, session_id, loadout)
                 executed.append({"name": name, "args": raw_args, "output": output})
                 if on_tool_call is not None:
                     on_tool_call({
@@ -204,6 +219,7 @@ class LLMRouter:
         session_id: Optional[str] = None,
         max_tool_rounds: Optional[int] = None,
         on_tool_call: Optional[Callable[[Dict[str, Any]], None]] = None,
+        loadout: Optional[Dict[str, List[str]]] = None,
     ) -> Dict[str, Any]:
         """
         Runs a completion and executes any FastMCP tool calls deterministically.
@@ -224,10 +240,16 @@ class LLMRouter:
         if thinking_mode is None:
             thinking_mode = bool(config_manager.get("ai_provider", "thinking_mode", False))
         engine = self._engine()
+        if tools is not None and loadout is not None:
+            tools = filter_tool_schemas(
+                tools,
+                loadout.get("enabled_groups"),
+                loadout.get("disabled_tools"),
+            )
         convo = [dict(m) for m in messages]
         return self._complete(
             engine, convo, tools, max_tokens, temperature, thinking_mode,
-            session_id, max_tool_rounds, [], on_tool_call,
+            session_id, max_tool_rounds, loadout, [], on_tool_call,
         )
 
     def resolve_approval(
@@ -250,7 +272,9 @@ class LLMRouter:
                     "phase": "started", "call_id": pending.call_id,
                     "name": pending.name, "args": pending.args,
                 })
-            output = self._execute_tool(pending.name, pending.args, session_id)
+            output = self._execute_tool(
+                pending.name, pending.args, session_id, pending.loadout
+            )
             if on_tool_call is not None:
                 on_tool_call({
                     "phase": "finished", "call_id": pending.call_id,
@@ -269,7 +293,7 @@ class LLMRouter:
         return self._complete(
             self._engine(), pending.conversation, pending.tools,
             pending.max_tokens, pending.temperature, pending.thinking_mode,
-            session_id, _tool_round_limit(), executed, on_tool_call,
+            session_id, _tool_round_limit(), pending.loadout, executed, on_tool_call,
         )
 
     def clean_dictation(self, raw_text: str) -> str:

@@ -32,20 +32,29 @@ export const SettingsGroup: React.FC<{
 );
 
 export const SettingsToggleRow: React.FC<{
-  label: string;
+  label: React.ReactNode;
   hint?: string;
+  badge?: React.ReactNode;
   checked: boolean;
   onChange: (value: boolean) => void;
-}> = ({ label, hint, checked, onChange }) => (
+  disabled?: boolean;
+}> = ({ label, hint, badge, checked, onChange, disabled = false }) => (
   <button
     type="button"
     role="switch"
     aria-checked={checked}
+    aria-disabled={disabled}
+    disabled={disabled}
     onClick={() => onChange(!checked)}
-    className="flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--aether-accent)]"
+    className={`flex w-full items-center justify-between gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--aether-accent)] ${
+      disabled ? 'cursor-not-allowed opacity-45' : ''
+    }`}
   >
     <span className="min-w-0">
-      <span className="block text-[11px] text-[var(--aether-text-2)]">{label}</span>
+      <span className="flex items-center gap-1.5">
+        <span className="block text-[11px] text-[var(--aether-text-2)]">{label}</span>
+        {badge}
+      </span>
       {hint ? (
         <span className="mt-0.5 block text-[9px] leading-snug text-[var(--aether-text-3)]">
           {hint}

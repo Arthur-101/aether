@@ -28,6 +28,7 @@ import type {
   TimeFormat,
   ToolCallEvent,
   ToolApprovalRequest,
+  TurnAttachment,
 } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
 import { useTimeFormat } from '../../hooks/useTimeFormat';
@@ -88,6 +89,18 @@ function attachmentStatus(item: AttachmentItem): string {
   if (item.mode === 'rag_vector') return `${item.chunks ?? 0} chunks · Indexed`;
   if (item.mode === 'inline') return 'Full text · Ready';
   return 'Image · Ready';
+}
+
+/** Compact label for a historical attachment chip. */
+function turnAttachmentMeta(item: TurnAttachment): {
+  label: string;
+  icon: typeof FileText;
+} {
+  if (item.mode === 'image') return { label: 'Image', icon: ImageIcon };
+  if (item.file_name.toLowerCase().endsWith('.md')) {
+    return { label: 'Note', icon: StickyNote };
+  }
+  return { label: 'Document', icon: FileText };
 }
 
 function engineInfo(ai?: AIProviderConfig | null): {
@@ -384,6 +397,29 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                       </p>
                       <div className="accent-fill rounded-2xl rounded-br-md px-3.5 py-2 text-[11.5px] leading-relaxed shadow-[0_6px_18px_rgba(0,0,0,0.14)]">
                         <div className="whitespace-pre-wrap break-words">{turn.user}</div>
+                        {turn.attachments && turn.attachments.length > 0 ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {turn.attachments.map((item, attachmentIndex) => {
+                              const {
+                                label,
+                                icon: AttachmentIcon,
+                              } = turnAttachmentMeta(item);
+                              return (
+                                <span
+                                  key={`${item.file_name}-${attachmentIndex}`}
+                                  title={item.file_name}
+                                  className="inline-flex max-w-full items-center gap-1 rounded-md border border-black/15 bg-black/15 px-1.5 py-0.5 text-[9px]"
+                                >
+                                  <AttachmentIcon size={9} className="shrink-0" />
+                                  <span className="max-w-[180px] truncate">
+                                    {item.file_name}
+                                  </span>
+                                  <span className="shrink-0 opacity-70">{label}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -414,20 +450,14 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                           <ChatMarkdown content={turn.ai} />
                         )}
                         {turn.tools_used && turn.tools_used.length > 0 ? (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {turn.tools_used.map((tool, toolIndex) => {
-                              const { label, icon: ToolIcon } = toolMeta(tool.name);
-                              return (
-                                <span
-                                  key={`${tool.name}-${toolIndex}`}
-                                  className="inline-flex items-center gap-1 rounded-md border border-[var(--aether-line-soft)] bg-[var(--aether-fill)] px-1.5 py-0.5 text-[9px] text-[var(--aether-text-2)]"
-                                >
-                                  <ToolIcon size={8} />
-                                  {label}
-                                </span>
-                              );
-                            })}
-                          </div>
+                          <ToolRunList
+                            calls={turn.tools_used.map((tool, toolIndex) => ({
+                              call_id: `turn-${index}-${toolIndex}`,
+                              name: tool.name,
+                              phase: 'finished' as const,
+                              ok: tool.ok ?? true,
+                            }))}
+                          />
                         ) : null}
                       </div>
                     </div>

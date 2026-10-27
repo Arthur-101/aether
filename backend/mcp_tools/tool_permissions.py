@@ -49,6 +49,23 @@ TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
     "spotify_set_volume": ToolPermission("write", "spotify"),
     "spotify_transfer": ToolPermission("write", "spotify"),
     "spotify_like": ToolPermission("write", "spotify"),
+    "schedule_one_time_task": ToolPermission("write", "clock"),
+    "schedule_recurring_routine": ToolPermission("write", "clock"),
+    "schedule_custom_task": ToolPermission("write", "clock"),
+    "schedule_alarm": ToolPermission("write", "clock"),
+    "list_scheduled_tasks": ToolPermission("read", "clock"),
+    "update_scheduled_task": ToolPermission("write", "clock"),
+    "cancel_scheduled_task": ToolPermission("write", "clock"),
+    "complete_scheduled_task": ToolPermission("write", "clock"),
+    "pause_scheduled_task": ToolPermission("write", "clock"),
+    "resume_scheduled_task": ToolPermission("write", "clock"),
+    "convert_document": ToolPermission("write", "documents"),
+    "search_dropped_file": ToolPermission("read", "documents"),
+    "convert_image_format": ToolPermission("write", "files"),
+    "compress_media": ToolPermission("write", "files"),
+    "strip_image_metadata": ToolPermission("write", "files"),
+    "crop_image": ToolPermission("write", "files"),
+    "add_background": ToolPermission("write", "files"),
 }
 
 
@@ -76,6 +93,7 @@ class PendingApproval:
     max_tokens: int
     temperature: Optional[float]
     thinking_mode: Optional[bool]
+    loadout: Optional[Dict[str, list[str]]] = None
 
 
 class ApprovalStore:

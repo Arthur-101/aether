@@ -17,6 +17,7 @@ from ..ai.llm_router import llm_router
 from ..ai.prompts import build_assistant_messages
 from ..ai.stt_engine import stt_engine
 from ..ai.tts_engine import tts_engine
+from ..chat_execution import summarize_tool_calls
 from ..config_manager import config_manager
 from ..db.sessions import session_manager
 from ..mcp_tools.server import get_openai_tool_schemas
@@ -298,20 +299,39 @@ class HotkeyManager:
             window_ctx = get_active_window_context()
             sid = session_manager.get_or_create_session(query)
             context = session_manager.build_session_context(sid, query)
+            loadout = config_manager.get_tool_loadout()
             messages = build_assistant_messages(
-                query, session_context=context, window_context=window_ctx
+                query,
+                session_context=context,
+                window_context=window_ctx,
+                enabled_tool_groups=loadout["enabled_groups"],
+                disabled_tools=loadout["disabled_tools"],
             )
             try:
                 result = llm_router.chat_completion(
-                    messages, tools=get_openai_tool_schemas(), session_id=sid
+                    messages,
+                    tools=get_openai_tool_schemas(),
+                    session_id=sid,
+                    loadout=loadout,
                 )
                 reply = result.get("content", "")
                 if reply:
-                    session_manager.commit_turn(sid, query, reply)
+                    session_manager.commit_turn(
+                        sid,
+                        query,
+                        reply,
+                        tools_used=result.get("tool_calls_executed", []),
+                    )
                     self.on_session_updated({
                         "session_id": sid,
                         "title": "Voice Session",
-                        "turn": {"user": query, "ai": reply},
+                        "turn": {
+                            "user": query,
+                            "ai": reply,
+                            "tools_used": summarize_tool_calls(
+                                result.get("tool_calls_executed", [])
+                            ),
+                        },
                         "reasoning": result.get("reasoning", ""),
                         "tools_used": result.get("tool_calls_executed", []),
                     })

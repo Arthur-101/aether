@@ -9,11 +9,12 @@ one importing the other's WebSocket handler.
 import asyncio
 import json
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from .ai.llm_router import llm_router
 from .ai.prompts import build_assistant_messages
-from .config_manager import get_app_dir, get_data_dir
+from .config_manager import config_manager, get_app_dir, get_data_dir
+from .db.attachments import list_attachments
 from .db.sessions import session_manager
 from .mcp_tools.attachment_tools import image_attachment_paths
 from .mcp_tools.server import get_openai_tool_schemas
@@ -54,6 +55,20 @@ def load_preferences() -> Dict[str, Any]:
     return {}
 
 
+def summarize_tool_calls(calls: Any) -> List[Dict[str, Any]]:
+    """Returns the compact {name, ok} form shown in chat history."""
+    summary: List[Dict[str, Any]] = []
+    for call in calls or []:
+        name = str(call.get("name") or "")
+        if not name:
+            continue
+        ok = call.get("ok")
+        if ok is None:
+            ok = not str(call.get("output") or "").lstrip().startswith("Error")
+        summary.append({"name": name, "ok": bool(ok)})
+    return summary
+
+
 async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
     """Runs one model turn and persists it to the linked session.
 
@@ -64,6 +79,10 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
     context = await loop.run_in_executor(
         None, lambda: session_manager.build_session_context(session_id, prompt)
     )
+    attachments = await loop.run_in_executor(
+        None, lambda: list_attachments(session_id)
+    )
+    loadout = config_manager.get_tool_loadout()
     messages = build_assistant_messages(
         prompt,
         session_context=context,
@@ -71,6 +90,8 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
         image_paths=await loop.run_in_executor(
             None, lambda: image_attachment_paths(session_id)
         ),
+        enabled_tool_groups=loadout["enabled_groups"],
+        disabled_tools=loadout["disabled_tools"],
     )
 
     def on_tool_call(event: Dict[str, Any]) -> None:
@@ -92,16 +113,29 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
             tools=get_openai_tool_schemas(),
             session_id=session_id,
             on_tool_call=on_tool_call,
+            loadout=loadout,
         ),
     )
     if result.get("approval_required"):
         return result
     reply = result.get("content", "") or "I could not produce a response."
     await loop.run_in_executor(
-        None, lambda: session_manager.commit_turn(session_id, prompt, reply)
+        None,
+        lambda: session_manager.commit_turn(
+            session_id,
+            prompt,
+            reply,
+            attachments=attachments,
+            tools_used=result.get("tool_calls_executed", []),
+        ),
     )
     await _refresh_mutated_views(result)
-    return {**result, "reply": reply}
+    return {
+        **result,
+        "reply": reply,
+        "attachments": attachments,
+        "tools_used": summarize_tool_calls(result.get("tool_calls_executed", [])),
+    }
 
 
 async def _refresh_mutated_views(result: Dict[str, Any]) -> None:
@@ -151,8 +185,23 @@ async def resolve_tool_approval(
     if result.get("error"):
         return result
     reply = result.get("content", "") or "I could not produce a response."
+    attachments = await loop.run_in_executor(
+        None, lambda: list_attachments(session_id)
+    )
     await loop.run_in_executor(
-        None, lambda: session_manager.commit_turn(session_id, prompt, reply)
+        None,
+        lambda: session_manager.commit_turn(
+            session_id,
+            prompt,
+            reply,
+            attachments=attachments,
+            tools_used=result.get("tool_calls_executed", []),
+        ),
     )
     await _refresh_mutated_views(result)
-    return {**result, "reply": reply}
+    return {
+        **result,
+        "reply": reply,
+        "attachments": attachments,
+        "tools_used": summarize_tool_calls(result.get("tool_calls_executed", [])),
+    }

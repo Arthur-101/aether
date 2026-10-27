@@ -97,7 +97,12 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
     await ws_manager.broadcast("SESSION_UPDATED", {
         "session_id": sid,
         "title": _get_session_title(sid),
-        "turn": {"user": prompt, "ai": result["reply"]},
+        "turn": {
+            "user": prompt,
+            "ai": result["reply"],
+            "attachments": result.get("attachments", []),
+            "tools_used": result.get("tools_used", []),
+        },
         "reasoning": result.get("reasoning", ""),
         "tools_used": result.get("tool_calls_executed", []),
     })
@@ -126,7 +131,12 @@ async def _handle_tool_approval(payload: Dict[str, Any]) -> None:
     await ws_manager.broadcast("SESSION_UPDATED", {
         "session_id": session_id,
         "title": _get_session_title(session_id),
-        "turn": {"user": prompt, "ai": result["reply"]},
+        "turn": {
+            "user": prompt,
+            "ai": result["reply"],
+            "attachments": result.get("attachments", []),
+            "tools_used": result.get("tools_used", []),
+        },
         "reasoning": result.get("reasoning", ""),
         "tools_used": result.get("tool_calls_executed", []),
     })

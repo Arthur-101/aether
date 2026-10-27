@@ -283,7 +283,7 @@ def test_assistant_release_reports_missing_tts_after_committing_reply(monkeypatc
 
     manager._process_assistant_release()
 
-    assert sessions[0]["turn"] == {"user": "hello", "ai": "hi"}
+    assert sessions[0]["turn"] == {"user": "hello", "ai": "hi", "tools_used": []}
     assert ("speaking", "hi") not in voice
     assert errors == [hotkeys_module.TTS_UNAVAILABLE_NOTICE]
     assert voice[-1] == ("idle", "")
