@@ -1,11 +1,11 @@
 """
 Aether Notes Tools
 Deterministic note-vault tools for the LLM: list, search, read, create, append,
-and pin.
+pin, replace, and delete.
 
-Delete and whole-body replace are intentionally absent: both can lose user data
-and there is no per-tool confirmation layer yet (see QUICK_CHAT_TOOLS_PLAN.md,
-F1). They ship together with that layer.
+Delete and whole-body replace can lose user data, so both are registered as
+`destructive` in the F1 permission table. The router pauses for explicit user
+approval before either function runs.
 
 Every function returns a human-readable string because the result is fed back to
 the model as a tool message.
@@ -188,6 +188,49 @@ def set_note_pinned(note: str, pinned: bool = True) -> str:
     return f"{state} '{result['note']['title']}'."
 
 
+def update_note(note: str, content: str) -> str:
+    """Replaces an existing note's entire body, keeping its title and metadata.
+
+    Destructive: the router requires explicit approval before calling this.
+    """
+    found, error = _locate(note)
+    if error:
+        return error
+    assert found is not None
+
+    body = content or ""
+    old_length = len(str(found.get("content", "") or ""))
+    result = notes_store.save_note(
+        str(found.get("id")),
+        str(found.get("title") or "Untitled note"),
+        body,
+        found.get("theme"),
+        found.get("pinned"),
+    )
+    return (
+        f"Replaced the body of '{result['note']['title']}' "
+        f"({old_length} → {len(body)} characters)."
+    )
+
+
+def delete_note(note: str) -> str:
+    """Permanently deletes an existing note.
+
+    Destructive: the router requires explicit approval before calling this.
+    """
+    found, error = _locate(note)
+    if error:
+        return error
+    assert found is not None
+
+    if not notes_store.delete_note(str(found.get("id"))):
+        return (
+            f"Could not delete '{found.get('title')}'. "
+            "The file may be open or read-only."
+        )
+    return f"Deleted '{found.get('title')}' (id {found.get('id')})."
+
+
 def get_note_tool_schemas() -> List[Dict[str, Any]]:
     """OpenAI/GGUF function schemas for the notes tool group."""
     return [
@@ -269,6 +312,44 @@ def get_note_tool_schemas() -> List[Dict[str, Any]]:
                     "properties": {
                         "note": {"type": "string", "description": _NOTE_REF_DESC},
                         "pinned": {"type": "boolean", "description": "True to pin, false to unpin."},
+                    },
+                    "required": ["note"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "update_note",
+                "description": (
+                    "Replace the entire body of an existing note, keeping its title. "
+                    "This cannot be undone; the user must approve it first."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "note": {"type": "string", "description": _NOTE_REF_DESC},
+                        "content": {
+                            "type": "string",
+                            "description": "New Markdown body. Replaces the old body completely.",
+                        },
+                    },
+                    "required": ["note", "content"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "delete_note",
+                "description": (
+                    "Permanently delete an existing note. "
+                    "This cannot be undone; the user must approve it first."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "note": {"type": "string", "description": _NOTE_REF_DESC},
                     },
                     "required": ["note"],
                 },

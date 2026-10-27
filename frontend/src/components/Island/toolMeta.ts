@@ -21,6 +21,7 @@ import {
   MonitorSpeaker,
   NotebookPen,
   Pause,
+  Pencil,
   Pin,
   Play,
   Repeat,
@@ -29,6 +30,7 @@ import {
   SkipBack,
   SkipForward,
   StickyNote,
+  Trash2,
   Volume2,
   Wrench,
 } from 'lucide-react';
@@ -55,6 +57,8 @@ const TOOL_META: Record<string, ToolMeta> = {
   create_note: { label: 'Create note', icon: NotebookPen },
   append_to_note: { label: 'Append to note', icon: NotebookPen },
   set_note_pinned: { label: 'Pin note', icon: Pin },
+  update_note: { label: 'Replace note body', icon: Pencil },
+  delete_note: { label: 'Delete note', icon: Trash2 },
   // Music transport
   media_play: { label: 'Play', icon: Play },
   media_pause: { label: 'Pause', icon: Pause },

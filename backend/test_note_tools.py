@@ -1,9 +1,19 @@
-"""Notes tool tests: resolution, read/search, append, pin, and schema wiring."""
+"""Notes tool tests: resolution, read/search, append, pin, replace, delete, and schema wiring."""
 
 import pytest
 
 from backend.mcp_tools import note_tools
 from backend.notes import notes_store
+
+
+class FakeEngine:
+    """Returns prepared completions in order for each tool round."""
+
+    def __init__(self, replies):
+        self._replies = list(replies)
+
+    def complete(self, *_args, **_kwargs):
+        return self._replies.pop(0)
 
 
 @pytest.fixture()
@@ -81,6 +91,75 @@ def test_pin_and_unpin(vault):
     assert notes_store.read_note(note_id)["pinned"] is False
 
 
+def test_update_note_replaces_body_and_keeps_metadata(vault):
+    created = note_tools.create_note("Draft", "old body")
+    note_id = created.split("id ")[1].rstrip(").")
+    note_tools.set_note_pinned(note_id, True)
+
+    result = note_tools.update_note("Draft", "new body")
+
+    note = notes_store.read_note(note_id)
+    assert note["content"].strip() == "new body"
+    assert note["title"] == "Draft"
+    assert note["pinned"] is True
+    assert "Replaced" in result
+
+
+def test_delete_note_removes_the_file(vault):
+    note_tools.create_note("Trash me", "bye")
+
+    result = note_tools.delete_note("Trash me")
+
+    assert "Deleted" in result
+    assert notes_store.list_notes()["notes"] == []
+
+
+def test_delete_and_update_require_an_existing_unambiguous_note(vault):
+    note_tools.create_note("Report alpha")
+    note_tools.create_note("Report beta")
+
+    assert "matches 2 notes" in note_tools.delete_note("report")
+    assert "matches 2 notes" in note_tools.update_note("report", "replacement")
+    assert "No note matches" in note_tools.delete_note("ghost")
+    assert "No note matches" in note_tools.update_note("ghost", "replacement")
+    assert len(notes_store.list_notes()["notes"]) == 2
+
+
+def test_delete_note_waits_for_approval(vault, monkeypatch):
+    from backend.ai.llm_router import llm_router
+
+    note_tools.create_note("Trash me", "bye")
+    note_id = notes_store.list_notes()["notes"][0]["id"]
+    engine = FakeEngine([
+        {
+            "tool_calls": [{
+                "id": "delete-1",
+                "function": {
+                    "name": "delete_note",
+                    "arguments": '{"note": "Trash me"}',
+                },
+            }],
+        },
+        {"content": "Deleted it."},
+    ])
+    monkeypatch.setattr(llm_router, "_engine", lambda: engine)
+
+    paused = llm_router.chat_completion(
+        [{"role": "user", "content": "delete Trash me"}],
+        session_id="note-approval-test",
+    )
+
+    assert paused["approval_required"]["name"] == "delete_note"
+    assert notes_store.read_note(note_id) is not None
+
+    result = llm_router.resolve_approval(
+        paused["approval_required"]["approval_id"], "note-approval-test", True
+    )
+
+    assert result["content"] == "Deleted it."
+    assert notes_store.read_note(note_id) is None
+
+
 def test_ambiguous_and_missing_references(vault):
     note_tools.create_note("Report alpha")
     note_tools.create_note("Report beta")
@@ -103,9 +182,8 @@ def test_note_tool_schemas_are_registered():
         "create_note",
         "append_to_note",
         "set_note_pinned",
+        "update_note",
+        "delete_note",
     }
     assert expected <= schema_names
     assert expected <= set(TOOL_DISPATCH)
-    # Delete and whole-body replace are gated behind the permission layer (F1).
-    assert "delete_note" not in schema_names
-    assert "update_note" not in schema_names

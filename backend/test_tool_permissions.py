@@ -121,3 +121,9 @@ def test_spotify_tools_have_expected_risks():
         assert tool_permissions.tool_permission(name).risk == "read"
     for name in writes:
         assert tool_permissions.tool_permission(name).risk == "write"
+
+
+def test_destructive_note_tools_require_approval():
+    for name in ("delete_note", "update_note"):
+        assert tool_permissions.tool_permission(name).risk == "destructive"
+        assert tool_permissions.requires_approval(name) is True

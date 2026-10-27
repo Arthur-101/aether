@@ -32,6 +32,18 @@ logger = logging.getLogger("aether.hotkeys")
 # action, so an accidental tap never opens the microphone.
 VOICE_HOLD_SECONDS = 0.3
 
+# Voice failures are easy to miss because the pill returns to idle immediately.
+# These messages are sent through the normal ERROR toast so the user knows why
+# nothing happened and where to fix it.
+STT_UNAVAILABLE_NOTICE = (
+    "Speech-to-text isn't available. Choose the Phonon-2 folder in Settings → Voice Engine."
+)
+TTS_UNAVAILABLE_NOTICE = (
+    "Voice output isn't available. The reply is in Quick Chat; choose the Paradee model "
+    "in Settings → Voice Engine."
+)
+TTS_FAILED_NOTICE = "Voice output failed. The reply is in Quick Chat."
+
 
 class HotkeyManager:
     """Manages global hotkey listeners and dispatches AI/voice/overlay actions."""
@@ -44,6 +56,7 @@ class HotkeyManager:
         on_session_updated: Optional[Callable[[Dict[str, Any]], None]] = None,
         on_wheel_move: Optional[Callable[[int, int], None]] = None,
         on_open_island: Optional[Callable[[], None]] = None,
+        on_error: Optional[Callable[[str], None]] = None,
         hold_threshold: float = VOICE_HOLD_SECONDS,
     ):
         self.on_voice_state = on_voice_state or (lambda state, text: None)
@@ -52,6 +65,7 @@ class HotkeyManager:
         self.on_session_updated = on_session_updated or (lambda data: None)
         self.on_wheel_move = on_wheel_move or (lambda x, y: None)
         self.on_open_island = on_open_island or (lambda: None)
+        self.on_error = on_error or (lambda message: None)
         self.hold_threshold = max(0.0, float(hold_threshold))
 
         self._pressed: set[str] = set()
@@ -244,6 +258,11 @@ class HotkeyManager:
     def _process_dictation_release(self) -> None:
         self.on_voice_state("thinking", "Cleaning dictation...")
         audio = self._stop_recording_safe()
+        if not stt_engine.is_available():
+            self.on_error(STT_UNAVAILABLE_NOTICE)
+            logger.warning("Dictation is unavailable: Phonon-2 model or runtime is missing.")
+            self.on_voice_state("idle", "")
+            return
         raw_text = stt_engine.transcribe(audio)
         if raw_text:
             cleaned = raw_text
@@ -264,9 +283,14 @@ class HotkeyManager:
 
     def _process_assistant_release(self) -> None:
         self.on_voice_state("thinking", "Thinking...")
-        final_text = ""
         try:
             audio = self._stop_recording_safe()
+            if not stt_engine.is_available():
+                self.on_error(STT_UNAVAILABLE_NOTICE)
+                logger.warning(
+                    "Voice assistant is unavailable: Phonon-2 model or runtime is missing."
+                )
+                return
             query = stt_engine.transcribe(audio)
             if not query:
                 return
@@ -291,10 +315,25 @@ class HotkeyManager:
                         "reasoning": result.get("reasoning", ""),
                         "tools_used": result.get("tool_calls_executed", []),
                     })
-                    self.on_voice_state("speaking", reply)
-                    tts_engine.speak(reply, blocking=True)
+                    if not tts_engine.is_available():
+                        self.on_error(TTS_UNAVAILABLE_NOTICE)
+                        logger.warning(
+                            "Voice output is unavailable: Paradee model is missing."
+                        )
+                    else:
+                        self.on_voice_state("speaking", reply)
+                        try:
+                            tts_engine.speak(reply, blocking=True)
+                        except FileNotFoundError:
+                            self.on_error(TTS_UNAVAILABLE_NOTICE)
+                            logger.warning(
+                                "Voice output is unavailable: Paradee model is missing."
+                            )
+                        except Exception as exc:
+                            self.on_error(TTS_FAILED_NOTICE)
+                            logger.warning("Voice output failed: %s", exc)
             except ModelNotConfiguredError as exc:
-                final_text = str(exc)
+                self.on_error(str(exc))
             except Exception as exc:
                 logger.warning("Voice assistant failed: %s", exc)
         except Exception as exc:
@@ -302,7 +341,7 @@ class HotkeyManager:
         finally:
             # Always clear the pill, even when context capture, STT, or the
             # model call fails before the normal idle broadcast.
-            self.on_voice_state("idle", final_text)
+            self.on_voice_state("idle", "")
 
     def start(self) -> None:
         """Starts the keyboard and drag detector listeners."""

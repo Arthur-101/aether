@@ -29,6 +29,8 @@ TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
     "create_note": ToolPermission("write", "notes"),
     "append_to_note": ToolPermission("write", "notes"),
     "set_note_pinned": ToolPermission("write", "notes"),
+    "update_note": ToolPermission("destructive", "notes"),
+    "delete_note": ToolPermission("destructive", "notes"),
     "now_playing": ToolPermission("read", "media"),
     "media_play": ToolPermission("write", "media"),
     "media_pause": ToolPermission("write", "media"),

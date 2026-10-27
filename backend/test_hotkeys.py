@@ -194,6 +194,7 @@ def test_assistant_release_clears_pill_when_context_capture_fails(monkeypatch):
     manager = HotkeyManager(on_voice_state=lambda state, text: voice.append((state, text)))
     manager._stop_recording_safe = lambda: None
 
+    monkeypatch.setattr(hotkeys_module.stt_engine, "is_available", lambda: True)
     monkeypatch.setattr(hotkeys_module.stt_engine, "transcribe", lambda _audio: "hello")
     monkeypatch.setattr(
         hotkeys_module,
@@ -204,5 +205,86 @@ def test_assistant_release_clears_pill_when_context_capture_fails(monkeypatch):
     manager._process_assistant_release()
 
     assert voice[0] == ("thinking", "Thinking...")
+    assert voice[-1] == ("idle", "")
+
+
+def test_assistant_release_reports_missing_stt(monkeypatch):
+    from backend.os_hooks import hotkeys as hotkeys_module
+
+    voice = []
+    errors = []
+    manager = HotkeyManager(
+        on_voice_state=lambda state, text: voice.append((state, text)),
+        on_error=errors.append,
+    )
+    manager._stop_recording_safe = lambda: None
+
+    monkeypatch.setattr(hotkeys_module.stt_engine, "is_available", lambda: False)
+
+    manager._process_assistant_release()
+
+    assert errors == [hotkeys_module.STT_UNAVAILABLE_NOTICE]
+    assert voice == [("thinking", "Thinking..."), ("idle", "")]
+
+
+def test_dictation_reports_missing_stt(monkeypatch):
+    from backend.os_hooks import hotkeys as hotkeys_module
+
+    voice = []
+    errors = []
+    manager = HotkeyManager(
+        on_voice_state=lambda state, text: voice.append((state, text)),
+        on_error=errors.append,
+    )
+    manager._stop_recording_safe = lambda: None
+
+    monkeypatch.setattr(hotkeys_module.stt_engine, "is_available", lambda: False)
+
+    manager._process_dictation_release()
+
+    assert errors == [hotkeys_module.STT_UNAVAILABLE_NOTICE]
+    assert voice == [("thinking", "Cleaning dictation..."), ("idle", "")]
+
+
+def test_assistant_release_reports_missing_tts_after_committing_reply(monkeypatch):
+    from backend.os_hooks import hotkeys as hotkeys_module
+
+    voice = []
+    errors = []
+    sessions = []
+    manager = HotkeyManager(
+        on_voice_state=lambda state, text: voice.append((state, text)),
+        on_session_updated=sessions.append,
+        on_error=errors.append,
+    )
+    manager._stop_recording_safe = lambda: None
+
+    monkeypatch.setattr(hotkeys_module.stt_engine, "is_available", lambda: True)
+    monkeypatch.setattr(hotkeys_module.stt_engine, "transcribe", lambda _audio: "hello")
+    monkeypatch.setattr(hotkeys_module, "get_active_window_context", lambda: "")
+    monkeypatch.setattr(
+        hotkeys_module.session_manager, "get_or_create_session", lambda _query: "sid"
+    )
+    monkeypatch.setattr(
+        hotkeys_module.session_manager, "build_session_context", lambda _sid, _query: ""
+    )
+    monkeypatch.setattr(
+        hotkeys_module, "build_assistant_messages", lambda *_args, **_kwargs: []
+    )
+    monkeypatch.setattr(
+        hotkeys_module.llm_router,
+        "chat_completion",
+        lambda *_args, **_kwargs: {"content": "hi"},
+    )
+    monkeypatch.setattr(
+        hotkeys_module.session_manager, "commit_turn", lambda *_args, **_kwargs: None
+    )
+    monkeypatch.setattr(hotkeys_module.tts_engine, "is_available", lambda: False)
+
+    manager._process_assistant_release()
+
+    assert sessions[0]["turn"] == {"user": "hello", "ai": "hi"}
+    assert ("speaking", "hi") not in voice
+    assert errors == [hotkeys_module.TTS_UNAVAILABLE_NOTICE]
     assert voice[-1] == ("idle", "")
 

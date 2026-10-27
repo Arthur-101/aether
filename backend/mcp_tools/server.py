@@ -17,11 +17,13 @@ from .doc_tools import convert_document, search_dropped_file
 from .note_tools import (
     append_to_note,
     create_note,
+    delete_note,
     get_note_tool_schemas,
     list_notes,
     read_note,
     search_notes,
     set_note_pinned,
+    update_note,
 )
 from .clock_tools import (
     cancel_task_tool,
@@ -77,6 +79,8 @@ mcp.tool()(read_note)
 mcp.tool()(create_note)
 mcp.tool()(append_to_note)
 mcp.tool()(set_note_pinned)
+mcp.tool()(update_note)
+mcp.tool()(delete_note)
 mcp.tool()(media_play)
 mcp.tool()(media_pause)
 mcp.tool()(media_toggle)
@@ -119,6 +123,8 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "create_note": create_note,
     "append_to_note": append_to_note,
     "set_note_pinned": set_note_pinned,
+    "update_note": update_note,
+    "delete_note": delete_note,
     "media_play": media_play,
     "media_pause": media_pause,
     "media_toggle": media_toggle,

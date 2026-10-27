@@ -50,7 +50,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
 
   useEffect(() => {
     if (!errorMessage) return;
-    const timer = window.setTimeout(onClearError, 1800);
+    const timer = window.setTimeout(onClearError, 4000);
     return () => window.clearTimeout(timer);
   }, [errorMessage, onClearError]);
 

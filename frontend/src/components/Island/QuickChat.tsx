@@ -32,6 +32,7 @@ import type {
 import type { NotesApi } from '../../types/notes';
 import { useTimeFormat } from '../../hooks/useTimeFormat';
 import { AetherMark } from './AetherMark';
+import { ChatMarkdown } from './ChatMarkdown';
 import { ChatSessionMenu } from './ChatSessionMenu';
 import { ToolRunList } from './ToolRunList';
 import { parseBackendTimestamp } from './backendTime';
@@ -407,7 +408,11 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                             : 'border-[var(--aether-line)] bg-[var(--aether-surface-1)] text-[var(--aether-text-1)]'
                         }`}
                       >
-                        <div className="whitespace-pre-wrap break-words">{turn.ai}</div>
+                        {turn.error ? (
+                          <div className="whitespace-pre-wrap break-words">{turn.ai}</div>
+                        ) : (
+                          <ChatMarkdown content={turn.ai} />
+                        )}
                         {turn.tools_used && turn.tools_used.length > 0 ? (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {turn.tools_used.map((tool, toolIndex) => {

@@ -79,12 +79,18 @@ def wire_hotkey_callbacks() -> None:
             ws_manager.broadcast("SESSION_UPDATED", data), loop
         )
 
+    def on_error(message: str) -> None:
+        asyncio.run_coroutine_threadsafe(
+            ws_manager.broadcast("ERROR", {"message": message}), loop
+        )
+
     hotkey_manager.on_voice_state = on_voice_state
     hotkey_manager.on_show_wheel = on_show_wheel
     hotkey_manager.on_wheel_move = on_wheel_move
     hotkey_manager.on_circle_to_ask = on_circle_to_ask
     hotkey_manager.on_open_island = on_open_island
     hotkey_manager.on_session_updated = on_session_updated
+    hotkey_manager.on_error = on_error
     hotkey_manager.drag_detector.on_drop = on_wheel_drop
     hotkey_manager.start()
     logger.info("Hotkey listeners started")

@@ -38,6 +38,8 @@ NOTE_MUTATION_TOOLS = {
     "create_note",
     "append_to_note",
     "set_note_pinned",
+    "update_note",
+    "delete_note",
 }
 
 
