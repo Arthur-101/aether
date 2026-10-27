@@ -43,6 +43,15 @@ def _parse_args(raw: Any) -> Dict[str, Any]:
         return {}
 
 
+def _call_signature(name: str, args: Dict[str, Any]) -> str:
+    """Stable identity for a tool call, used to stop identical repeat calls."""
+    try:
+        payload = json.dumps(args, sort_keys=True, ensure_ascii=False, default=str)
+    except Exception:
+        payload = str(args)
+    return f"{name}:{payload}"
+
+
 def _tool_round_limit() -> int:
     """Reads the configured model→tool loop budget at call time."""
     return normalize_max_tool_rounds(
@@ -132,6 +141,9 @@ class LLMRouter:
     ) -> Dict[str, Any]:
         """Runs the tool loop, pausing if a guarded action needs approval."""
         temp, top_p, presence_penalty = self._sampling(thinking_mode, temperature)
+        last_signature = ""
+        last_output = ""
+        duplicates = 0
         for _ in range(max_tool_rounds + 1):
             result = engine.complete(
                 conversation,
@@ -156,12 +168,33 @@ class LLMRouter:
                 "content": result.get("content", ""),
                 "tool_calls": tool_calls,
             })
+            force_final = False
             for index, call in enumerate(tool_calls):
                 fn = call.get("function", {})
                 name = fn.get("name", "")
                 raw_args = fn.get("arguments", "{}")
                 args = _parse_args(raw_args)
                 call_id = call.get("id") or f"call_{index}"
+                signature = _call_signature(name, args)
+                if (
+                    signature == last_signature
+                    and last_output
+                    and not last_output.lstrip().startswith(_ERROR_PREFIX)
+                ):
+                    duplicates += 1
+                    conversation.append({
+                        "role": "tool",
+                        "tool_call_id": call_id,
+                        "name": name,
+                        "content": (
+                            "This exact call already ran in this turn. "
+                            "Do not call it again. Previous result:\n"
+                            f"{last_output[:2000]}"
+                        ),
+                    })
+                    if duplicates >= 2:
+                        force_final = True
+                    continue
                 if requires_approval(name):
                     approval_id = approval_store.create_id()
                     approval_store.put(PendingApproval(
@@ -193,6 +226,8 @@ class LLMRouter:
                         "phase": "started", "call_id": call_id, "name": name, "args": args,
                     })
                 output = self._execute_tool(name, raw_args, session_id, loadout)
+                last_signature = signature
+                last_output = str(output)
                 executed.append({"name": name, "args": raw_args, "output": output})
                 if on_tool_call is not None:
                     on_tool_call({
@@ -203,6 +238,29 @@ class LLMRouter:
                 conversation.append({
                     "role": "tool", "tool_call_id": call_id, "name": name, "content": output,
                 })
+            if force_final:
+                final = engine.complete(
+                    conversation,
+                    tools=None,
+                    max_tokens=max_tokens,
+                    temperature=temp,
+                    top_p=top_p,
+                    presence_penalty=presence_penalty,
+                    thinking_mode=thinking_mode,
+                )
+                content = (
+                    final.get("content") or final.get("reasoning") or ""
+                ).strip()
+                if not content:
+                    content = (
+                        last_output
+                        or "I already have the result from the previous tool call."
+                    )
+                return {
+                    "content": content,
+                    "reasoning": final.get("reasoning", ""),
+                    "tool_calls_executed": executed,
+                }
         return {
             "content": "I reached the maximum number of tool steps for this request.",
             "reasoning": "",

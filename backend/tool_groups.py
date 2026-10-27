@@ -17,6 +17,11 @@ TOOL_GROUPS: Tuple[Dict[str, str], ...] = (
         "hint": "Create, read, search, pin, edit, and delete notes in your vault.",
     },
     {
+        "id": "clipboard",
+        "label": "Clipboard",
+        "hint": "Read the current Windows clipboard and copy text to it.",
+    },
+    {
         "id": "media",
         "label": "Media",
         "hint": "Play, pause, skip, and inspect whatever is playing locally.",
@@ -61,9 +66,9 @@ TOOL_GROUP_HINTS: Dict[str, str] = {
     group["id"]: group["hint"] for group in TOOL_GROUPS
 }
 
-# Configs written before the System group existed list exactly these ids. The
-# one-time upgrade in config_schema keeps that all-on choice, while custom
-# subsets and explicit opt-outs are left alone.
+# Configs written before the System and Clipboard groups existed list exactly
+# these ids. The one-time upgrade in config_schema keeps an all-on choice, while
+# custom subsets and explicit opt-outs are left alone.
 PREVIOUS_TOOL_GROUP_IDS: Tuple[str, ...] = (
     "notes",
     "media",
@@ -73,7 +78,8 @@ PREVIOUS_TOOL_GROUP_IDS: Tuple[str, ...] = (
     "documents",
     "files",
 )
-TOOL_GROUPS_VERSION = 2
+PREVIOUS_TOOL_GROUP_IDS_V2: Tuple[str, ...] = PREVIOUS_TOOL_GROUP_IDS + ("system",)
+TOOL_GROUPS_VERSION = 3
 
 DEFAULT_ENABLED_TOOL_GROUPS: Tuple[str, ...] = TOOL_GROUP_IDS
 

@@ -12,6 +12,8 @@ import {
   Bluetooth,
   CalendarClock,
   Cast,
+  Clipboard,
+  ClipboardPaste,
   ExternalLink,
   FileText,
   Globe,
@@ -64,6 +66,9 @@ const TOOL_META: Record<string, ToolMeta> = {
   set_note_pinned: { label: 'Pin note', icon: Pin },
   update_note: { label: 'Replace note body', icon: Pencil },
   delete_note: { label: 'Delete note', icon: Trash2 },
+  // Clipboard
+  read_clipboard: { label: 'Read clipboard', icon: Clipboard },
+  write_clipboard: { label: 'Copy to clipboard', icon: ClipboardPaste },
   // Music transport
   media_play: { label: 'Play', icon: Play },
   media_pause: { label: 'Pause', icon: Pause },

@@ -35,6 +35,11 @@ from .note_tools import (
     set_note_pinned,
     update_note,
 )
+from .clipboard_tools import (
+    get_clipboard_tool_schemas,
+    read_clipboard,
+    write_clipboard,
+)
 from .clock_tools import (
     cancel_task_tool,
     complete_task_tool,
@@ -100,6 +105,8 @@ mcp.tool()(append_to_note)
 mcp.tool()(set_note_pinned)
 mcp.tool()(update_note)
 mcp.tool()(delete_note)
+mcp.tool()(read_clipboard)
+mcp.tool()(write_clipboard)
 mcp.tool()(media_play)
 mcp.tool()(media_pause)
 mcp.tool()(media_toggle)
@@ -135,6 +142,15 @@ mcp.tool()(pause_task_tool)
 mcp.tool()(resume_task_tool)
 mcp.tool()(schedule_alarm)
 
+def _read_clipboard_tolerant(**_kwargs: Any) -> str:
+    """Reads the clipboard even when a model sends a stray argument.
+
+    ``read_clipboard`` takes no input, but some models pass ``text`` when the
+    user asks what was written. Ignoring the argument keeps the turn useful.
+    """
+    return read_clipboard()
+
+
 # Tool Dispatch Table
 TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "convert_image_format": convert_image_format,
@@ -150,6 +166,8 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "set_note_pinned": set_note_pinned,
     "update_note": update_note,
     "delete_note": delete_note,
+    "read_clipboard": _read_clipboard_tolerant,
+    "write_clipboard": write_clipboard,
     "media_play": media_play,
     "media_pause": media_pause,
     "media_toggle": media_toggle,
@@ -302,7 +320,7 @@ def get_openai_tool_schemas(
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_clipboard_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
     return filter_tool_schemas(schemas, enabled_groups, disabled_tools)
 
 
