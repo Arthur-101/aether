@@ -27,14 +27,27 @@ Rules:
 3. If relevant past context or active window information is provided, ground your reply on it.
 4. Keep spoken responses brief and natural so they sound great via text-to-speech."""
 
-CLOCK_TOOL_PROMPT = """5. For reminders or routines, call a scheduling tool with a future date/time. Use list_scheduled_tasks before editing/cancelling so you have the real task ID, and use schedule_alarm for audible alarms. Recurring tasks can be paused/resumed; one-time tasks can be completed. Use schedule_custom_task when a daily routine must stop at an end date/time. Never claim something changed unless the tool returned a success message."""
+CLOCK_TOOL_PROMPT = """For reminders or routines, call a scheduling tool with a future date/time. Use list_scheduled_tasks before editing/cancelling so you have the real task ID, and use schedule_alarm for audible alarms. Recurring tasks can be paused/resumed; one-time tasks can be completed. Use schedule_custom_task when a daily routine must stop at an end date/time. Never claim something changed unless the tool returned a success message."""
 
-CLOCK_TOOL_PROMPT_GENERIC = """5. For reminders or routines, call an available scheduling tool with a future date/time. Never claim something changed unless the tool returned a success message."""
+CLOCK_TOOL_PROMPT_GENERIC = """For reminders or routines, call an available scheduling tool with a future date/time. Never claim something changed unless the tool returned a success message."""
+
+SYSTEM_TOOL_PROMPT = """For system status or controls, call get_system_stats before reporting a value, and use set_volume, set_mute, set_brightness, set_wifi, or set_bluetooth to change one. Report the value the tool returned."""
+
+SYSTEM_TOOL_PROMPT_GENERIC = """For system status or controls, call an available system tool and report the value it returned."""
 
 _NAMED_CLOCK_TOOLS = {
     "list_scheduled_tasks",
     "schedule_alarm",
     "schedule_custom_task",
+}
+
+_NAMED_SYSTEM_TOOLS = {
+    "get_system_stats",
+    "set_volume",
+    "set_mute",
+    "set_brightness",
+    "set_wifi",
+    "set_bluetooth",
 }
 
 VISION_SYSTEM_PROMPT = """You are Aether Vision. You analyze screenshots cropped from the user's desktop.
@@ -76,19 +89,30 @@ def build_assistant_messages(
     templates (including Ternary-Bonsai) reject a second system role.
     """
     system_sections = [ASSISTANT_SYSTEM_PROMPT]
+    tool_rules: List[str] = []
     if enabled_tool_groups is None and disabled_tools is None:
-        system_sections.append(CLOCK_TOOL_PROMPT)
+        tool_rules.extend([CLOCK_TOOL_PROMPT, SYSTEM_TOOL_PROMPT])
     else:
-        clock_enabled = "clock" in set(
-            normalize_enabled_tool_groups(enabled_tool_groups)
-        )
+        enabled = set(normalize_enabled_tool_groups(enabled_tool_groups))
         blocked = set(normalize_disabled_tools(disabled_tools))
-        if clock_enabled and not (_NAMED_CLOCK_TOOLS & blocked):
-            system_sections.append(CLOCK_TOOL_PROMPT)
-        elif clock_enabled:
-            # Keep the scheduling guidance without naming tools the user has
-            # individually switched off.
-            system_sections.append(CLOCK_TOOL_PROMPT_GENERIC)
+        if "clock" in enabled:
+            tool_rules.append(
+                CLOCK_TOOL_PROMPT_GENERIC
+                if _NAMED_CLOCK_TOOLS & blocked
+                else CLOCK_TOOL_PROMPT
+            )
+        if "system" in enabled:
+            tool_rules.append(
+                SYSTEM_TOOL_PROMPT_GENERIC
+                if _NAMED_SYSTEM_TOOLS & blocked
+                else SYSTEM_TOOL_PROMPT
+            )
+    if tool_rules:
+        system_sections.append(
+            "\n".join(
+                f"{index}. {rule}" for index, rule in enumerate(tool_rules, start=5)
+            )
+        )
     local_now = datetime.now().astimezone()
     timezone_label = local_now.tzname() or local_now.strftime("UTC%z")
     system_sections.append(

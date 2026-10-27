@@ -55,6 +55,35 @@ def test_default_config_enables_every_group():
     tools = normalize_config({})["tools"]
     assert tools["enabled_groups"] == list(TOOL_GROUP_IDS)
     assert tools["disabled_tools"] == []
+    assert tools["groups_version"] == 2
+
+
+def test_legacy_all_on_config_gains_the_system_group_once():
+    legacy = ["notes", "media", "spotify", "web", "clock", "documents", "files"]
+    tools = normalize_config({"tools": {"enabled_groups": legacy}})["tools"]
+    assert "system" in tools["enabled_groups"]
+    assert tools["groups_version"] == 2
+
+    opted_out = {
+        "tools": {
+            "enabled_groups": legacy,
+            "disabled_tools": [],
+            "groups_version": 2,
+        }
+    }
+    assert "system" not in normalize_config(opted_out)["tools"]["enabled_groups"]
+
+
+def test_custom_legacy_selection_does_not_gain_the_system_group():
+    tools = normalize_config(
+        {"tools": {"enabled_groups": ["notes", "web"]}}
+    )["tools"]
+    assert tools["enabled_groups"] == ["notes", "web"]
+
+
+def test_explicit_empty_selection_stays_empty_after_upgrade():
+    tools = normalize_config({"tools": {"enabled_groups": []}})["tools"]
+    assert tools["enabled_groups"] == []
 
 
 def test_group_normalization_filters_unknown_and_keeps_canonical_order():
@@ -96,7 +125,7 @@ def test_schema_filter_honours_individual_tool_exceptions():
     }
     assert "delete_note" not in names
     assert "list_notes" in names
-    assert len(names) == 40
+    assert len(names) == 46
 
 
 def test_empty_loadout_returns_no_schemas():
@@ -129,8 +158,8 @@ def test_execute_tool_allows_enabled_tool(monkeypatch):
 
 def test_tool_group_summary_reports_counts_and_tokens():
     summary = tool_group_summary(TOOL_GROUP_IDS, [])
-    assert summary["total_tools"] == 41
-    assert summary["enabled_tools"] == 41
+    assert summary["total_tools"] == 47
+    assert summary["enabled_tools"] == 47
     assert summary["total_tokens"] == summary["enabled_tokens"]
     assert {group["id"] for group in summary["groups"]} == set(TOOL_GROUP_IDS)
     assert all(group["tools"] for group in summary["groups"])

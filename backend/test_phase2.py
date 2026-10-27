@@ -157,12 +157,13 @@ def run_tests():
         # ----------------------------------------------------
         print("\n[Test 4] Testing FastMCP Server & OpenAI Tool Schemas...")
         schemas = get_openai_tool_schemas()
-        assert len(schemas) == 41
+        assert len(schemas) == 47
         tool_names = [s["function"]["name"] for s in schemas]
         print(f"  Registered LLM Tools: {tool_names}")
         assert "convert_image_format" in tool_names
         assert "search_dropped_file" in tool_names
         assert "schedule_one_time_task" in tool_names
+        assert "get_system_stats" in tool_names
 
         # Dispatch via execute_tool
         dispatch_res = execute_tool("convert_image_format", {

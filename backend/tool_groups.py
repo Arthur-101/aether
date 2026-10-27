@@ -22,6 +22,11 @@ TOOL_GROUPS: Tuple[Dict[str, str], ...] = (
         "hint": "Play, pause, skip, and inspect whatever is playing locally.",
     },
     {
+        "id": "system",
+        "label": "System",
+        "hint": "Check system stats and control volume, mute, brightness, Wi-Fi, and Bluetooth.",
+    },
+    {
         "id": "spotify",
         "label": "Spotify",
         "hint": "Search, queue, and control Spotify playback (Premium for transport).",
@@ -55,6 +60,20 @@ TOOL_GROUP_LABELS: Dict[str, str] = {
 TOOL_GROUP_HINTS: Dict[str, str] = {
     group["id"]: group["hint"] for group in TOOL_GROUPS
 }
+
+# Configs written before the System group existed list exactly these ids. The
+# one-time upgrade in config_schema keeps that all-on choice, while custom
+# subsets and explicit opt-outs are left alone.
+PREVIOUS_TOOL_GROUP_IDS: Tuple[str, ...] = (
+    "notes",
+    "media",
+    "spotify",
+    "web",
+    "clock",
+    "documents",
+    "files",
+)
+TOOL_GROUPS_VERSION = 2
 
 DEFAULT_ENABLED_TOOL_GROUPS: Tuple[str, ...] = TOOL_GROUP_IDS
 

@@ -60,6 +60,15 @@ from .clock_scheduler import (
 )
 from .clock_tool_schemas import get_clock_tool_schemas
 from .web_tools import fetch_url, get_web_tool_schemas, web_search
+from .system_tools import (
+    get_system_stats,
+    get_system_tool_schemas,
+    set_bluetooth,
+    set_brightness,
+    set_mute,
+    set_volume,
+    set_wifi,
+)
 from .spotify_tools import (
     get_spotify_tool_schemas,
     spotify_like,
@@ -99,6 +108,12 @@ mcp.tool()(media_previous)
 mcp.tool()(now_playing)
 mcp.tool()(web_search)
 mcp.tool()(fetch_url)
+mcp.tool()(get_system_stats)
+mcp.tool()(set_volume)
+mcp.tool()(set_mute)
+mcp.tool()(set_brightness)
+mcp.tool()(set_wifi)
+mcp.tool()(set_bluetooth)
 mcp.tool()(spotify_search)
 mcp.tool()(spotify_play)
 mcp.tool()(spotify_queue)
@@ -143,6 +158,12 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "now_playing": now_playing,
     "web_search": web_search,
     "fetch_url": fetch_url,
+    "get_system_stats": get_system_stats,
+    "set_volume": set_volume,
+    "set_mute": set_mute,
+    "set_brightness": set_brightness,
+    "set_wifi": set_wifi,
+    "set_bluetooth": set_bluetooth,
     "spotify_search": spotify_search,
     "spotify_play": spotify_play,
     "spotify_queue": spotify_queue,
@@ -281,7 +302,7 @@ def get_openai_tool_schemas(
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
     return filter_tool_schemas(schemas, enabled_groups, disabled_tools)
 
 

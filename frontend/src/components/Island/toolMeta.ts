@@ -7,7 +7,9 @@
  */
 
 import {
+  Activity,
   AudioLines,
+  Bluetooth,
   CalendarClock,
   Cast,
   ExternalLink,
@@ -30,8 +32,11 @@ import {
   SkipBack,
   SkipForward,
   StickyNote,
+  Sun,
   Trash2,
   Volume2,
+  VolumeX,
+  Wifi,
   Wrench,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -69,6 +74,13 @@ const TOOL_META: Record<string, ToolMeta> = {
   // Web
   web_search: { label: 'Web search', icon: Globe },
   fetch_url: { label: 'Read page', icon: ExternalLink },
+  // System
+  get_system_stats: { label: 'System stats', icon: Activity },
+  set_volume: { label: 'Set volume', icon: Volume2 },
+  set_mute: { label: 'Mute or unmute', icon: VolumeX },
+  set_brightness: { label: 'Set brightness', icon: Sun },
+  set_wifi: { label: 'Toggle Wi-Fi', icon: Wifi },
+  set_bluetooth: { label: 'Toggle Bluetooth', icon: Bluetooth },
   // Spotify
   spotify_search: { label: 'Spotify search', icon: Search },
   spotify_play: { label: 'Play on Spotify', icon: Play },

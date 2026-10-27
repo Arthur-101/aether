@@ -5,6 +5,7 @@ dark mode, psutil telemetry, pynvml VRAM, media keys, and wallpaper.
 """
 
 import ctypes
+import logging
 import threading
 import winreg
 from typing import Any, Dict, Optional
@@ -31,6 +32,8 @@ from .telemetry_stats import collect_stats_extras
 VK_MEDIA_NEXT_TRACK = 0xB0
 VK_MEDIA_PREV_TRACK = 0xB1
 VK_MEDIA_PLAY_PAUSE = 0xB3
+
+logger = logging.getLogger("aether.system")
 
 _PERSONALIZE_KEY = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
 

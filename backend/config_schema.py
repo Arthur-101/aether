@@ -10,6 +10,8 @@ from typing import Any, Dict, List
 
 from .tool_groups import (
     DEFAULT_ENABLED_TOOL_GROUPS,
+    PREVIOUS_TOOL_GROUP_IDS,
+    TOOL_GROUPS_VERSION,
     normalize_disabled_tools,
     normalize_enabled_tool_groups,
 )
@@ -371,12 +373,21 @@ def normalize_tools(value: Any) -> Dict[str, Any]:
 
     Missing groups mean all groups on, so older configs keep every tool. An
     explicit empty list stays empty; individual tool exceptions are stored as
-    a denylist so newly registered tools remain enabled by default.
+    a denylist so newly registered tools remain enabled by default. A pre-System
+    config that had every then-known group on is upgraded once, guarded by
+    ``groups_version`` so a later opt-out is not undone.
     """
     raw = value if isinstance(value, dict) else {}
+    enabled = normalize_enabled_tool_groups(raw.get("enabled_groups"))
+    version = raw.get("groups_version")
+    if version != TOOL_GROUPS_VERSION:
+        if set(enabled) == set(PREVIOUS_TOOL_GROUP_IDS):
+            enabled = list(DEFAULT_ENABLED_TOOL_GROUPS)
+        version = TOOL_GROUPS_VERSION
     return {
-        "enabled_groups": normalize_enabled_tool_groups(raw.get("enabled_groups")),
+        "enabled_groups": enabled,
         "disabled_tools": normalize_disabled_tools(raw.get("disabled_tools")),
+        "groups_version": version,
     }
 
 
