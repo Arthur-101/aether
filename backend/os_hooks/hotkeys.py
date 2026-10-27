@@ -264,40 +264,45 @@ class HotkeyManager:
 
     def _process_assistant_release(self) -> None:
         self.on_voice_state("thinking", "Thinking...")
-        audio = self._stop_recording_safe()
-        query = stt_engine.transcribe(audio)
-        if not query:
-            self.on_voice_state("idle", "")
-            return
-
-        window_ctx = get_active_window_context()
-        sid = session_manager.get_or_create_session(query)
-        context = session_manager.build_session_context(sid, query)
-        messages = build_assistant_messages(
-            query, session_context=context, window_context=window_ctx
-        )
+        final_text = ""
         try:
-            result = llm_router.chat_completion(
-                messages, tools=get_openai_tool_schemas(), session_id=sid
+            audio = self._stop_recording_safe()
+            query = stt_engine.transcribe(audio)
+            if not query:
+                return
+
+            window_ctx = get_active_window_context()
+            sid = session_manager.get_or_create_session(query)
+            context = session_manager.build_session_context(sid, query)
+            messages = build_assistant_messages(
+                query, session_context=context, window_context=window_ctx
             )
-            reply = result.get("content", "")
-            if reply:
-                session_manager.commit_turn(sid, query, reply)
-                self.on_session_updated({
-                    "session_id": sid,
-                    "title": "Voice Session",
-                    "turn": {"user": query, "ai": reply},
-                    "reasoning": result.get("reasoning", ""),
-                    "tools_used": result.get("tool_calls_executed", []),
-                })
-                self.on_voice_state("speaking", reply)
-                tts_engine.speak(reply, blocking=True)
-        except ModelNotConfiguredError as exc:
-            self.on_voice_state("idle", str(exc))
-            return
-        except Exception:
-            pass
-        self.on_voice_state("idle", "")
+            try:
+                result = llm_router.chat_completion(
+                    messages, tools=get_openai_tool_schemas(), session_id=sid
+                )
+                reply = result.get("content", "")
+                if reply:
+                    session_manager.commit_turn(sid, query, reply)
+                    self.on_session_updated({
+                        "session_id": sid,
+                        "title": "Voice Session",
+                        "turn": {"user": query, "ai": reply},
+                        "reasoning": result.get("reasoning", ""),
+                        "tools_used": result.get("tool_calls_executed", []),
+                    })
+                    self.on_voice_state("speaking", reply)
+                    tts_engine.speak(reply, blocking=True)
+            except ModelNotConfiguredError as exc:
+                final_text = str(exc)
+            except Exception as exc:
+                logger.warning("Voice assistant failed: %s", exc)
+        except Exception as exc:
+            logger.warning("Voice assistant could not start: %s", exc)
+        finally:
+            # Always clear the pill, even when context capture, STT, or the
+            # model call fails before the normal idle broadcast.
+            self.on_voice_state("idle", final_text)
 
     def start(self) -> None:
         """Starts the keyboard and drag detector listeners."""

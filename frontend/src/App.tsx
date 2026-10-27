@@ -86,6 +86,7 @@ export function App() {
     thinkingMode,
     config,
     configError,
+    spotifyAuth,
     errorMessage,
     radialWheel,
     wheelCursor,
@@ -127,6 +128,9 @@ export function App() {
     resumeTask,
     refreshWeather,
     updateConfigValue,
+    refreshSpotify,
+    connectSpotify,
+    disconnectSpotify,
     refreshNotes,
     readNote,
     saveNote,
@@ -693,11 +697,15 @@ export function App() {
         thinkingMode={thinkingMode}
         config={config}
         configError={configError}
+        spotifyAuth={spotifyAuth}
         notesDirectory={notesDirectory}
         onToggleThinking={toggleThinking}
         onSave={saveConfig}
         onHotkeyCapture={setHotkeyCapture}
         onOpenNotesFolder={handleOpenNotesFolder}
+        onSpotifyConnect={connectSpotify}
+        onSpotifyDisconnect={disconnectSpotify}
+        onSpotifyRefresh={refreshSpotify}
         taskbarState={taskbarState}
         widgets={desktopWidgets.widgets}
         onWidgetAppearanceChange={desktopWidgets.setWidgetAppearance}

@@ -274,6 +274,22 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshSpotify = useCallback(
+    () => sendEvent({ type: 'GET_SPOTIFY_STATUS', payload: {} }),
+    [sendEvent]
+  );
+
+  const connectSpotify = useCallback(
+    (clientId: string) =>
+      sendEvent({ type: 'SPOTIFY_CONNECT', payload: { client_id: clientId } }),
+    [sendEvent]
+  );
+
+  const disconnectSpotify = useCallback(
+    () => sendEvent({ type: 'SPOTIFY_DISCONNECT', payload: {} }),
+    [sendEvent]
+  );
+
   const setVolume = useCallback(
     (level: number) => sendEvent({ type: 'SET_VOLUME', payload: { level } }),
     [sendEvent]
@@ -429,6 +445,9 @@ export function useBackendActions(
     toggleThinking,
     saveConfig,
     updateConfigValue,
+    refreshSpotify,
+    connectSpotify,
+    disconnectSpotify,
     setVolume,
     setHotkeyCapture,
     setMuted,

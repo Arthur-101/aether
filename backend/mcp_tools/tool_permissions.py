@@ -37,6 +37,16 @@ TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
     "media_previous": ToolPermission("write", "media"),
     "web_search": ToolPermission("read", "web"),
     "fetch_url": ToolPermission("read", "web"),
+    "spotify_search": ToolPermission("read", "spotify"),
+    "spotify_list_devices": ToolPermission("read", "spotify"),
+    "spotify_liked_songs": ToolPermission("read", "spotify"),
+    "spotify_play": ToolPermission("write", "spotify"),
+    "spotify_queue": ToolPermission("write", "spotify"),
+    "spotify_set_shuffle": ToolPermission("write", "spotify"),
+    "spotify_set_repeat": ToolPermission("write", "spotify"),
+    "spotify_set_volume": ToolPermission("write", "spotify"),
+    "spotify_transfer": ToolPermission("write", "spotify"),
+    "spotify_like": ToolPermission("write", "spotify"),
 }
 
 

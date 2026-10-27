@@ -48,6 +48,19 @@ from .clock_scheduler import (
 )
 from .clock_tool_schemas import get_clock_tool_schemas
 from .web_tools import fetch_url, get_web_tool_schemas, web_search
+from .spotify_tools import (
+    get_spotify_tool_schemas,
+    spotify_like,
+    spotify_liked_songs,
+    spotify_list_devices,
+    spotify_play,
+    spotify_queue,
+    spotify_search,
+    spotify_set_repeat,
+    spotify_set_shuffle,
+    spotify_set_volume,
+    spotify_transfer,
+)
 
 # FastMCP Server Instance
 mcp = FastMCP("AetherTools")
@@ -72,6 +85,16 @@ mcp.tool()(media_previous)
 mcp.tool()(now_playing)
 mcp.tool()(web_search)
 mcp.tool()(fetch_url)
+mcp.tool()(spotify_search)
+mcp.tool()(spotify_play)
+mcp.tool()(spotify_queue)
+mcp.tool()(spotify_set_shuffle)
+mcp.tool()(spotify_set_repeat)
+mcp.tool()(spotify_set_volume)
+mcp.tool()(spotify_list_devices)
+mcp.tool()(spotify_transfer)
+mcp.tool()(spotify_like)
+mcp.tool()(spotify_liked_songs)
 mcp.tool()(schedule_one_time_task)
 mcp.tool()(schedule_recurring_routine)
 mcp.tool()(schedule_custom_task)
@@ -104,6 +127,16 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "now_playing": now_playing,
     "web_search": web_search,
     "fetch_url": fetch_url,
+    "spotify_search": spotify_search,
+    "spotify_play": spotify_play,
+    "spotify_queue": spotify_queue,
+    "spotify_set_shuffle": spotify_set_shuffle,
+    "spotify_set_repeat": spotify_set_repeat,
+    "spotify_set_volume": spotify_set_volume,
+    "spotify_list_devices": spotify_list_devices,
+    "spotify_transfer": spotify_transfer,
+    "spotify_like": spotify_like,
+    "spotify_liked_songs": spotify_liked_songs,
     "schedule_one_time_task": schedule_one_time_task,
     "schedule_recurring_routine": schedule_recurring_routine,
     "schedule_custom_task": schedule_custom_task,
@@ -205,7 +238,7 @@ def get_openai_tool_schemas() -> List[Dict[str, Any]]:
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
 
 
 def execute_tool(name: str, arguments: Dict[str, Any]) -> str:

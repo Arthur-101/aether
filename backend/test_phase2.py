@@ -157,7 +157,7 @@ def run_tests():
         # ----------------------------------------------------
         print("\n[Test 4] Testing FastMCP Server & OpenAI Tool Schemas...")
         schemas = get_openai_tool_schemas()
-        assert len(schemas) == 29
+        assert len(schemas) == 39
         tool_names = [s["function"]["name"] for s in schemas]
         print(f"  Registered LLM Tools: {tool_names}")
         assert "convert_image_format" in tool_names

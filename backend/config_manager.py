@@ -13,9 +13,11 @@ from typing import Any, Dict, List, Optional
 from platformdirs import user_data_dir
 
 from .config_schema import (
+    DEFAULT_MAX_TOOL_ROUNDS,
     default_appearance,
     default_clock,
     default_general,
+    default_spotify,
     default_taskbar_apps,
     default_wallpaper,
     normalize_config,
@@ -98,6 +100,7 @@ def get_default_config() -> Dict[str, Any]:
             "gpu_layers": -1,
             "kv_cache_type": "q8_0",
             "thinking_mode": False,  # Default: Normal mode (Direct, low-latency)
+            "max_tool_rounds": DEFAULT_MAX_TOOL_ROUNDS,
         },
         "voice": {
             "stt_engine": "local_phonon2",
@@ -125,6 +128,7 @@ def get_default_config() -> Dict[str, Any]:
         "clock": default_clock(),
         "taskbar_apps": default_taskbar_apps(),
         "wallpaper": default_wallpaper(),
+        "spotify": default_spotify(),
     }
 
 

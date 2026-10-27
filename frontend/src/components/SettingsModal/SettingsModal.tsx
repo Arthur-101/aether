@@ -13,6 +13,7 @@ import {
   Palette,
   PanelLeftClose,
   PanelLeftOpen,
+  Plug,
   Save,
   Check,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ import type {
   AppearanceConfig,
   AppConfig,
   GeneralConfig,
+  SpotifyAuthState,
   TaskbarAppsConfig,
   TaskbarAppsState,
 } from '../../types/ipc';
@@ -35,6 +37,7 @@ import { VoiceSettings } from './tabs/VoiceSettings';
 import { HotkeySettings } from './tabs/HotkeySettings';
 import { StorageSettings } from './tabs/StorageSettings';
 import { WidgetSettings } from './tabs/WidgetSettings';
+import { IntegrationsSettings } from './tabs/IntegrationsSettings';
 import { useSettingsDrag } from './useSettingsDrag';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
@@ -43,11 +46,15 @@ interface SettingsModalProps {
   thinkingMode: boolean;
   config: AppConfig | null;
   configError: string | null;
+  spotifyAuth: SpotifyAuthState;
   notesDirectory: string;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
   onHotkeyCapture: (enabled: boolean) => void;
   onOpenNotesFolder: (path: string) => void;
+  onSpotifyConnect: (clientId: string) => void;
+  onSpotifyDisconnect: () => void;
+  onSpotifyRefresh: () => void;
   taskbarState: TaskbarAppsState | null;
   widgets: DesktopWidget[];
   onWidgetAppearanceChange: (id: string, patch: WidgetAppearanceOverrides) => void;
@@ -66,7 +73,8 @@ export type SettingsTab =
   | 'hotkeys'
   | 'storage'
   | 'appearance'
-  | 'widgets';
+  | 'widgets'
+  | 'integrations';
 type Tab = SettingsTab;
 
 const tabs = [
@@ -77,6 +85,7 @@ const tabs = [
   { id: 'storage' as const, label: 'Storage & Files', icon: HardDrive },
   { id: 'appearance' as const, label: 'Appearance', icon: Palette },
   { id: 'widgets' as const, label: 'Widgets', icon: LayoutGrid },
+  { id: 'integrations' as const, label: 'Integrations', icon: Plug },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -84,11 +93,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   thinkingMode,
   config,
   configError,
+  spotifyAuth,
   notesDirectory,
   onToggleThinking,
   onSave,
   onHotkeyCapture,
   onOpenNotesFolder,
+  onSpotifyConnect,
+  onSpotifyDisconnect,
+  onSpotifyRefresh,
   taskbarState,
   widgets,
   onWidgetAppearanceChange,
@@ -194,6 +207,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const updateStorage = (storage: NonNullable<AppConfig['storage']>) => {
     setDraft((prev) => (prev ? { ...prev, storage } : prev));
+  };
+
+  const updateSpotifyClientId = (client_id: string) => {
+    setDraft((prev) =>
+      prev ? { ...prev, spotify: { ...prev.spotify, client_id } } : prev
+    );
   };
 
   const updateAppearance = (appearance: AppearanceConfig) => {
@@ -376,6 +395,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'storage' && 'Output & Session Storage'}
                   {activeTab === 'appearance' && 'Notch Appearance'}
                   {activeTab === 'widgets' && 'Desktop Widgets'}
+                  {activeTab === 'integrations' && 'Integrations'}
                 </h4>
                 <button
                   type="button"
@@ -452,6 +472,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onWidgetAppearanceChange={onWidgetAppearanceChange}
                       onResetWidgetAppearance={onResetWidgetAppearance}
                       onWidgetAlwaysOnTopChange={onWidgetAlwaysOnTopChange}
+                    />
+                  )}
+                  {activeTab === 'integrations' && (
+                    <IntegrationsSettings
+                      clientId={draft.spotify?.client_id ?? ''}
+                      auth={spotifyAuth}
+                      onClientIdChange={updateSpotifyClientId}
+                      onConnect={onSpotifyConnect}
+                      onDisconnect={onSpotifyDisconnect}
+                      onRefresh={onSpotifyRefresh}
                     />
                   )}
                 </>

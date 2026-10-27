@@ -8,6 +8,7 @@ import json
 from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager
+from ..config_schema import DEFAULT_MAX_TOOL_ROUNDS, normalize_max_tool_rounds
 from ..db.sessions import session_manager
 from ..mcp_tools.server import SESSION_SCOPED_TOOLS, execute_tool, get_openai_tool_schemas
 from ..mcp_tools.tool_permissions import (
@@ -35,6 +36,13 @@ def _parse_args(raw: Any) -> Dict[str, Any]:
         return json.loads(raw) if isinstance(raw, str) else dict(raw or {})
     except Exception:
         return {}
+
+
+def _tool_round_limit() -> int:
+    """Reads the configured model→tool loop budget at call time."""
+    return normalize_max_tool_rounds(
+        config_manager.get("ai_provider", "max_tool_rounds", DEFAULT_MAX_TOOL_ROUNDS)
+    )
 
 
 class LLMRouter:
@@ -194,7 +202,7 @@ class LLMRouter:
         temperature: Optional[float] = None,
         thinking_mode: Optional[bool] = None,
         session_id: Optional[str] = None,
-        max_tool_rounds: int = 3,
+        max_tool_rounds: Optional[int] = None,
         on_tool_call: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
@@ -202,9 +210,17 @@ class LLMRouter:
         Raises ModelNotConfiguredError with an actionable message when the
         selected backend is unavailable.
 
+        `max_tool_rounds` defaults to the value saved in Settings → AI. Each
+        round may contain several tool calls; a final text completion follows
+        the last tool round.
+
         `on_tool_call`, when given, is called synchronously from this thread
         before and after each tool runs so callers can surface live progress.
         """
+        if max_tool_rounds is None:
+            max_tool_rounds = _tool_round_limit()
+        else:
+            max_tool_rounds = normalize_max_tool_rounds(max_tool_rounds)
         if thinking_mode is None:
             thinking_mode = bool(config_manager.get("ai_provider", "thinking_mode", False))
         engine = self._engine()
@@ -253,7 +269,7 @@ class LLMRouter:
         return self._complete(
             self._engine(), pending.conversation, pending.tools,
             pending.max_tokens, pending.temperature, pending.thinking_mode,
-            session_id, 3, executed, on_tool_call,
+            session_id, _tool_round_limit(), executed, on_tool_call,
         )
 
     def clean_dictation(self, raw_text: str) -> str:

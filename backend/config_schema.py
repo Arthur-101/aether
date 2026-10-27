@@ -40,6 +40,10 @@ DEFAULT_WALLPAPER: Dict[str, Any] = {
     "folder": "",
 }
 
+DEFAULT_SPOTIFY: Dict[str, Any] = {
+    "client_id": "",
+}
+
 DEFAULT_APPEARANCE: Dict[str, Any] = {
     "dashboard_tabs": list(DEFAULT_DASHBOARD_TABS),
     "theme_mode": "system",
@@ -86,6 +90,10 @@ DEFAULT_CLOUD_PROVIDERS: Dict[str, Dict[str, str]] = {
     "openrouter": {"api_key": "", "model": "openai/gpt-4o-mini"},
 }
 
+DEFAULT_MAX_TOOL_ROUNDS = 3
+MIN_MAX_TOOL_ROUNDS = 1
+MAX_MAX_TOOL_ROUNDS = 10
+
 _HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
@@ -112,6 +120,11 @@ def default_clock() -> Dict[str, Any]:
 def default_wallpaper() -> Dict[str, Any]:
     """Returns a fresh wallpaper section."""
     return dict(DEFAULT_WALLPAPER)
+
+
+def default_spotify() -> Dict[str, Any]:
+    """Returns a fresh Spotify integration section."""
+    return dict(DEFAULT_SPOTIFY)
 
 
 def normalize_brand_name(value: Any) -> str:
@@ -192,6 +205,15 @@ def _optional_hex(value: Any) -> str:
     if not raw:
         return ""
     return normalize_hex(raw, "")
+
+
+def normalize_max_tool_rounds(value: Any) -> int:
+    """Clamps the model→tool loop budget to a safe, user-visible range."""
+    try:
+        rounds = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_MAX_TOOL_ROUNDS
+    return max(MIN_MAX_TOOL_ROUNDS, min(MAX_MAX_TOOL_ROUNDS, rounds))
 
 
 def normalize_appearance(value: Any) -> Dict[str, Any]:
@@ -319,6 +341,12 @@ def _optional_text(value: Any, limit: int = 120) -> str:
     return str(value or "").strip()[:limit]
 
 
+def normalize_spotify(value: Any) -> Dict[str, Any]:
+    """Sanitizes the Spotify client-id section; tokens live elsewhere."""
+    raw = value if isinstance(value, dict) else {}
+    return {"client_id": _optional_text(raw.get("client_id"), 200)}
+
+
 def normalize_clock(value: Any) -> Dict[str, Any]:
     """Sanitizes the weather/timer configuration section."""
     raw = value if isinstance(value, dict) else {}
@@ -397,6 +425,7 @@ def normalize_ai_provider(value: Any) -> Dict[str, Any]:
     raw["api_key"] = providers[selected]["api_key"]
     raw["cloud_model"] = providers[selected]["model"]
     raw["tavily_api_key"] = _optional_text(raw.get("tavily_api_key"), 400)
+    raw["max_tool_rounds"] = normalize_max_tool_rounds(raw.get("max_tool_rounds"))
     return raw
 
 
@@ -410,4 +439,5 @@ def normalize_config(config: Any) -> Dict[str, Any]:
     normalized["clock"] = normalize_clock(normalized.get("clock"))
     normalized["taskbar_apps"] = normalize_taskbar_apps(normalized.get("taskbar_apps"))
     normalized["wallpaper"] = normalize_wallpaper(normalized.get("wallpaper"))
+    normalized["spotify"] = normalize_spotify(normalized.get("spotify"))
     return normalized

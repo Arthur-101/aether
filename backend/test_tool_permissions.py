@@ -104,3 +104,20 @@ def test_approval_cannot_be_used_from_another_session(monkeypatch):
         paused["approval_required"]["approval_id"], "different-session", True
     )
     assert result["error"] == "This approval request is no longer available."
+
+
+def test_spotify_tools_have_expected_risks():
+    reads = {"spotify_search", "spotify_list_devices", "spotify_liked_songs"}
+    writes = {
+        "spotify_play",
+        "spotify_queue",
+        "spotify_set_shuffle",
+        "spotify_set_repeat",
+        "spotify_set_volume",
+        "spotify_transfer",
+        "spotify_like",
+    }
+    for name in reads:
+        assert tool_permissions.tool_permission(name).risk == "read"
+    for name in writes:
+        assert tool_permissions.tool_permission(name).risk == "write"

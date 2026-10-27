@@ -60,6 +60,7 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
   const cloudProvider =
     CLOUD_PROVIDERS.find((provider) => provider.id === ai.cloud_provider) ??
     CLOUD_PROVIDERS[0];
+  const toolRounds = Math.max(1, Math.min(10, Math.round(ai.max_tool_rounds ?? 3)));
   const updateCloudEntry = (patch: Partial<CloudProviderEntry>) =>
     onChange({
       cloud_providers: {
@@ -101,6 +102,38 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
             <Brain size={12} />
             Thinking mode
           </button>
+        </div>
+
+        <div className="mt-1 flex flex-col gap-1.5 border-t border-[var(--aether-line)] pt-2">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="aether-max-tool-rounds" className={settingsLabelClass}>
+              Tool call rounds
+            </label>
+            <select
+              id="aether-max-tool-rounds"
+              value={toolRounds}
+              onChange={(event) => onChange({ max_tool_rounds: Number(event.target.value) })}
+              className={`${settingsInputClass} w-24`}
+            >
+              {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
+                <option key={value} value={value}>
+                  {value === 3 ? '3 (default)' : value}
+                </option>
+              ))}
+            </select>
+          </div>
+          <span className={settingsHintClass}>
+            How many model → tool cycles one reply may use. Each round can run
+            several tool calls.
+          </span>
+          {toolRounds > 5 ? (
+            <div className="flex items-start gap-1.5 rounded-md border border-[#fce100]/35 bg-[#fce100]/10 px-2 py-1.5 text-[9px] leading-snug text-[#fce100]">
+              <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+              <span>
+                High limits can cause repeated tool calls, long replies, or loops.
+              </span>
+            </div>
+          ) : null}
         </div>
       </SettingsGroup>
 

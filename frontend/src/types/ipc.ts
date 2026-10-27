@@ -434,6 +434,14 @@ export interface CloudProviderEntry {
   model: string;
 }
 
+export interface SpotifyAuthState {
+  connected: boolean;
+  pending: boolean;
+  display_name: string;
+  client_id_set: boolean;
+  message: string;
+}
+
 export interface AIProviderConfig {
   mode: 'local_gguf' | 'ollama' | 'cloud';
   local_engine?: string;
@@ -449,6 +457,7 @@ export interface AIProviderConfig {
   gpu_layers: number;
   kv_cache_type?: string;
   thinking_mode: boolean;
+  max_tool_rounds?: number;
 }
 
 export interface VoiceConfig {
@@ -501,6 +510,9 @@ export interface AppConfig {
   clock?: ClockConfig;
   taskbar_apps?: TaskbarAppsConfig;
   wallpaper?: WallpaperConfig;
+  spotify?: {
+    client_id?: string;
+  };
 }
 
 export type OutgoingEvent =
@@ -556,6 +568,9 @@ export type OutgoingEvent =
   | { type: 'KILL_APP'; payload: Record<string, never> }
   | { type: 'SAVE_CONFIG'; payload: { config: AppConfig } }
   | { type: 'SET_HOTKEY_CAPTURE'; payload: { enabled: boolean } }
+  | { type: 'GET_SPOTIFY_STATUS'; payload: Record<string, never> }
+  | { type: 'SPOTIFY_CONNECT'; payload: { client_id: string } }
+  | { type: 'SPOTIFY_DISCONNECT'; payload: Record<string, never> }
   | {
       type: 'UPDATE_CONFIG';
       payload: { section: string; key: string; value: any };

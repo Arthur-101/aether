@@ -185,3 +185,24 @@ def test_reload_cancels_a_pending_hold():
         release(manager, SPACE, CTRL)
     finally:
         stop(manager)
+
+
+def test_assistant_release_clears_pill_when_context_capture_fails(monkeypatch):
+    from backend.os_hooks import hotkeys as hotkeys_module
+
+    voice = []
+    manager = HotkeyManager(on_voice_state=lambda state, text: voice.append((state, text)))
+    manager._stop_recording_safe = lambda: None
+
+    monkeypatch.setattr(hotkeys_module.stt_engine, "transcribe", lambda _audio: "hello")
+    monkeypatch.setattr(
+        hotkeys_module,
+        "get_active_window_context",
+        lambda: (_ for _ in ()).throw(RuntimeError("UIA hung")),
+    )
+
+    manager._process_assistant_release()
+
+    assert voice[0] == ("thinking", "Thinking...")
+    assert voice[-1] == ("idle", "")
+

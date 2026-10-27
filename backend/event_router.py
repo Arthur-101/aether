@@ -215,6 +215,7 @@ def _register_builtin_handlers() -> None:
     from .note_events import register_note_events
     from .power_events import register_power_events
     from .region_events import register_region_events
+    from .spotify_events import register_spotify_events
     from .task_events import register_task_events
     from .tool_events import register_tool_events
     from .wallpaper_events import register_wallpaper_events
@@ -230,6 +231,7 @@ def _register_builtin_handlers() -> None:
     register_wallpaper_events()
     register_power_events()
     register_app_events()
+    register_spotify_events()
 
 
 _register_builtin_handlers()

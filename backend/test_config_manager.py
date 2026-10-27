@@ -24,7 +24,17 @@ def test_missing_config_writes_defaults(app_dir):
     assert manager.get("first_run_completed") is False
     assert manager.get("voice", "stt_engine") == "local_phonon2"
     assert manager.get("hotkeys", "dictation") == "<ctrl>+<cmd>"
+    assert manager.get("spotify", "client_id") == ""
     assert json.loads(path.read_text(encoding="utf-8"))["brand_name"] == "Aether"
+
+
+def test_spotify_client_id_is_trimmed_and_bounded(app_dir):
+    (app_dir / "config.json").write_text(
+        json.dumps({"spotify": {"client_id": "  " + ("a" * 250) + "  "}}),
+        encoding="utf-8",
+    )
+    manager = ConfigManager()
+    assert manager.get("spotify", "client_id") == "a" * 200
 
 
 def test_load_merges_new_defaults_without_overwriting_user_values(app_dir):

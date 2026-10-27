@@ -27,6 +27,7 @@ import type {
   SessionItem,
   ScheduledTask,
   SpeedTestResult,
+  SpotifyAuthState,
   SystemStats,
   TaskbarAppsState,
   ToolCallEvent,
@@ -63,6 +64,13 @@ export function useBackendSocket() {
   const [thinkingMode, setThinkingMode] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [spotifyAuth, setSpotifyAuth] = useState<SpotifyAuthState>({
+    connected: false,
+    pending: false,
+    display_name: '',
+    client_id_set: false,
+    message: '',
+  });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [radialWheel, setRadialWheel] = useState<RadialWheelPayload | null>(null);
   const [wheelCursor, setWheelCursor] = useState<RadialWheelCursor | null>(null);
@@ -89,6 +97,7 @@ export function useBackendSocket() {
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
   const [openIslandRequest, setOpenIslandRequest] = useState(0);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
+  const wasConnectedRef = useRef(false);
 
   const subscribeMouse = useCallback((cb: MouseSubscriber) => {
     mouseListenersRef.current.add(cb);
@@ -354,6 +363,9 @@ export function useBackendSocket() {
             return next as AppConfig;
           });
           break;
+        case 'SPOTIFY_AUTH_STATE':
+          setSpotifyAuth(payload as SpotifyAuthState);
+          break;
         case 'ERROR_CONFIG_MISSING':
           setConfigError(payload.message || 'AI engine is not configured.');
           break;
@@ -407,6 +419,16 @@ export function useBackendSocket() {
     return () => window.clearInterval(weatherTimer);
   }, [connected, sendEvent]);
 
+  useEffect(() => {
+    // A daemon restart can reconnect without ever sending an idle event. Clear
+    // any stale "Thinking..." state when a fresh connection comes up.
+    if (connected && !wasConnectedRef.current) {
+      setVoiceState('idle');
+      setVoiceTranscript('');
+    }
+    wasConnectedRef.current = connected;
+  }, [connected]);
+
   const actions = useBackendActions(sendEvent, {
     setChatHistory,
     setChatPending,
@@ -445,8 +467,10 @@ export function useBackendSocket() {
 
   return {
     connected,
-    voiceState,
-    voiceTranscript,
+    // A daemon restart or dropped socket can strand the last voice state.
+    // Derive idle while offline so the "Thinking..." pill cannot persist.
+    voiceState: connected ? voiceState : 'idle',
+    voiceTranscript: connected ? voiceTranscript : '',
     activeSessionId,
     activeSessionTitle,
     chatHistory,
@@ -464,6 +488,7 @@ export function useBackendSocket() {
     thinkingMode,
     config,
     configError,
+    spotifyAuth,
     errorMessage,
     radialWheel,
     wheelCursor,
