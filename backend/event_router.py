@@ -74,9 +74,15 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
         return
 
     sid = session_manager.get_or_create_session(prompt)
+    if session_manager.session_changed:
+        # A restart or the inactivity timeout opened a new session. Reset the
+        # visible history so it never mixes turns the model cannot remember.
+        await ws_manager.broadcast("SESSION_STARTED", {
+            "session": {"id": sid, "title": _get_session_title(sid)},
+        })
 
     try:
-        result = await execute_chat_turn(sid, prompt)
+        result = await execute_chat_turn(sid, prompt, stream=True)
     except ModelNotConfiguredError as exc:
         await _chat_error(sid, prompt, str(exc))
         return
@@ -124,7 +130,9 @@ async def _handle_tool_approval(payload: Dict[str, Any]) -> None:
     if not approval_id or not session_id or not prompt:
         await ws_manager.broadcast("ERROR", {"message": "Invalid tool approval."})
         return
-    result = await resolve_tool_approval(session_id, prompt, approval_id, approved)
+    result = await resolve_tool_approval(
+        session_id, prompt, approval_id, approved, stream=True
+    )
     if result.get("error"):
         await ws_manager.broadcast("ERROR", {"message": result["error"]})
         return

@@ -14,7 +14,7 @@ TOOL_GROUPS: Tuple[Dict[str, str], ...] = (
     {
         "id": "notes",
         "label": "Notes",
-        "hint": "Create, read, search, pin, edit, and delete notes in your vault.",
+        "hint": "Create, read, search, pin, edit, and delete notes, plus read the Aether guide.",
     },
     {
         "id": "clipboard",

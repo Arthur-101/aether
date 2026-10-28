@@ -52,6 +52,7 @@ export function useBackendSocket() {
   const [activeSessionTitle, setActiveSessionTitle] = useState('New Session');
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
   const [chatPending, setChatPending] = useState<string | null>(null);
+  const [chatDraft, setChatDraft] = useState('');
   const [activeToolCalls, setActiveToolCalls] = useState<ToolCallEvent[]>([]);
   const [toolApproval, setToolApproval] = useState<ToolApprovalRequest | null>(null);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -149,6 +150,40 @@ export function useBackendSocket() {
         case 'FILE_INGESTED':
           setLastWheelResult(payload.result || 'File ingested into memory.');
           break;
+        case 'CHAT_STREAM_DELTA': {
+          // Only the active foreground turn paints into the draft.
+          const belongsToActiveChat =
+            chatPending !== null &&
+            (!payload.session_id ||
+              !activeSessionId ||
+              payload.session_id === activeSessionId);
+          if (!belongsToActiveChat) break;
+          setChatDraft((prev) => prev + (payload.delta || ''));
+          break;
+        }
+        case 'CHAT_STREAM_RESET': {
+          const belongsToActiveChat =
+            chatPending !== null &&
+            (!payload.session_id ||
+              !activeSessionId ||
+              payload.session_id === activeSessionId);
+          if (!belongsToActiveChat) break;
+          setChatDraft('');
+          break;
+        }
+        case 'SESSION_STARTED':
+          // A new backend session replaced the old one (restart or timeout).
+          // Keep the in-flight user bubble, but drop history the model cannot see.
+          if (payload.session) {
+            setActiveSessionId(payload.session.id);
+            setActiveSessionTitle(payload.session.title);
+          }
+          setChatHistory([]);
+          setAttachments([]);
+          setActiveToolCalls([]);
+          setToolApproval(null);
+          setChatDraft('');
+          break;
         case 'SESSION_UPDATED':
           setActiveSessionId(payload.session_id);
           setActiveSessionTitle(payload.title);
@@ -158,6 +193,7 @@ export function useBackendSocket() {
           setChatPending(null);
           setActiveToolCalls([]);
           setToolApproval(null);
+          setChatDraft('');
           break;
         case 'TOOL_CALL_STARTED': {
           // Only the active foreground turn renders live steps; background
@@ -216,12 +252,14 @@ export function useBackendSocket() {
           setChatPending(null);
           setActiveToolCalls([]);
           setToolApproval(null);
+          setChatDraft('');
           break;
         case 'SESSION_DELETED':
           setSessions((prev) => prev.filter((s) => s.id !== payload.session_id));
           if (payload.session_id === activeSessionId) {
             setChatHistory([]);
             setChatPending(null);
+            setChatDraft('');
             setActiveToolCalls([]);
             setAttachments([]);
             setActiveSessionId(payload.active_session_id || '');
@@ -439,6 +477,7 @@ export function useBackendSocket() {
   const actions = useBackendActions(sendEvent, {
     setChatHistory,
     setChatPending,
+    setChatDraft,
     setActiveToolCalls,
     setToolApproval,
     setThinkingMode,
@@ -482,6 +521,7 @@ export function useBackendSocket() {
     activeSessionTitle,
     chatHistory,
     chatPending,
+    chatDraft,
     activeToolCalls,
     toolApproval,
     sessions,

@@ -23,6 +23,7 @@ type Dispatch<T> = (value: T | ((prev: T) => T)) => void;
 interface ActionSetters {
   setChatHistory: Dispatch<ChatTurn[]>;
   setChatPending: Dispatch<string | null>;
+  setChatDraft: Dispatch<string>;
   setActiveToolCalls: Dispatch<ToolCallEvent[]>;
   setToolApproval: Dispatch<ToolApprovalRequest | null>;
   setThinkingMode: Dispatch<boolean>;
@@ -42,6 +43,7 @@ export function useBackendActions(
   const {
     setChatHistory,
     setChatPending,
+    setChatDraft,
     setActiveToolCalls,
     setToolApproval,
     setThinkingMode,
@@ -54,20 +56,22 @@ export function useBackendActions(
     (text: string) => {
       if (!text.trim()) return;
       setActiveToolCalls([]);
+      setChatDraft('');
       setChatPending(text);
       sendEvent({ type: 'CHAT_MESSAGE', payload: { text } });
     },
-    [sendEvent, setChatPending, setActiveToolCalls]
+    [sendEvent, setChatDraft, setChatPending, setActiveToolCalls]
   );
 
   const newSession = useCallback(() => {
     setChatHistory([]);
     setChatPending(null);
+    setChatDraft('');
     setActiveToolCalls([]);
     setToolApproval(null);
     setAttachments([]);
     sendEvent({ type: 'NEW_SESSION', payload: {} });
-  }, [sendEvent, setChatHistory, setChatPending, setActiveToolCalls, setToolApproval, setAttachments]);
+  }, [sendEvent, setChatHistory, setChatPending, setChatDraft, setActiveToolCalls, setToolApproval, setAttachments]);
 
   const resolveToolApproval = useCallback(
     (approval: ToolApprovalRequest, approved: boolean) => {

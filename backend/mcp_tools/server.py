@@ -64,6 +64,12 @@ from .clock_scheduler import (
     schedule_recurring_routine,
 )
 from .clock_tool_schemas import get_clock_tool_schemas
+from .guide_tools import (
+    get_guide_tool_schemas,
+    guide_index,
+    read_guide,
+    search_guide,
+)
 from .web_tools import fetch_url, get_web_tool_schemas, web_search
 from .system_tools import (
     get_system_stats,
@@ -105,6 +111,9 @@ mcp.tool()(append_to_note)
 mcp.tool()(set_note_pinned)
 mcp.tool()(update_note)
 mcp.tool()(delete_note)
+mcp.tool()(guide_index)
+mcp.tool()(read_guide)
+mcp.tool()(search_guide)
 mcp.tool()(read_clipboard)
 mcp.tool()(write_clipboard)
 mcp.tool()(media_play)
@@ -166,6 +175,9 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "set_note_pinned": set_note_pinned,
     "update_note": update_note,
     "delete_note": delete_note,
+    "guide_index": guide_index,
+    "read_guide": read_guide,
+    "search_guide": search_guide,
     "read_clipboard": _read_clipboard_tolerant,
     "write_clipboard": write_clipboard,
     "media_play": media_play,
@@ -320,7 +332,7 @@ def get_openai_tool_schemas(
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_clipboard_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_guide_tool_schemas() + get_clipboard_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
     return filter_tool_schemas(schemas, enabled_groups, disabled_tools)
 
 

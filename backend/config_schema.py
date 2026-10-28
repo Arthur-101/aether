@@ -9,6 +9,7 @@ import re
 from typing import Any, Dict, List
 
 from .ai.voice_providers import (
+    LOCAL_TTS_VOICE_ID,
     VOICE_PROVIDER_IDS,
     default_stt_model,
     default_tts_model,
@@ -426,8 +427,8 @@ def normalize_voice(value: Any) -> Dict[str, Any]:
 
     tts_voice = _optional_text(raw.get("tts_voice_id"), 160)
     if tts_provider == "local":
-        tts_voice = tts_voice or "af_heart"
-    elif not tts_voice or tts_voice == "af_heart":
+        tts_voice = tts_voice or LOCAL_TTS_VOICE_ID
+    elif not tts_voice or tts_voice == LOCAL_TTS_VOICE_ID:
         tts_voice = default_tts_voice(tts_provider)
 
     try:

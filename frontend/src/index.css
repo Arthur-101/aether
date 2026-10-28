@@ -922,6 +922,32 @@ main {
   }
 }
 
+/*
+ * Streaming caret. It attaches to the last rendered Markdown block so it sits
+ * at the end of the answer instead of on its own line below the bubble.
+ */
+.chat-stream-caret > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  margin-left: 2px;
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  background: var(--aether-accent-text);
+  animation: aether-stream-caret 1s steps(2, start) infinite;
+}
+
+@keyframes aether-stream-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /*
    * Global safety net for CSS transitions and keyframes. 1ms (rather than

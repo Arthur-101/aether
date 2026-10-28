@@ -8,6 +8,14 @@ voice-specific and must not reuse the chat model field.
 from typing import Any, Dict, List, Optional
 
 LOCAL_PROVIDER = "local"
+LOCAL_TTS_VOICE_ID = "af_heart"
+# Paradee 8M is a single-voice distillation of Kokoro's af_heart. The catalog
+# exists so the Settings UI can show what is actually available instead of
+# asking users to type a voice ID that has no effect. A future multi-voice
+# local engine only needs to add entries here.
+LOCAL_TTS_VOICES: tuple[Dict[str, str], ...] = (
+    {"id": LOCAL_TTS_VOICE_ID, "label": "Heart · US English"},
+)
 VOICE_PROVIDER_IDS = ("openai", "groq", "mistral", "gemini", "openrouter")
 VOICE_PROVIDERS: Dict[str, Dict[str, Any]] = {
     "openai": {

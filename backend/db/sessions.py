@@ -66,6 +66,8 @@ MEMORY_TOKEN_PER_BLOCK = 320
 MEMORY_BASE_TOKENS = 400
 MEMORY_BLOCK_CHAR_LIMIT = 1200
 SEMANTIC_DISTANCE_LIMIT = 0.80
+ACTIVE_SESSION_KEY = "active_session_id"
+ACTIVE_SESSION_AT_KEY = "active_session_at"
 
 REASONING_ONLY_REPLY = (
     "The model returned only reasoning, not an answer. Please try again."
@@ -230,14 +232,83 @@ class SessionManager:
         self.active_session_id: Optional[str] = None
         self.last_interaction: datetime = datetime.min
         self.timeout_minutes = timeout_minutes
+        self._state_loaded = False
+        # Set by get_or_create_session when the active session was replaced
+        # (fresh start or timeout) so the router can reset the visible chat.
+        self.session_changed = False
+
+    def _load_state(self) -> None:
+        """Restores the active session after a daemon restart.
+
+        Without this, the first message after any restart silently opened a new
+        session while the Island still displayed the previous chat, so the model
+        lost the turn the user was looking at. A session older than the
+        configured timeout still expires normally on the next message.
+        """
+        if self._state_loaded:
+            return
+        self._state_loaded = True
+        try:
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT key, value FROM app_state WHERE key IN (?, ?)",
+                (ACTIVE_SESSION_KEY, ACTIVE_SESSION_AT_KEY),
+            ).fetchall()
+            state = {row["key"]: row["value"] for row in rows}
+            session_id = str(state.get(ACTIVE_SESSION_KEY) or "").strip()
+            exists = False
+            if session_id:
+                exists = conn.execute(
+                    "SELECT 1 FROM sessions WHERE id = ?", (session_id,)
+                ).fetchone() is not None
+            conn.close()
+        except Exception:
+            return
+
+        if not session_id or not exists:
+            return
+        self.active_session_id = session_id
+        stamp = str(state.get(ACTIVE_SESSION_AT_KEY) or "").strip()
+        if stamp:
+            try:
+                self.last_interaction = datetime.fromisoformat(stamp)
+            except ValueError:
+                self.last_interaction = datetime.min
+
+    def _persist_state(self) -> None:
+        """Writes the active session id and last interaction for restart recovery."""
+        if not self.active_session_id:
+            return
+        stamp = self.last_interaction
+        if stamp == datetime.min:
+            stamp = datetime.now()
+        try:
+            conn = get_db()
+            for key, value in (
+                (ACTIVE_SESSION_KEY, self.active_session_id),
+                (ACTIVE_SESSION_AT_KEY, stamp.isoformat()),
+            ):
+                conn.execute(
+                    "INSERT INTO app_state (key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (key, value),
+                )
+            conn.commit()
+            conn.close()
+        except Exception:
+            # Losing continuity is recoverable; never fail a chat turn over it.
+            pass
 
     def get_or_create_session(self, first_prompt: str) -> str:
         """Returns the active session or creates a new one on timeout/fresh start."""
+        self._load_state()
+        self.session_changed = False
         now = datetime.now()
         is_expired = (now - self.last_interaction) > timedelta(minutes=self.timeout_minutes)
 
         if not self.active_session_id or is_expired:
             self.active_session_id = str(uuid.uuid4())
+            self.session_changed = True
             title = generate_session_title(first_prompt)
             conn = get_db()
             conn.execute(
@@ -248,6 +319,7 @@ class SessionManager:
             conn.close()
 
         self.last_interaction = now
+        self._persist_state()
         return self.active_session_id
 
     def create_empty_session(self) -> Dict[str, Any]:
@@ -255,6 +327,8 @@ class SessionManager:
         now = datetime.now()
         self.active_session_id = str(uuid.uuid4())
         self.last_interaction = now
+        self._state_loaded = True
+        self.session_changed = False
         conn = get_db()
         conn.execute(
             "INSERT INTO sessions (id, title) VALUES (?, ?)",
@@ -262,6 +336,7 @@ class SessionManager:
         )
         conn.commit()
         conn.close()
+        self._persist_state()
         return {
             "session": {
                 "id": self.active_session_id,
@@ -285,6 +360,8 @@ class SessionManager:
 
         self.active_session_id = session_id
         self.last_interaction = datetime.now()
+        self._state_loaded = True
+        self.session_changed = False
 
         cur.execute(
             """SELECT user_prompt, ai_reply, timestamp, attachments, tools_used
@@ -300,6 +377,7 @@ class SessionManager:
             turn["tools_used"] = _json_list(turn.get("tools_used"))
             history.append(turn)
         conn.close()
+        self._persist_state()
         return {"session": session_data, "history": history}
 
     def list_sessions(self, limit: int = 50) -> List[Dict[str, Any]]:
@@ -494,6 +572,11 @@ class SessionManager:
                 cur.execute(f"DELETE FROM {table} WHERE session_id = ?", (session_id,))
             cur.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
             deleted = cur.rowcount > 0
+            if self.active_session_id == session_id:
+                cur.execute(
+                    "DELETE FROM app_state WHERE key IN (?, ?)",
+                    (ACTIVE_SESSION_KEY, ACTIVE_SESSION_AT_KEY),
+                )
             conn.commit()
         finally:
             conn.close()

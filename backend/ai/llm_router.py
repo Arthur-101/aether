@@ -142,6 +142,8 @@ class LLMRouter:
         top_p: float,
         presence_penalty: float,
         thinking_mode: bool,
+        on_stream: Optional[Callable[[str], None]] = None,
+        on_stream_reset: Optional[Callable[[], None]] = None,
     ) -> Dict[str, Any]:
         """Returns usable final text, retrying once if the provider leaks reasoning."""
         content = (result.get("content") or "").strip()
@@ -155,6 +157,8 @@ class LLMRouter:
 
         # A provider may put its chain of thought in `content`, or leave content
         # empty and expose only `reasoning`. Ask once for a clean final answer.
+        if on_stream_reset is not None:
+            on_stream_reset()
         retry_messages = list(conversation)
         retry_messages.append({
             "role": "user",
@@ -171,6 +175,7 @@ class LLMRouter:
             top_p=top_p,
             presence_penalty=presence_penalty,
             thinking_mode=thinking_mode,
+            on_token=on_stream,
         )
         retry_content = (retry.get("content") or "").strip()
         retry_reasoning = (retry.get("reasoning") or "").strip()
@@ -186,6 +191,8 @@ class LLMRouter:
             if (reasoning or content or retry_reasoning)
             else EMPTY_REPLY
         )
+        if on_stream_reset is not None:
+            on_stream_reset()
         return {
             "content": fallback,
             "reasoning": reasoning or retry_reasoning,
@@ -206,6 +213,8 @@ class LLMRouter:
         loadout: Optional[Dict[str, List[str]]],
         executed: List[Dict[str, Any]],
         on_tool_call: Optional[Callable[[Dict[str, Any]], None]],
+        on_stream: Optional[Callable[[str], None]] = None,
+        on_stream_reset: Optional[Callable[[], None]] = None,
     ) -> Dict[str, Any]:
         """Runs the tool loop, pausing if a guarded action needs approval."""
         temp, top_p, presence_penalty = self._sampling(thinking_mode, temperature)
@@ -221,6 +230,7 @@ class LLMRouter:
                 top_p=top_p,
                 presence_penalty=presence_penalty,
                 thinking_mode=thinking_mode,
+                on_token=on_stream,
             )
             tool_calls = result.get("tool_calls") or []
             if not tool_calls:
@@ -234,7 +244,14 @@ class LLMRouter:
                     top_p=top_p,
                     presence_penalty=presence_penalty,
                     thinking_mode=bool(thinking_mode),
+                    on_stream=on_stream,
+                    on_stream_reset=on_stream_reset,
                 )
+
+            # The model may have streamed a sentence before deciding to call a
+            # tool. That text is not the answer; discard it before the tool UI.
+            if on_stream_reset is not None:
+                on_stream_reset()
 
             assistant_message: Dict[str, Any] = {
                 "role": "assistant",
@@ -326,6 +343,7 @@ class LLMRouter:
                     top_p=top_p,
                     presence_penalty=presence_penalty,
                     thinking_mode=thinking_mode,
+                    on_token=on_stream,
                 )
                 return self._final_result(
                     engine,
@@ -337,7 +355,11 @@ class LLMRouter:
                     top_p=top_p,
                     presence_penalty=presence_penalty,
                     thinking_mode=bool(thinking_mode),
+                    on_stream=on_stream,
+                    on_stream_reset=on_stream_reset,
                 )
+        if on_stream_reset is not None:
+            on_stream_reset()
         return {
             "content": "I reached the maximum number of tool steps for this request.",
             "reasoning": "",
@@ -356,6 +378,8 @@ class LLMRouter:
         max_tool_rounds: Optional[int] = None,
         on_tool_call: Optional[Callable[[Dict[str, Any]], None]] = None,
         loadout: Optional[Dict[str, List[str]]] = None,
+        on_stream: Optional[Callable[[str], None]] = None,
+        on_stream_reset: Optional[Callable[[], None]] = None,
     ) -> Dict[str, Any]:
         """
         Runs a completion and executes any FastMCP tool calls deterministically.
@@ -368,6 +392,10 @@ class LLMRouter:
 
         `on_tool_call`, when given, is called synchronously from this thread
         before and after each tool runs so callers can surface live progress.
+        `on_stream` receives answer deltas from the same worker thread; the
+        caller must marshal them onto the event loop. `on_stream_reset` tells
+        the caller to discard the draft when a round becomes a tool call or a
+        reasoning retry.
         """
         if max_tool_rounds is None:
             max_tool_rounds = _tool_round_limit()
@@ -386,6 +414,7 @@ class LLMRouter:
         return self._complete(
             engine, convo, tools, max_tokens, temperature, thinking_mode,
             session_id, max_tool_rounds, loadout, [], on_tool_call,
+            on_stream=on_stream, on_stream_reset=on_stream_reset,
         )
 
     def resolve_approval(
@@ -394,6 +423,8 @@ class LLMRouter:
         session_id: str,
         approved: bool,
         on_tool_call: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_stream: Optional[Callable[[str], None]] = None,
+        on_stream_reset: Optional[Callable[[], None]] = None,
     ) -> Dict[str, Any]:
         """Consumes a pending approval and resumes its original model turn."""
         pending = approval_store.take(approval_id, session_id)
@@ -430,6 +461,7 @@ class LLMRouter:
             self._engine(), pending.conversation, pending.tools,
             pending.max_tokens, pending.temperature, pending.thinking_mode,
             session_id, _tool_round_limit(), pending.loadout, executed, on_tool_call,
+            on_stream=on_stream, on_stream_reset=on_stream_reset,
         )
 
     def clean_dictation(self, raw_text: str) -> str:

@@ -96,7 +96,7 @@ def web_search(query: str, n: int = DEFAULT_RESULTS) -> str:
         return "Provide a search query."
     api_key = str(config_manager.get("ai_provider", "tavily_api_key", "") or "").strip()
     if not api_key:
-        return "Web search needs a Tavily API key. Add it in Settings → AI Engine."
+        return "Error: Web search needs a Tavily API key. Add it in Settings → AI Engine."
     payload = json.dumps({
         "api_key": api_key,
         "query": phrase,
@@ -116,12 +116,12 @@ def web_search(query: str, n: int = DEFAULT_RESULTS) -> str:
         data = json.loads(raw.decode("utf-8"))
     except HTTPError as exc:
         if exc.code in {401, 403}:
-            return "Tavily rejected the API key. Check it in Settings → AI Engine."
-        return f"Tavily search failed with HTTP {exc.code}."
+            return "Error: Tavily rejected the API key. Check it in Settings → AI Engine."
+        return f"Error: Tavily search failed with HTTP {exc.code}."
     except (URLError, TimeoutError) as exc:
-        return f"Web search could not reach Tavily: {exc}"
+        return f"Error: Web search could not reach Tavily: {exc}"
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return f"Tavily returned an unreadable response: {exc}"
+        return f"Error: Tavily returned an unreadable response: {exc}"
 
     results = data.get("results") if isinstance(data, dict) else []
     if not isinstance(results, list) or not results:

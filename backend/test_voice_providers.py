@@ -21,6 +21,8 @@ from backend.ai.stt_engine import STTEngine
 from backend.ai.tts_engine import SAMPLE_RATE as TTS_RATE
 from backend.ai.tts_engine import ParadeeTTSEngine
 from backend.ai.voice_providers import (
+    LOCAL_TTS_VOICE_ID,
+    LOCAL_TTS_VOICES,
     VOICE_PROVIDER_IDS,
     VOICE_PROVIDERS,
     default_stt_model,
@@ -106,6 +108,15 @@ def test_local_voice_is_the_default():
     assert voice["stt_model"] == ""
     assert voice["tts_model"] == ""
     assert voice["tts_voice_id"] == "af_heart"
+
+
+def test_local_voice_catalog_matches_the_paradee_default():
+    assert LOCAL_TTS_VOICE_ID == "af_heart"
+    assert [voice["id"] for voice in LOCAL_TTS_VOICES] == [LOCAL_TTS_VOICE_ID]
+    assert all(voice["label"] for voice in LOCAL_TTS_VOICES)
+    assert normalize_voice({"tts_provider": "local"})["tts_voice_id"] == (
+        LOCAL_TTS_VOICE_ID
+    )
 
 
 def test_cloud_voice_fills_provider_defaults_without_touching_chat_model():

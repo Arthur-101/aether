@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+  BookOpen,
   GripHorizontal,
   Settings,
   Settings2,
@@ -41,6 +42,7 @@ import { StorageSettings } from './tabs/StorageSettings';
 import { WidgetSettings } from './tabs/WidgetSettings';
 import { IntegrationsSettings } from './tabs/IntegrationsSettings';
 import { ToolsSettings } from './tabs/ToolsSettings';
+import { GuideSettings } from './tabs/GuideSettings';
 import { useSettingsDrag } from './useSettingsDrag';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
@@ -80,7 +82,8 @@ export type SettingsTab =
   | 'storage'
   | 'appearance'
   | 'widgets'
-  | 'integrations';
+  | 'integrations'
+  | 'guide';
 type Tab = SettingsTab;
 
 const tabs = [
@@ -93,6 +96,7 @@ const tabs = [
   { id: 'appearance' as const, label: 'Appearance', icon: Palette },
   { id: 'widgets' as const, label: 'Widgets', icon: LayoutGrid },
   { id: 'integrations' as const, label: 'Integrations', icon: Plug },
+  { id: 'guide' as const, label: 'Guide', icon: BookOpen },
 ];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -394,7 +398,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             aria-labelledby={`aether-settings-tab-${activeTab}`}
             className="flex min-h-0 min-w-0 flex-1 flex-col p-5"
           >
-            <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pr-1">
+            <div
+              className={`min-h-0 min-w-0 flex-1 pr-1 ${
+                activeTab === 'guide'
+                  ? 'flex flex-col overflow-hidden'
+                  : 'overflow-x-hidden overflow-y-auto'
+              }`}
+            >
               <div
                 {...dragHandleProps}
                 className="mb-4 flex cursor-grab items-center justify-between border-b border-[var(--aether-line)] pb-3 active:cursor-grabbing"
@@ -410,6 +420,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'appearance' && 'Notch Appearance'}
                   {activeTab === 'widgets' && 'Desktop Widgets'}
                   {activeTab === 'integrations' && 'Integrations'}
+                  {activeTab === 'guide' && 'Aether Guide'}
                 </h4>
                 <button
                   type="button"
@@ -422,7 +433,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
 
-              {!draft ? (
+              {activeTab === 'guide' ? (
+                <GuideSettings />
+              ) : !draft ? (
                 <div className="py-16 text-center text-xs text-[var(--aether-text-3)]">
                   Waiting for the Aether daemon…
                 </div>
@@ -519,7 +532,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            <div className="mt-4 flex justify-end border-t border-[var(--aether-line)] pt-3">
+            <div
+              className={`mt-4 flex justify-end border-t border-[var(--aether-line)] pt-3 ${
+                activeTab === 'guide' ? 'hidden' : ''
+              }`}
+            >
               <button
                 type="button"
                 onClick={handleSave}

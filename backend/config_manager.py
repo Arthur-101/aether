@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from platformdirs import user_data_dir
 
+from .ai.voice_providers import LOCAL_TTS_VOICE_ID
 from .config_schema import (
     DEFAULT_MAX_TOOL_ROUNDS,
     DEFAULT_MEMORY_CLOUD_RECENT_TURNS,
@@ -121,7 +122,7 @@ def get_default_config() -> Dict[str, Any]:
             "tts_provider": "local",
             "tts_model": "",
             "tts_model_path": paradee_path,
-            "tts_voice_id": "af_heart",
+            "tts_voice_id": LOCAL_TTS_VOICE_ID,
             "tts_speed": 1.0,
             "mic_device_index": None,
         },

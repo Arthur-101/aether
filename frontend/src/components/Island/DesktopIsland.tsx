@@ -56,6 +56,7 @@ interface DesktopIslandProps {
   onPowerAction: (action: PowerAction, confirm?: boolean) => void;
   chatHistory: ChatTurn[];
   chatPending: string | null;
+  chatDraft: string;
   activeToolCalls: ToolCallEvent[];
   toolApproval: ToolApprovalRequest | null;
   onResolveToolApproval: (approval: ToolApprovalRequest, approved: boolean) => void;
@@ -148,6 +149,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onPowerAction,
   chatHistory,
   chatPending,
+  chatDraft,
   activeToolCalls,
   toolApproval,
   onResolveToolApproval,
@@ -396,6 +398,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
             chat={{
               history: chatHistory,
               pending: chatPending,
+              draft: chatDraft,
               activeToolCalls,
               toolApproval,
               onResolveToolApproval,

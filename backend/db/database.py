@@ -114,7 +114,15 @@ def init_db(db_path: Optional[Path] = None) -> None:
     );
     """)
 
-    # 7. Scheduled Tasks Table
+    # 7. Small persistent app state (active session survives a daemon restart)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+    """)
+
+    # 8. Scheduled Tasks Table
     cur.execute("""
     CREATE TABLE IF NOT EXISTS scheduled_tasks (
         id TEXT PRIMARY KEY,

@@ -70,6 +70,7 @@ export function App() {
     activeSessionTitle,
     chatHistory,
     chatPending,
+    chatDraft,
     activeToolCalls,
     toolApproval,
     sessions,
@@ -573,6 +574,7 @@ export function App() {
         onPowerAction={runPowerAction}
         chatHistory={chatHistory}
         chatPending={chatPending}
+        chatDraft={chatDraft}
         activeToolCalls={activeToolCalls}
         toolApproval={toolApproval}
         onResolveToolApproval={resolveToolApproval}

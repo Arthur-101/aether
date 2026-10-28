@@ -43,6 +43,7 @@ import { toolMeta } from './toolMeta';
 interface QuickChatProps {
   history: ChatTurn[];
   pending: string | null;
+  draft?: string;
   activeToolCalls?: ToolCallEvent[];
   toolApproval?: ToolApprovalRequest | null;
   onResolveToolApproval?: (approval: ToolApprovalRequest, approved: boolean) => void;
@@ -162,6 +163,7 @@ function shortcutLabel(value: string | undefined, fallback: string): string {
 export const QuickChat: React.FC<QuickChatProps> = ({
   history,
   pending,
+  draft = '',
   activeToolCalls = [],
   toolApproval = null,
   onResolveToolApproval,
@@ -208,7 +210,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [history, pending]);
+  }, [history, pending, draft]);
 
   useEffect(() => {
     if (!focusToken) return;
@@ -486,13 +488,17 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                         Aether
                       </p>
                       <div className="inline-block max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--aether-line)] bg-[var(--aether-surface-1)] px-3.5 py-2 text-[11px] text-[var(--aether-text-2)]">
-                        <div className="flex items-center gap-2">
-                          <Loader2
-                            size={11}
-                            className="animate-spin text-[var(--aether-accent-text)]"
-                          />
-                          <span>Thinking...</span>
-                        </div>
+                        {draft ? (
+                          <ChatMarkdown content={draft} streaming />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Loader2
+                              size={11}
+                              className="animate-spin text-[var(--aether-accent-text)]"
+                            />
+                            <span>Thinking...</span>
+                          </div>
+                        )}
                         <ToolRunList calls={activeToolCalls} />
                         {toolApproval ? (
                           <div className="mt-2 rounded-lg border border-amber-400/35 bg-amber-400/10 p-2 text-[10px] text-[var(--aether-text-1)]">

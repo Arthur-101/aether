@@ -14,11 +14,12 @@ import urllib.request
 
 import psutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager, find_model_file, get_models_dir
 from ..mcp_tools.media_tools import get_binary_path
 from .errors import ModelNotConfiguredError
+from .stream_accumulator import StreamAccumulator
 
 SERVER_PORT = 8089
 SERVER_HOST = "127.0.0.1"
@@ -149,6 +150,7 @@ class LocalGGUFEngine:
         top_p: float = 0.80,
         presence_penalty: float = 1.5,
         thinking_mode: bool = False,
+        on_token: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Calls the local llama-server and returns the raw assistant message."""
         if not self.start_server():
@@ -167,6 +169,9 @@ class LocalGGUFEngine:
         }
         if tools:
             payload["tools"] = tools
+        if on_token is not None:
+            payload["stream"] = True
+            return self._stream_completion(payload, on_token)
 
         req = urllib.request.Request(
             f"{self.base_url}/v1/chat/completions",
@@ -194,4 +199,73 @@ class LocalGGUFEngine:
             "reasoning": (choice.get("reasoning_content") or "").strip(),
             "tool_calls": choice.get("tool_calls") or [],
             "message": choice,
+        }
+
+    def _stream_completion(
+        self,
+        payload: Dict[str, Any],
+        on_token: Callable[[str], None],
+    ) -> Dict[str, Any]:
+        """Reads llama-server's OpenAI-compatible SSE stream."""
+        accumulator = StreamAccumulator()
+        req = urllib.request.Request(
+            f"{self.base_url}/v1/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120.0) as resp:
+                for raw_line in resp:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    if line.startswith("data:"):
+                        line = line[5:].strip()
+                    if line == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    choices = chunk.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
+                    fragments: List[Dict[str, Any]] = []
+                    for call in delta.get("tool_calls") or []:
+                        fn = call.get("function") or {}
+                        fragments.append({
+                            "index": call.get("index", 0),
+                            "id": call.get("id"),
+                            "name": fn.get("name"),
+                            "arguments": fn.get("arguments"),
+                        })
+                    text = accumulator.feed(
+                        content=delta.get("content"),
+                        reasoning=(
+                            delta.get("reasoning_content")
+                            or delta.get("reasoning")
+                        ),
+                        tool_calls=fragments,
+                    )
+                    if text:
+                        on_token(text)
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")[:800]
+            raise ModelNotConfiguredError(
+                f"Local llama-server error (HTTP {exc.code}): {detail}. "
+                "Open Settings to verify the model."
+            ) from exc
+        except Exception as exc:
+            raise ModelNotConfiguredError(
+                f"Local llama-server stream error: {exc}. "
+                "Open Settings to verify the model."
+            ) from exc
+
+        return {
+            "content": accumulator.content.strip(),
+            "reasoning": accumulator.reasoning.strip(),
+            "tool_calls": accumulator.tool_calls(),
+            "message": None,
         }

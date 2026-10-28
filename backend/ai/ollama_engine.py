@@ -7,10 +7,11 @@ context length. Ollama's /api/chat endpoint mirrors OpenAI tool calling.
 import json
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager
 from .errors import ModelNotConfiguredError
+from .stream_accumulator import StreamAccumulator
 
 
 def _ollama_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -50,6 +51,7 @@ class OllamaEngine:
         top_p: float = 0.80,
         presence_penalty: float = 1.5,
         thinking_mode: bool = False,
+        on_token: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         base_url = str(
             config_manager.get("ai_provider", "ollama_base_url", "")
@@ -66,7 +68,7 @@ class OllamaEngine:
         payload: Dict[str, Any] = {
             "model": model,
             "messages": _ollama_messages(messages),
-            "stream": False,
+            "stream": on_token is not None,
             "options": {
                 "num_ctx": context_length,
                 "temperature": temperature,
@@ -75,6 +77,8 @@ class OllamaEngine:
         }
         if tools:
             payload["tools"] = tools
+        if on_token is not None:
+            return self._stream_completion(base_url, payload, on_token)
 
         req = urllib.request.Request(
             f"{base_url}/api/chat",
@@ -113,4 +117,80 @@ class OllamaEngine:
             "reasoning": (message.get("thinking") or "").strip(),
             "tool_calls": normalized,
             "message": message,
+        }
+
+    def _stream_completion(
+        self,
+        base_url: str,
+        payload: Dict[str, Any],
+        on_token: Callable[[str], None],
+    ) -> Dict[str, Any]:
+        """Reads Ollama's newline-delimited JSON stream."""
+        accumulator = StreamAccumulator()
+        tool_calls_seen = False
+        req = urllib.request.Request(
+            f"{base_url}/api/chat",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=120.0) as resp:
+                for raw_line in resp:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    message = data.get("message", {}) or {}
+                    fragments: List[Dict[str, Any]] = []
+                    calls = message.get("tool_calls") or []
+                    if calls and not tool_calls_seen:
+                        # Ollama sends complete calls in one chunk, not deltas.
+                        tool_calls_seen = True
+                        for index, call in enumerate(calls):
+                            fn = (
+                                call.get("function", {})
+                                if isinstance(call, dict)
+                                else {}
+                            )
+                            args = fn.get("arguments", {})
+                            if not isinstance(args, str):
+                                args = json.dumps(args)
+                            fragments.append({
+                                "index": index,
+                                "id": (
+                                    call.get("id")
+                                    if isinstance(call, dict)
+                                    else None
+                                ),
+                                "name": fn.get("name", ""),
+                                "arguments": args,
+                            })
+                    text = accumulator.feed(
+                        content=message.get("content"),
+                        reasoning=message.get("thinking"),
+                        tool_calls=fragments,
+                    )
+                    if text:
+                        on_token(text)
+                    if data.get("done"):
+                        break
+        except (urllib.error.URLError, ConnectionError) as exc:
+            raise ModelNotConfiguredError(
+                f"Ollama is not reachable at {base_url}. Start Ollama or switch "
+                f"to Local GGUF / Cloud API in Settings. ({exc})"
+            ) from exc
+        except Exception as exc:
+            raise ModelNotConfiguredError(
+                f"Ollama stream failed: {exc}"
+            ) from exc
+
+        return {
+            "content": accumulator.content.strip(),
+            "reasoning": accumulator.reasoning.strip(),
+            "tool_calls": accumulator.tool_calls(),
+            "message": None,
         }

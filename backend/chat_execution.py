@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 
 from .ai.llm_router import llm_router
 from .ai.prompts import build_assistant_messages
+from .chat_stream import make_bridge
 from .config_manager import config_manager, get_app_dir, get_data_dir
 from .db.attachments import list_attachments
 from .db.sessions import is_fallback_reply, looks_like_reasoning, session_manager
@@ -69,11 +70,14 @@ def summarize_tool_calls(calls: Any) -> List[Dict[str, Any]]:
     return summary
 
 
-async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
+async def execute_chat_turn(
+    session_id: str, prompt: str, *, stream: bool = False
+) -> Dict[str, Any]:
     """Runs one model turn and persists it to the linked session.
 
     The caller owns UI notifications so a background task never has to switch
-    the active chat in order to save its result.
+    the active chat in order to save its result. ``stream`` is only enabled for
+    the foreground Quick Chat turn; scheduled work never paints into it.
     """
     loop = asyncio.get_running_loop()
     context = await loop.run_in_executor(
@@ -106,16 +110,23 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
             loop,
         )
 
-    result = await loop.run_in_executor(
-        None,
-        lambda: llm_router.chat_completion(
-            messages,
-            tools=get_openai_tool_schemas(),
-            session_id=session_id,
-            on_tool_call=on_tool_call,
-            loadout=loadout,
-        ),
-    )
+    bridge = make_bridge(loop, session_id, stream)
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: llm_router.chat_completion(
+                messages,
+                tools=get_openai_tool_schemas(),
+                session_id=session_id,
+                on_tool_call=on_tool_call,
+                loadout=loadout,
+                on_stream=bridge.push if bridge else None,
+                on_stream_reset=bridge.reset if bridge else None,
+            ),
+        )
+    finally:
+        if bridge is not None:
+            await bridge.flush()
     if result.get("approval_required"):
         return result
     reply = (result.get("content") or "").strip() or "I could not produce a response."
@@ -163,6 +174,8 @@ async def resolve_tool_approval(
     prompt: str,
     approval_id: str,
     approved: bool,
+    *,
+    stream: bool = False,
 ) -> Dict[str, Any]:
     """Resumes one paused tool turn and persists its single final reply."""
     loop = asyncio.get_running_loop()
@@ -177,12 +190,22 @@ async def resolve_tool_approval(
             loop,
         )
 
-    result = await loop.run_in_executor(
-        None,
-        lambda: llm_router.resolve_approval(
-            approval_id, session_id, approved, on_tool_call=on_tool_call
-        ),
-    )
+    bridge = make_bridge(loop, session_id, stream)
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: llm_router.resolve_approval(
+                approval_id,
+                session_id,
+                approved,
+                on_tool_call=on_tool_call,
+                on_stream=bridge.push if bridge else None,
+                on_stream_reset=bridge.reset if bridge else None,
+            ),
+        )
+    finally:
+        if bridge is not None:
+            await bridge.flush()
     if result.get("error"):
         return result
     reply = (result.get("content") or "").strip() or "I could not produce a response."

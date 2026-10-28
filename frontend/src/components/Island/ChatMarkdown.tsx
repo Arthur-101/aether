@@ -114,9 +114,15 @@ const components: Components = {
   ),
 };
 
-export function ChatMarkdown({ content }: { content: string }) {
+export function ChatMarkdown({
+  content,
+  streaming = false,
+}: {
+  content: string;
+  streaming?: boolean;
+}) {
   return (
-    <div className="break-words">
+    <div className={`break-words${streaming ? ' chat-stream-caret' : ''}`}>
       <Markdown remarkPlugins={[remarkGfm]} components={components}>
         {content}
       </Markdown>

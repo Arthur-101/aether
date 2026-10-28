@@ -4,10 +4,11 @@ Routes chat completions to Gemini, Groq, OpenAI, Mistral, or any LiteLLM provide
 the API key stored in %APPDATA%/Aether/config.json. Zero local VRAM.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager
 from .errors import ModelNotConfiguredError
+from .stream_accumulator import StreamAccumulator
 
 # Thinking Mode uses LiteLLM's portable `reasoning_effort`; each provider
 # translates it to its native control (OpenAI effort, Gemini thinking level,
@@ -124,6 +125,7 @@ class CloudEngine:
         top_p: float = 0.80,
         presence_penalty: float = 1.5,
         thinking_mode: bool = False,
+        on_token: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         api_key = self._selected_credentials()["api_key"]
         if not api_key:
@@ -164,13 +166,25 @@ class CloudEngine:
             kwargs["tools"] = tools
 
         try:
+            if on_token is not None:
+                streamed = self._stream_completion(litellm, kwargs, on_token)
+                if streamed is not None:
+                    return streamed
             response = litellm.completion(**kwargs)
+        except ModelNotConfiguredError:
+            raise
         except Exception as exc:
             # Older providers or model-map gaps may reject the portable field.
             # Retry once without it rather than failing the whole turn.
             if "reasoning_effort" in kwargs and _is_reasoning_param_error(exc):
                 kwargs.pop("reasoning_effort")
                 try:
+                    if on_token is not None:
+                        streamed = self._stream_completion(
+                            litellm, kwargs, on_token
+                        )
+                        if streamed is not None:
+                            return streamed
                     response = litellm.completion(**kwargs)
                 except Exception as retry_exc:
                     raise ModelNotConfiguredError(
@@ -181,7 +195,11 @@ class CloudEngine:
                     f"Cloud API request failed: {exc}"
                 ) from exc
 
-        message = response.choices[0].message
+        return self._result_from_message(response.choices[0].message)
+
+    @staticmethod
+    def _result_from_message(message: Any) -> Dict[str, Any]:
+        """Converts a blocking LiteLLM message into the router's result shape."""
         raw_calls = getattr(message, "tool_calls", None) or []
         tool_calls: List[Dict[str, Any]] = []
         for index, call in enumerate(raw_calls):
@@ -207,4 +225,69 @@ class CloudEngine:
             # Preserve provider-native blocks so tool rounds keep reasoning context.
             "thinking_blocks": getattr(message, "thinking_blocks", None),
             "reasoning_details": getattr(message, "reasoning_details", None),
+        }
+
+    @staticmethod
+    def _stream_completion(
+        litellm: Any,
+        kwargs: Dict[str, Any],
+        on_token: Callable[[str], None],
+    ) -> Optional[Dict[str, Any]]:
+        """Streams one completion; returns None if the provider rejects streaming.
+
+        A provider that fails before emitting a token falls back to the blocking
+        call in ``complete``. Once text has reached the user, retrying would
+        duplicate it, so the error is surfaced instead.
+        """
+        accumulator = StreamAccumulator()
+        emitted = 0
+        try:
+            stream = litellm.completion(**kwargs, stream=True)
+            for chunk in stream:
+                choices = getattr(chunk, "choices", None) or []
+                if not choices:
+                    continue
+                delta = getattr(choices[0], "delta", None)
+                if delta is None:
+                    continue
+
+                fragments: List[Dict[str, Any]] = []
+                for call in getattr(delta, "tool_calls", None) or []:
+                    fn = getattr(call, "function", None)
+                    fragments.append({
+                        "index": getattr(call, "index", 0) or 0,
+                        "id": getattr(call, "id", None),
+                        "name": getattr(fn, "name", None) if fn else None,
+                        "arguments": (
+                            getattr(fn, "arguments", None) if fn else None
+                        ),
+                    })
+
+                text = accumulator.feed(
+                    content=getattr(delta, "content", None),
+                    reasoning=(
+                        getattr(delta, "reasoning_content", None)
+                        or getattr(delta, "reasoning", None)
+                    ),
+                    tool_calls=fragments,
+                    thinking_blocks=getattr(delta, "thinking_blocks", None),
+                    reasoning_details=getattr(delta, "reasoning_details", None),
+                )
+                if text:
+                    emitted += len(text)
+                    on_token(text)
+        except Exception as exc:
+            if emitted:
+                raise ModelNotConfiguredError(
+                    f"Cloud API stream failed after partial output: {exc}"
+                ) from exc
+            return None
+
+        return {
+            "content": accumulator.content.strip(),
+            "reasoning": accumulator.reasoning.strip(),
+            "tool_calls": accumulator.tool_calls(),
+            "message": None,
+            "thinking_blocks": accumulator.thinking_blocks,
+            "reasoning_details": accumulator.reasoning_details,
         }

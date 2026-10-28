@@ -12,6 +12,8 @@ import type { AIProviderConfig, VoiceConfig } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
 import { placementBesideSettings } from '../../../lib/externalWindows';
 import {
+  LOCAL_TTS_DEFAULT_VOICE,
+  LOCAL_TTS_VOICES,
   LOCAL_VOICE_LABEL,
   VOICE_PROVIDERS,
   voiceProvider,
@@ -73,6 +75,9 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   const ttsIsCloud = Boolean(ttsProvider);
   const keySaved = (providerId: string) =>
     Boolean(ai.cloud_providers?.[providerId]?.api_key);
+  const localVoiceIds = LOCAL_TTS_VOICES.map((localVoice) => localVoice.id);
+  const localVoiceId = voice.tts_voice_id?.trim() || LOCAL_TTS_DEFAULT_VOICE;
+  const localVoiceIsKnown = localVoiceIds.includes(localVoiceId);
 
   const browseStt = async () => {
     const path = await pickNativePath('directory', 'all', placementBesideSettings());
@@ -109,7 +114,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       !currentModel || (previous ? currentModel === previous.ttsModel : false);
     const voiceIsDefault =
       !currentVoice ||
-      currentVoice === 'af_heart' ||
+      localVoiceIds.includes(currentVoice) ||
       (previous ? currentVoice === previous.ttsVoice : false);
 
     const ttsModel = next
@@ -124,7 +129,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         ? next.ttsVoice
         : currentVoice
       : voiceIsDefault
-        ? 'af_heart'
+        ? LOCAL_TTS_DEFAULT_VOICE
         : currentVoice;
     onChange({
       tts_provider: nextId,
@@ -314,14 +319,28 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
               </div>
             </div>
             <label className="flex flex-col gap-1">
-              <span className={settingsLabelClass}>Voice preset</span>
-              <input
-                type="text"
-                value={voice.tts_voice_id}
-                onChange={(event) => onChange({ tts_voice_id: event.target.value })}
-                placeholder="af_heart"
-                className={`${settingsMonoInputClass} w-full`}
-              />
+              <span className={settingsLabelClass}>Voice</span>
+              <select
+                value={localVoiceId}
+                onChange={(event) =>
+                  onChange({ tts_voice_id: event.target.value })
+                }
+                className={`${settingsInputClass} w-full`}
+              >
+                {LOCAL_TTS_VOICES.map((localVoice) => (
+                  <option key={localVoice.id} value={localVoice.id}>
+                    {localVoice.label} ({localVoice.id})
+                  </option>
+                ))}
+                {!localVoiceIsKnown ? (
+                  <option value={localVoiceId}>{localVoiceId} (custom)</option>
+                ) : null}
+              </select>
+              <span className={settingsHintClass}>
+                {LOCAL_TTS_VOICES.length > 1
+                  ? 'Voices bundled with the selected local model.'
+                  : 'Paradee ships a single built-in voice. Cloud providers offer more voices.'}
+              </span>
             </label>
           </div>
         )}
