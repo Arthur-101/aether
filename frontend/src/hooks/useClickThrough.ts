@@ -31,10 +31,17 @@ export function useClickThrough(
 
     const applyIgnore = async (ignore: boolean) => {
       if (disposed || ignoreRef.current === ignore) return;
+      const previous = ignoreRef.current;
       ignoreRef.current = ignore;
       try {
         await tauriWindow.setIgnoreCursorEvents(ignore);
       } catch (err) {
+        // Never leave the ref claiming a state the OS rejected. Otherwise the
+        // guard above suppresses every retry and the fullscreen window stays
+        // interactive, swallowing clicks meant for the desktop.
+        if (!disposed && ignoreRef.current === ignore) {
+          ignoreRef.current = previous;
+        }
         console.warn('setIgnoreCursorEvents failed:', err);
       }
     };
@@ -63,12 +70,30 @@ export function useClickThrough(
     };
 
     // Start fully click-through. The first mouse position re-enables UI hover.
+    if (!connected) {
+      // Offline: the Python cursor stream is gone, so per-region hit-testing
+      // cannot run. Keep the overlay click-through — making the fullscreen
+      // window interactive would trap the user's entire desktop. Retry until
+      // the OS confirms the state instead of trusting an unverified ref.
+      ignoreRef.current = null;
+      void applyIgnore(true);
+      const retry = window.setInterval(() => {
+        if (ignoreRef.current !== true) void applyIgnore(true);
+      }, 500);
+      return () => {
+        disposed = true;
+        window.clearInterval(retry);
+      };
+    }
+
     void applyIgnore(true);
 
-    const unsubscribe = subscribeMouse((physicalX, physicalY) => {
-      const now = performance.now();
-      if (now - lastCheck < 16) return;
-      lastCheck = now;
+    let lastX: number | null = null;
+    let lastY: number | null = null;
+
+    const evaluate = (physicalX: number, physicalY: number) => {
+      lastX = physicalX;
+      lastY = physicalY;
 
       const scale = window.devicePixelRatio || 1;
       const x = physicalX / scale;
@@ -82,22 +107,30 @@ export function useClickThrough(
       // Hysteresis: pad the rects while interactive to avoid flicker at edges.
       const interactive = isOverInteractiveRegion(x, y, ignoreRef.current === false ? 8 : 0);
       void applyIgnore(!interactive);
+    };
+
+    const unsubscribe = subscribeMouse((physicalX, physicalY) => {
+      const now = performance.now();
+      if (now - lastCheck < 16) return;
+      lastCheck = now;
+      evaluate(physicalX, physicalY);
     });
+
+    // The cursor stream only fires on movement. Re-evaluate the last known
+    // point periodically so a rejected/raced IPC call can recover without the
+    // user having to jiggle the mouse.
+    const watchdog = window.setInterval(() => {
+      if (lastX === null || lastY === null) {
+        if (ignoreRef.current === null) void applyIgnore(true);
+        return;
+      }
+      evaluate(lastX, lastY);
+    }, 500);
 
     return () => {
       disposed = true;
+      window.clearInterval(watchdog);
       unsubscribe();
     };
-  }, [subscribeMouse]);
-
-  useEffect(() => {
-    if (connected || !isTauriRuntime()) return;
-    // Offline: the Python cursor stream is gone, so per-region hit-testing cannot
-    // run. Keep the overlay click-through — making the fullscreen window
-    // interactive would trap the user's entire desktop.
-    ignoreRef.current = true;
-    getCurrentWindow()
-      .setIgnoreCursorEvents(true)
-      .catch(() => undefined);
-  }, [connected]);
+  }, [connected, subscribeMouse]);
 }

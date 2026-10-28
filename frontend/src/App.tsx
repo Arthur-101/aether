@@ -679,8 +679,12 @@ export function App() {
       <CropModal
         isOpen={Boolean(cropFile)}
         filePath={cropFile || ''}
-        onApply={(filePath, width, height, ratio) => {
-          triggerWheelAction(filePath, 'CROP', `${width}x${height}_${ratio}`);
+        onApply={(filePath, width, height, ratio, x, y) => {
+          triggerWheelAction(
+            filePath,
+            'CROP',
+            JSON.stringify({ x, y, w: width, h: height, ratio })
+          );
           setCropFile(null);
         }}
         onClose={() => setCropFile(null)}

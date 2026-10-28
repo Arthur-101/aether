@@ -26,6 +26,28 @@ def _parse_crop_target(target: str) -> tuple[int, int]:
     return int(match.group(1)), int(match.group(2))
 
 
+def _parse_crop_options(target: str) -> Dict[str, Any]:
+    """Accepts the editor's JSON rectangle or the legacy '<width>x<height>'."""
+    if (target or "").lstrip().startswith("{"):
+        options = json.loads(target)
+        width = int(options.get("w") or options.get("width") or 0)
+        height = int(options.get("h") or options.get("height") or 0)
+        if width <= 0 or height <= 0:
+            raise ValueError("Crop target must include positive width and height.")
+        args: Dict[str, Any] = {
+            "file_path": "",
+            "width": width,
+            "height": height,
+        }
+        if options.get("x") is not None:
+            args["x"] = int(options["x"])
+        if options.get("y") is not None:
+            args["y"] = int(options["y"])
+        return args
+    width, height = _parse_crop_target(target)
+    return {"file_path": "", "width": width, "height": height}
+
+
 async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
     """Executes a deterministic file action from the Radial Wheel."""
     import asyncio
@@ -40,13 +62,11 @@ async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
             await _attach_file(file_path)
             return
         if action == "CROP":
-            width, height = _parse_crop_target(target)
+            crop_args = _parse_crop_options(target)
+            crop_args["file_path"] = file_path
             result = await loop.run_in_executor(
                 None,
-                lambda: execute_tool(
-                    "crop_image",
-                    {"file_path": file_path, "width": width, "height": height},
-                ),
+                lambda: execute_tool("crop_image", crop_args),
             )
         elif action == "ADD_BG":
             options = json.loads(target) if target else {}

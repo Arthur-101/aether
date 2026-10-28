@@ -4,15 +4,17 @@ Deterministic image, video, and audio conversion, compression, and background re
 Zero LLM latency. Uses Pillow, pillow-heif, piexif, and local bin/ffmpeg.
 """
 
+import base64
+import io
 import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 from ..output_paths import exported_path
 
@@ -154,31 +156,94 @@ def _hex_to_rgb(value: str) -> tuple[int, int, int]:
 
 
 def _build_background(width: int, height: int, spec: str) -> Image.Image:
-    """Builds a solid or 135° linear-gradient background."""
+    """Builds a solid or 135° linear-gradient background.
+
+    Every hex colour in a ``linear-gradient`` becomes an evenly spaced stop, so
+    the custom 2- and 3-colour gradients match their CSS preview.
+    """
     colors = re.findall(r"#[0-9a-fA-F]{3,8}", spec or "")
     if spec and spec.startswith("linear-gradient") and len(colors) >= 2:
-        start = np.array(_hex_to_rgb(colors[0]), dtype=np.float32)
-        end = np.array(_hex_to_rgb(colors[-1]), dtype=np.float32)
+        stops = np.linspace(0.0, 1.0, len(colors), dtype=np.float32)
+        rgb = np.array([_hex_to_rgb(color) for color in colors], dtype=np.float32)
         yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
-        t = np.clip((xx / max(width - 1, 1) + yy / max(height - 1, 1)) / 2.0, 0.0, 1.0)
-        arr = start[None, None, :] + (end - start)[None, None, :] * t[:, :, None]
+        t = np.clip(
+            (xx / max(width - 1, 1) + yy / max(height - 1, 1)) / 2.0,
+            0.0,
+            1.0,
+        )
+        arr = np.empty((height, width, 3), dtype=np.float32)
+        for channel in range(3):
+            arr[:, :, channel] = np.interp(t, stops, rgb[:, channel])
         return Image.fromarray(arr.astype(np.uint8), mode="RGB")
     solid = _hex_to_rgb(colors[0]) if colors else (15, 23, 42)
     return Image.new("RGB", (width, height), solid)
 
 
-def crop_image(file_path: str, width: int, height: int) -> str:
-    """Center-crops an image to the requested pixel dimensions."""
+def image_preview(file_path: str, max_size: int = 720) -> Dict[str, Any]:
+    """Returns the oriented image size plus a data-URL thumbnail for editors."""
     p = Path(file_path)
     if not p.exists():
         raise FileNotFoundError(f"Source file not found: {file_path}")
-    with Image.open(p) as img:
+
+    with Image.open(p) as source:
+        oriented = ImageOps.exif_transpose(source).copy()
+        width, height = oriented.size
+        thumb = oriented.copy()
+        thumb.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        if thumb.mode not in ("RGB", "RGBA"):
+            has_alpha = "A" in thumb.getbands() or (
+                thumb.mode == "P" and "transparency" in thumb.info
+            )
+            thumb = thumb.convert("RGBA" if has_alpha else "RGB")
+
+        buffer = io.BytesIO()
+        if thumb.mode == "RGBA":
+            thumb.save(buffer, format="PNG", optimize=True)
+            mime = "image/png"
+        else:
+            thumb.save(buffer, format="JPEG", quality=85, optimize=True)
+            mime = "image/jpeg"
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+
+    return {
+        "width": width,
+        "height": height,
+        "preview_width": thumb.width,
+        "preview_height": thumb.height,
+        "data_url": f"data:{mime};base64,{encoded}",
+    }
+
+
+def crop_image(
+    file_path: str,
+    width: int,
+    height: int,
+    x: Optional[int] = None,
+    y: Optional[int] = None,
+) -> str:
+    """Crops an image to a rectangle, centered when x/y are omitted."""
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Source file not found: {file_path}")
+    with Image.open(p) as source:
+        img = ImageOps.exif_transpose(source).copy()
         w = max(1, min(int(width), img.width))
         h = max(1, min(int(height), img.height))
-        left = (img.width - w) // 2
-        top = (img.height - h) // 2
+        if x is None:
+            left = (img.width - w) // 2
+        else:
+            left = max(0, min(int(x), img.width - w))
+        if y is None:
+            top = (img.height - h) // 2
+        else:
+            top = max(0, min(int(y), img.height - h))
         cropped = img.crop((left, top, left + w, top + h))
         out_path = exported_path(p, f"{p.stem} Cropped{p.suffix}")
+        if p.suffix.lower() in (".jpg", ".jpeg") and cropped.mode in ("RGBA", "P", "LA"):
+            background = Image.new("RGB", cropped.size, (255, 255, 255))
+            cropped = cropped.convert("RGBA")
+            background.paste(cropped, mask=cropped.getchannel("A"))
+            cropped = background
         cropped.save(out_path)
     return str(out_path)
 
@@ -200,7 +265,7 @@ def add_background(
     shadow = max(0, int(shadow))
 
     with Image.open(p) as source:
-        img = source.convert("RGBA")
+        img = ImageOps.exif_transpose(source).convert("RGBA")
         mask = Image.new("L", img.size, 0)
         draw = ImageDraw.Draw(mask)
         draw.rounded_rectangle(

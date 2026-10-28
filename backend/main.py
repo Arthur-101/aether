@@ -16,6 +16,7 @@ from .config_manager import config_manager
 from .config_api import router as config_router
 from .event_router import route_event
 from .guide_api import router as guide_router
+from .media_api import router as media_router
 from .notes.note_api import router as notes_router
 from .system_api import router as system_router
 from .ws_manager import ws_manager
@@ -60,6 +61,7 @@ app.include_router(config_router)
 app.include_router(system_router)
 app.include_router(notes_router)
 app.include_router(guide_router)
+app.include_router(media_router)
 
 app.add_middleware(
     CORSMiddleware,

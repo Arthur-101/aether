@@ -38,8 +38,8 @@ Image slices:
 
 - **Convert** to WebP, PNG, JPG, PDF, HEIC, or AVIF.
 - **Compress** to reduce file size.
-- **Crop** opens a crop editor.
-- **Add Background** opens a padding, corner, shadow, and color editor.
+- **Crop** opens an editor with a live image preview, draggable crop handles, and aspect-ratio presets.
+- **Add Background** opens an editor with a live padding preview plus solid, two-color, and three-color backgrounds.
 - **Strip Metadata** removes EXIF, GPS, and camera metadata.
 - **Ask AI** attaches the image to chat when supported.
 
