@@ -1,5 +1,8 @@
 """Tests for per-provider cloud credentials and OpenRouter model qualification."""
 
+import sys
+import types
+
 import pytest
 
 from backend.ai import cloud_engine
@@ -142,3 +145,141 @@ def test_empty_cloud_model_is_reported(monkeypatch):
 
     with pytest.raises(ModelNotConfiguredError):
         engine._qualified_model()
+
+
+def test_gemini_3_uses_the_provider_default_temperature():
+    assert cloud_engine.effective_temperature(
+        "gemini/gemini-3.5-flash-lite", 0.7
+    ) == 1.0
+    assert cloud_engine.effective_temperature(
+        "openrouter/google/gemini-3-pro", 0.7
+    ) == 1.0
+    assert cloud_engine.effective_temperature(
+        "gemini/gemini-2.5-flash", 0.7
+    ) == 0.7
+    assert cloud_engine.effective_temperature(
+        "gemini/gemini-3.5-flash-lite", 1.0
+    ) == 1.0
+
+
+def test_reasoning_effort_maps_per_provider():
+    assert cloud_engine.reasoning_effort(
+        "gemini", "gemini-3.5-flash-lite", True
+    ) == "medium"
+    assert cloud_engine.reasoning_effort(
+        "gemini", "gemini-3.5-flash-lite", False
+    ) == "none"
+    assert cloud_engine.reasoning_effort(
+        "anthropic", "claude-sonnet-4.5", False
+    ) == "none"
+    assert cloud_engine.reasoning_effort(
+        "openrouter", "nvidia/nemotron-3.5-super-vl:free", True
+    ) == "medium"
+    assert cloud_engine.reasoning_effort(
+        "openrouter", "nvidia/nemotron-3.5-super-vl:free", False
+    ) == "minimal"
+    assert cloud_engine.reasoning_effort("groq", "llama-3.3-70b-versatile", True) is None
+    assert cloud_engine.reasoning_effort("mistral", "codestral-2508", True) is None
+
+
+class FakeMessage:
+    def __init__(self):
+        self.content = "Done."
+        self.reasoning_content = ""
+        self.tool_calls = []
+        self.thinking_blocks = None
+        self.reasoning_details = None
+
+
+class FakeChoice:
+    def __init__(self):
+        self.message = FakeMessage()
+
+
+class FakeResponse:
+    def __init__(self):
+        self.choices = [FakeChoice()]
+
+
+class FakeLiteLLM:
+    def __init__(self):
+        self.kwargs = None
+
+    def completion(self, **kwargs):
+        self.kwargs = kwargs
+        return FakeResponse()
+
+
+def _fake_litellm(monkeypatch):
+    fake = FakeLiteLLM()
+    utils = types.ModuleType("litellm.utils")
+    utils.supports_reasoning = (
+        lambda model, custom_llm_provider=None: "gpt-4o-mini" not in str(model)
+    )
+    utils.supports_none_reasoning_effort = (
+        lambda model, custom_llm_provider=None: False
+    )
+    fake.utils = utils
+    monkeypatch.setitem(sys.modules, "litellm", fake)
+    monkeypatch.setitem(sys.modules, "litellm.utils", utils)
+    return fake
+
+
+def test_cloud_complete_sends_reasoning_effort_and_raises_the_token_cap(monkeypatch):
+    fake = _fake_litellm(monkeypatch)
+    engine = _select(monkeypatch, "gemini", "gemini-3.5-flash-lite")
+
+    result = engine.complete(
+        [{"role": "user", "content": "think hard"}],
+        thinking_mode=True,
+    )
+
+    assert result["content"] == "Done."
+    assert fake.kwargs["reasoning_effort"] == "medium"
+    assert fake.kwargs["max_tokens"] >= 4096
+    assert fake.kwargs["temperature"] == 1.0
+
+
+def test_cloud_complete_disables_reasoning_for_normal_mode(monkeypatch):
+    fake = _fake_litellm(monkeypatch)
+    engine = _select(monkeypatch, "gemini", "gemini-3.5-flash-lite")
+
+    engine.complete([{"role": "user", "content": "be quick"}], thinking_mode=False)
+
+    assert fake.kwargs["reasoning_effort"] == "none"
+    assert fake.kwargs["max_tokens"] >= 2048
+    assert fake.kwargs["temperature"] == 1.0
+
+
+def test_cloud_complete_skips_reasoning_for_non_reasoning_models(monkeypatch):
+    fake = _fake_litellm(monkeypatch)
+    engine = _select(monkeypatch, "openai", "gpt-4o-mini")
+
+    engine.complete([{"role": "user", "content": "hello"}], thinking_mode=True)
+
+    assert "reasoning_effort" not in fake.kwargs
+    assert fake.kwargs["max_tokens"] == 1024
+
+
+def test_cloud_complete_retries_without_reasoning_when_rejected(monkeypatch):
+    calls = []
+
+    class RejectingLiteLLM:
+        def completion(self, **kwargs):
+            calls.append(dict(kwargs))
+            if "reasoning_effort" in kwargs:
+                raise ValueError("Unsupported parameter: reasoning_effort")
+            return FakeResponse()
+
+    _fake_litellm(monkeypatch)
+    monkeypatch.setitem(sys.modules, "litellm", RejectingLiteLLM())
+    engine = _select(monkeypatch, "gemini", "gemini-3.5-flash-lite")
+
+    result = engine.complete(
+        [{"role": "user", "content": "think hard"}], thinking_mode=True
+    )
+
+    assert result["content"] == "Done."
+    assert len(calls) == 2
+    assert "reasoning_effort" in calls[0]
+    assert "reasoning_effort" not in calls[1]

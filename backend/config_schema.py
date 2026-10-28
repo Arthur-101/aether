@@ -8,6 +8,12 @@ the user's real %APPDATA% directory.
 import re
 from typing import Any, Dict, List
 
+from .ai.voice_providers import (
+    VOICE_PROVIDER_IDS,
+    default_stt_model,
+    default_tts_model,
+    default_tts_voice,
+)
 from .tool_groups import (
     DEFAULT_ENABLED_TOOL_GROUPS,
     PREVIOUS_TOOL_GROUP_IDS,
@@ -107,6 +113,21 @@ DEFAULT_CLOUD_PROVIDERS: Dict[str, Dict[str, str]] = {
 DEFAULT_MAX_TOOL_ROUNDS = 3
 MIN_MAX_TOOL_ROUNDS = 1
 MAX_MAX_TOOL_ROUNDS = 10
+
+# Memory depth is user-tunable per backend category. Local GGUF and Ollama share
+# one pair; cloud APIs have their own, deeper pair.
+DEFAULT_MEMORY_LOCAL_RECENT_TURNS = 2
+DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES = 3
+DEFAULT_MEMORY_CLOUD_RECENT_TURNS = 8
+DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES = 8
+MIN_MEMORY_RECENT_TURNS = 1
+MAX_MEMORY_RECENT_TURNS = 12
+MIN_MEMORY_SEMANTIC_MATCHES = 0
+MAX_MEMORY_SEMANTIC_MATCHES = 12
+
+DEFAULT_VOICE_STT_PROVIDER = "local"
+DEFAULT_VOICE_TTS_PROVIDER = "local"
+VALID_VOICE_PROVIDERS = frozenset({"local", *VOICE_PROVIDER_IDS})
 
 _HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
@@ -236,6 +257,17 @@ def normalize_max_tool_rounds(value: Any) -> int:
     except (TypeError, ValueError):
         return DEFAULT_MAX_TOOL_ROUNDS
     return max(MIN_MAX_TOOL_ROUNDS, min(MAX_MAX_TOOL_ROUNDS, rounds))
+
+
+def normalize_memory_count(
+    value: Any, fallback: int, minimum: int, maximum: int
+) -> int:
+    """Clamps a memory-depth count to the range the Settings UI offers."""
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(minimum, min(maximum, count))
 
 
 def normalize_appearance(value: Any) -> Dict[str, Any]:
@@ -369,6 +401,62 @@ def normalize_spotify(value: Any) -> Dict[str, Any]:
     return {"client_id": _optional_text(raw.get("client_id"), 200)}
 
 
+def normalize_voice(value: Any) -> Dict[str, Any]:
+    """Sanitizes the voice section and fills provider-specific defaults.
+
+    Local GGUF/Ollama-style voice paths stay untouched when the local provider
+    is active. Cloud providers use their own model and voice IDs; those never
+    overwrite the chat model stored in ``ai_provider``.
+    """
+    raw = value if isinstance(value, dict) else {}
+    stt_provider = _optional_text(raw.get("stt_provider"), 40).lower()
+    if stt_provider not in VALID_VOICE_PROVIDERS:
+        stt_provider = DEFAULT_VOICE_STT_PROVIDER
+    tts_provider = _optional_text(raw.get("tts_provider"), 40).lower()
+    if tts_provider not in VALID_VOICE_PROVIDERS:
+        tts_provider = DEFAULT_VOICE_TTS_PROVIDER
+
+    stt_model = _optional_text(raw.get("stt_model"), 200)
+    if stt_provider != "local" and not stt_model:
+        stt_model = default_stt_model(stt_provider)
+
+    tts_model = _optional_text(raw.get("tts_model"), 200)
+    if tts_provider != "local" and not tts_model:
+        tts_model = default_tts_model(tts_provider)
+
+    tts_voice = _optional_text(raw.get("tts_voice_id"), 160)
+    if tts_provider == "local":
+        tts_voice = tts_voice or "af_heart"
+    elif not tts_voice or tts_voice == "af_heart":
+        tts_voice = default_tts_voice(tts_provider)
+
+    try:
+        tts_speed = float(raw.get("tts_speed", 1.0))
+    except (TypeError, ValueError):
+        tts_speed = 1.0
+    tts_speed = max(0.5, min(2.0, tts_speed))
+
+    mic_device = raw.get("mic_device_index")
+    try:
+        mic_device_index = int(mic_device) if mic_device not in (None, "") else None
+    except (TypeError, ValueError):
+        mic_device_index = None
+
+    return {
+        "stt_engine": _optional_text(raw.get("stt_engine"), 80) or "local_phonon2",
+        "stt_provider": stt_provider,
+        "stt_model": stt_model,
+        "stt_model_dir": _optional_text(raw.get("stt_model_dir"), 1000),
+        "tts_engine": _optional_text(raw.get("tts_engine"), 80) or "local_paradee",
+        "tts_provider": tts_provider,
+        "tts_model": tts_model,
+        "tts_model_path": _optional_text(raw.get("tts_model_path"), 1000),
+        "tts_voice_id": tts_voice,
+        "tts_speed": tts_speed,
+        "mic_device_index": mic_device_index,
+    }
+
+
 def normalize_tools(value: Any) -> Dict[str, Any]:
     """Sanitizes the tool-loadout section.
 
@@ -476,6 +564,30 @@ def normalize_ai_provider(value: Any) -> Dict[str, Any]:
     raw["cloud_model"] = providers[selected]["model"]
     raw["tavily_api_key"] = _optional_text(raw.get("tavily_api_key"), 400)
     raw["max_tool_rounds"] = normalize_max_tool_rounds(raw.get("max_tool_rounds"))
+    raw["memory_local_recent_turns"] = normalize_memory_count(
+        raw.get("memory_local_recent_turns"),
+        DEFAULT_MEMORY_LOCAL_RECENT_TURNS,
+        MIN_MEMORY_RECENT_TURNS,
+        MAX_MEMORY_RECENT_TURNS,
+    )
+    raw["memory_local_semantic_matches"] = normalize_memory_count(
+        raw.get("memory_local_semantic_matches"),
+        DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES,
+        MIN_MEMORY_SEMANTIC_MATCHES,
+        MAX_MEMORY_SEMANTIC_MATCHES,
+    )
+    raw["memory_cloud_recent_turns"] = normalize_memory_count(
+        raw.get("memory_cloud_recent_turns"),
+        DEFAULT_MEMORY_CLOUD_RECENT_TURNS,
+        MIN_MEMORY_RECENT_TURNS,
+        MAX_MEMORY_RECENT_TURNS,
+    )
+    raw["memory_cloud_semantic_matches"] = normalize_memory_count(
+        raw.get("memory_cloud_semantic_matches"),
+        DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES,
+        MIN_MEMORY_SEMANTIC_MATCHES,
+        MAX_MEMORY_SEMANTIC_MATCHES,
+    )
     return raw
 
 
@@ -485,6 +597,7 @@ def normalize_config(config: Any) -> Dict[str, Any]:
     normalized["brand_name"] = normalize_brand_name(normalized.get("brand_name"))
     normalized["general"] = normalize_general(normalized.get("general"))
     normalized["ai_provider"] = normalize_ai_provider(normalized.get("ai_provider"))
+    normalized["voice"] = normalize_voice(normalized.get("voice"))
     normalized["appearance"] = normalize_appearance(normalized.get("appearance"))
     normalized["clock"] = normalize_clock(normalized.get("clock"))
     normalized["taskbar_apps"] = normalize_taskbar_apps(normalized.get("taskbar_apps"))

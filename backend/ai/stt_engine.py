@@ -9,6 +9,7 @@ worker and answers newline-delimited JSON requests over stdin/stdout.
 """
 
 import base64
+import io
 import json
 import logging
 import os
@@ -21,9 +22,16 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Deque, Dict, List, Optional
 
+import httpx
 import numpy as np
+import soundfile as sf
 import sounddevice as sd
 from ..config_manager import config_manager, find_model_dir, get_models_dir
+from .voice_providers import (
+    VOICE_PROVIDER_IDS,
+    provider_api_key,
+    provider_model,
+)
 
 logger = logging.getLogger("aether.stt")
 SAMPLE_RATE = 16000
@@ -32,6 +40,10 @@ RUNTIME_RELATIVE = Path("bin") / "stt-runtime" / "Scripts" / "python.exe"
 MODEL_FILE = "model.fermion"
 START_TIMEOUT_S = 120.0
 FAILURE_COOLDOWN_S = 30.0
+CLOUD_TIMEOUT_S = 60.0
+OPENROUTER_TRANSCRIPTION_URL = (
+    "https://openrouter.ai/api/v1/audio/transcriptions"
+)
 
 
 class AudioRecorder:
@@ -154,10 +166,25 @@ class STTEngine:
                 return candidate
         return None
 
-    def is_available(self) -> bool:
+    def _provider(self) -> str:
+        """Returns the selected STT provider, defaulting to local."""
+        provider = str(
+            config_manager.get("voice", "stt_provider", "local") or "local"
+        ).strip().lower()
+        return provider if provider in VOICE_PROVIDER_IDS else "local"
+
+    def _cloud_configured(self) -> bool:
+        provider = self._provider()
+        return provider != "local" and bool(provider_api_key(provider))
+
+    def _local_available(self) -> bool:
         """Checks if the local model files and isolated runtime exist."""
         p = self._resolve_model_dir()
         return (p / MODEL_FILE).exists() and self._runtime_python() is not None
+
+    def is_available(self) -> bool:
+        """True when either the selected cloud provider or local STT can run."""
+        return self._cloud_configured() or self._local_available()
 
     @staticmethod
     def _format_tail(tail: Deque[str]) -> str:
@@ -337,6 +364,8 @@ class STTEngine:
 
     def prewarm(self) -> None:
         """Loads Phonon-2 in the background while the user is still speaking."""
+        if self._provider() != "local":
+            return
         if self._proc is not None and self._proc.poll() is None:
             return
         threading.Thread(
@@ -354,10 +383,70 @@ class STTEngine:
                 return
             self._start_worker_locked(model_dir)
 
+    @staticmethod
+    def _wav_bytes(audio: np.ndarray) -> bytes:
+        """Encodes the recorder's float32 PCM as a 16-bit mono WAV clip."""
+        buffer = io.BytesIO()
+        sf.write(
+            buffer,
+            np.ascontiguousarray(audio, dtype=np.float32),
+            SAMPLE_RATE,
+            format="WAV",
+            subtype="PCM_16",
+        )
+        return buffer.getvalue()
+
+    def _transcribe_cloud(self, provider: str, audio: np.ndarray) -> str:
+        """Sends one recorded clip to the selected cloud provider."""
+        api_key = provider_api_key(provider)
+        if not api_key:
+            return ""
+        model = provider_model(
+            provider,
+            str(config_manager.get("voice", "stt_model", "") or ""),
+            "stt",
+        )
+        if not model:
+            return ""
+        try:
+            wav_bytes = self._wav_bytes(audio)
+            if provider == "openrouter":
+                response = httpx.post(
+                    OPENROUTER_TRANSCRIPTION_URL,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    data={"model": model},
+                    files={"file": ("audio.wav", wav_bytes, "audio/wav")},
+                    timeout=CLOUD_TIMEOUT_S,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                text = str(payload.get("text") or "").strip()
+            else:
+                # LiteLLM owns the provider-specific transcription shapes
+                # (OpenAI-compatible, Mistral native, Gemini Interactions).
+                import litellm
+
+                response = litellm.transcription(
+                    model=f"{provider}/{model}",
+                    file=("audio.wav", wav_bytes, "audio/wav"),
+                    api_key=api_key,
+                    timeout=CLOUD_TIMEOUT_S,
+                )
+                text = str(getattr(response, "text", "") or "").strip()
+            if text:
+                logger.info("Cloud STT (%s/%s) transcribed %.1fs.", provider, model, audio.size / SAMPLE_RATE)
+            return text
+        except Exception as exc:
+            logger.warning("Cloud STT (%s/%s) failed: %s", provider, model, exc)
+            return ""
+
     def transcribe(self, audio: np.ndarray) -> str:
         """
-        Transcribes 16kHz float32 audio waveform into text.
-        Handles short/empty audio inputs gracefully.
+        Transcribes 16kHz float32 audio into text using the selected provider.
+
+        Cloud failures fall back to local Phonon-2 when it is installed. Local
+        failures never escalate to the cloud, so audio is not uploaded unless
+        the user selected a cloud STT provider.
         """
         if audio is None:
             return ""
@@ -367,6 +456,25 @@ class STTEngine:
         if float(np.max(np.abs(audio))) < 0.001:
             return ""  # Pure silence
 
+        provider = self._provider()
+        if provider != "local":
+            if self._cloud_configured():
+                text = self._transcribe_cloud(provider, audio)
+                if text:
+                    return text
+                logger.warning(
+                    "Cloud STT (%s) returned no text; falling back to local Phonon-2.",
+                    provider,
+                )
+            else:
+                logger.warning(
+                    "Cloud STT (%s) has no saved key; using local Phonon-2.",
+                    provider,
+                )
+        return self._transcribe_local(audio)
+
+    def _transcribe_local(self, audio: np.ndarray) -> str:
+        """Runs the resident Phonon-2 worker."""
         model_dir = self._resolve_model_dir().resolve()
         if not (model_dir / MODEL_FILE).exists():
             logger.warning(

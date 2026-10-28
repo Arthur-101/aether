@@ -466,12 +466,20 @@ export interface AIProviderConfig {
   kv_cache_type?: string;
   thinking_mode: boolean;
   max_tool_rounds?: number;
+  memory_local_recent_turns?: number;
+  memory_local_semantic_matches?: number;
+  memory_cloud_recent_turns?: number;
+  memory_cloud_semantic_matches?: number;
 }
 
 export interface VoiceConfig {
   stt_engine: string;
+  stt_provider: string;
+  stt_model: string;
   stt_model_dir: string;
   tts_engine: string;
+  tts_provider: string;
+  tts_model: string;
   tts_model_path: string;
   tts_voice_id: string;
   tts_speed: number;

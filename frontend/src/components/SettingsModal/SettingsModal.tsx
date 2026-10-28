@@ -462,7 +462,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                   )}
                   {activeTab === 'voice' && (
-                    <VoiceSettings voice={draft.voice} onChange={updateVoice} />
+                    <VoiceSettings
+                      voice={draft.voice}
+                      ai={draft.ai_provider}
+                      onChange={updateVoice}
+                    />
                   )}
                   {activeTab === 'hotkeys' && (
                     <HotkeySettings

@@ -99,6 +99,42 @@ def test_turn_result_keeps_attachment_labels_and_tool_status(monkeypatch):
     ]
 
 
+def test_fallback_reply_is_not_committed(monkeypatch):
+    committed, _refreshes = _prepare(monkeypatch, [])
+    monkeypatch.setattr(
+        chat_execution.llm_router,
+        "chat_completion",
+        lambda *_args, **_kwargs: {
+            "content": "I could not produce a response.",
+            "tool_calls_executed": [],
+        },
+    )
+
+    result = asyncio.run(chat_execution.execute_chat_turn("session-1", "Hello"))
+
+    assert result["reply"] == "I could not produce a response."
+    assert committed == []
+
+
+def test_reasoning_only_reply_is_not_committed(monkeypatch):
+    committed, _refreshes = _prepare(monkeypatch, [])
+    monkeypatch.setattr(
+        chat_execution.llm_router,
+        "chat_completion",
+        lambda *_args, **_kwargs: {
+            "content": (
+                "The user said they want the note updated. They want all tools "
+                "listed. Let me think about the best structure and then write it."
+            ),
+            "tool_calls_executed": [],
+        },
+    )
+
+    asyncio.run(chat_execution.execute_chat_turn("session-1", "Update the note"))
+
+    assert committed == []
+
+
 def test_pending_approval_does_not_commit_a_partial_turn(monkeypatch):
     committed, _refreshes = _prepare(monkeypatch, [])
     monkeypatch.setattr(

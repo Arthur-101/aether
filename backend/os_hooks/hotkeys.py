@@ -37,11 +37,12 @@ VOICE_HOLD_SECONDS = 0.3
 # These messages are sent through the normal ERROR toast so the user knows why
 # nothing happened and where to fix it.
 STT_UNAVAILABLE_NOTICE = (
-    "Speech-to-text isn't available. Choose the Phonon-2 folder in Settings → Voice Engine."
+    "Speech-to-text isn't available. Choose the Phonon-2 folder or a cloud "
+    "provider with a saved key in Settings → Voice Engine."
 )
 TTS_UNAVAILABLE_NOTICE = (
-    "Voice output isn't available. The reply is in Quick Chat; choose the Paradee model "
-    "in Settings → Voice Engine."
+    "Voice output isn't available. The reply is in Quick Chat; choose the Paradee "
+    "model or a cloud provider with a saved key in Settings → Voice Engine."
 )
 TTS_FAILED_NOTICE = "Voice output failed. The reply is in Quick Chat."
 
@@ -261,7 +262,7 @@ class HotkeyManager:
         audio = self._stop_recording_safe()
         if not stt_engine.is_available():
             self.on_error(STT_UNAVAILABLE_NOTICE)
-            logger.warning("Dictation is unavailable: Phonon-2 model or runtime is missing.")
+            logger.warning("Dictation is unavailable: no local model or cloud STT key is configured.")
             self.on_voice_state("idle", "")
             return
         raw_text = stt_engine.transcribe(audio)
@@ -338,7 +339,7 @@ class HotkeyManager:
                     if not tts_engine.is_available():
                         self.on_error(TTS_UNAVAILABLE_NOTICE)
                         logger.warning(
-                            "Voice output is unavailable: Paradee model is missing."
+                            "Voice output is unavailable: no local Paradee model or cloud TTS key is configured."
                         )
                     else:
                         self.on_voice_state("speaking", reply)

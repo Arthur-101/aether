@@ -9,7 +9,12 @@ from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager
 from ..config_schema import DEFAULT_MAX_TOOL_ROUNDS, normalize_max_tool_rounds
-from ..db.sessions import session_manager
+from ..db.sessions import (
+    EMPTY_REPLY,
+    REASONING_ONLY_REPLY,
+    looks_like_reasoning,
+    session_manager,
+)
 from ..mcp_tools.server import (
     SESSION_SCOPED_TOOLS,
     execute_tool,
@@ -125,6 +130,69 @@ class LLMRouter:
             disabled_tools=loadout.get("disabled_tools"),
         )
 
+    def _final_result(
+        self,
+        engine: Any,
+        conversation: List[Dict[str, Any]],
+        result: Dict[str, Any],
+        executed: List[Dict[str, Any]],
+        *,
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        presence_penalty: float,
+        thinking_mode: bool,
+    ) -> Dict[str, Any]:
+        """Returns usable final text, retrying once if the provider leaks reasoning."""
+        content = (result.get("content") or "").strip()
+        reasoning = (result.get("reasoning") or "").strip()
+        if content and not looks_like_reasoning(content):
+            return {
+                "content": content,
+                "reasoning": reasoning,
+                "tool_calls_executed": executed,
+            }
+
+        # A provider may put its chain of thought in `content`, or leave content
+        # empty and expose only `reasoning`. Ask once for a clean final answer.
+        retry_messages = list(conversation)
+        retry_messages.append({
+            "role": "user",
+            "content": (
+                "Return only your final answer to the user now. "
+                "Do not include analysis, reasoning, or a plan."
+            ),
+        })
+        retry = engine.complete(
+            retry_messages,
+            tools=None,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            presence_penalty=presence_penalty,
+            thinking_mode=thinking_mode,
+        )
+        retry_content = (retry.get("content") or "").strip()
+        retry_reasoning = (retry.get("reasoning") or "").strip()
+        if retry_content and not looks_like_reasoning(retry_content):
+            return {
+                "content": retry_content,
+                "reasoning": retry_reasoning,
+                "tool_calls_executed": executed,
+            }
+
+        fallback = (
+            REASONING_ONLY_REPLY
+            if (reasoning or content or retry_reasoning)
+            else EMPTY_REPLY
+        )
+        return {
+            "content": fallback,
+            "reasoning": reasoning or retry_reasoning,
+            "tool_calls_executed": executed,
+            "failed": True,
+        }
+
     def _complete(
         self,
         engine: Any,
@@ -156,18 +224,29 @@ class LLMRouter:
             )
             tool_calls = result.get("tool_calls") or []
             if not tool_calls:
-                content = result.get("content") or result.get("reasoning") or ""
-                return {
-                    "content": content.strip(),
-                    "reasoning": result.get("reasoning", ""),
-                    "tool_calls_executed": executed,
-                }
+                return self._final_result(
+                    engine,
+                    conversation,
+                    result,
+                    executed,
+                    max_tokens=max_tokens,
+                    temperature=temp,
+                    top_p=top_p,
+                    presence_penalty=presence_penalty,
+                    thinking_mode=bool(thinking_mode),
+                )
 
-            conversation.append({
+            assistant_message: Dict[str, Any] = {
                 "role": "assistant",
                 "content": result.get("content", ""),
                 "tool_calls": tool_calls,
-            })
+            }
+            # Preserve provider-native reasoning blocks across tool rounds.
+            for key in ("thinking_blocks", "reasoning_details"):
+                value = result.get(key)
+                if value:
+                    assistant_message[key] = value
+            conversation.append(assistant_message)
             force_final = False
             for index, call in enumerate(tool_calls):
                 fn = call.get("function", {})
@@ -248,23 +327,22 @@ class LLMRouter:
                     presence_penalty=presence_penalty,
                     thinking_mode=thinking_mode,
                 )
-                content = (
-                    final.get("content") or final.get("reasoning") or ""
-                ).strip()
-                if not content:
-                    content = (
-                        last_output
-                        or "I already have the result from the previous tool call."
-                    )
-                return {
-                    "content": content,
-                    "reasoning": final.get("reasoning", ""),
-                    "tool_calls_executed": executed,
-                }
+                return self._final_result(
+                    engine,
+                    conversation,
+                    final,
+                    executed,
+                    max_tokens=max_tokens,
+                    temperature=temp,
+                    top_p=top_p,
+                    presence_penalty=presence_penalty,
+                    thinking_mode=bool(thinking_mode),
+                )
         return {
             "content": "I reached the maximum number of tool steps for this request.",
             "reasoning": "",
             "tool_calls_executed": executed,
+            "failed": True,
         }
 
     def chat_completion(

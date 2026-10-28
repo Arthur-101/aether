@@ -15,7 +15,7 @@ from .ai.llm_router import llm_router
 from .ai.prompts import build_assistant_messages
 from .config_manager import config_manager, get_app_dir, get_data_dir
 from .db.attachments import list_attachments
-from .db.sessions import session_manager
+from .db.sessions import is_fallback_reply, looks_like_reasoning, session_manager
 from .mcp_tools.attachment_tools import image_attachment_paths
 from .mcp_tools.server import get_openai_tool_schemas
 from .ws_manager import ws_manager
@@ -118,17 +118,18 @@ async def execute_chat_turn(session_id: str, prompt: str) -> Dict[str, Any]:
     )
     if result.get("approval_required"):
         return result
-    reply = result.get("content", "") or "I could not produce a response."
-    await loop.run_in_executor(
-        None,
-        lambda: session_manager.commit_turn(
-            session_id,
-            prompt,
-            reply,
-            attachments=attachments,
-            tools_used=result.get("tool_calls_executed", []),
-        ),
-    )
+    reply = (result.get("content") or "").strip() or "I could not produce a response."
+    if not is_fallback_reply(reply) and not looks_like_reasoning(reply):
+        await loop.run_in_executor(
+            None,
+            lambda: session_manager.commit_turn(
+                session_id,
+                prompt,
+                reply,
+                attachments=attachments,
+                tools_used=result.get("tool_calls_executed", []),
+            ),
+        )
     await _refresh_mutated_views(result)
     return {
         **result,
@@ -184,20 +185,21 @@ async def resolve_tool_approval(
     )
     if result.get("error"):
         return result
-    reply = result.get("content", "") or "I could not produce a response."
+    reply = (result.get("content") or "").strip() or "I could not produce a response."
     attachments = await loop.run_in_executor(
         None, lambda: list_attachments(session_id)
     )
-    await loop.run_in_executor(
-        None,
-        lambda: session_manager.commit_turn(
-            session_id,
-            prompt,
-            reply,
-            attachments=attachments,
-            tools_used=result.get("tool_calls_executed", []),
-        ),
-    )
+    if not is_fallback_reply(reply) and not looks_like_reasoning(reply):
+        await loop.run_in_executor(
+            None,
+            lambda: session_manager.commit_turn(
+                session_id,
+                prompt,
+                reply,
+                attachments=attachments,
+                tools_used=result.get("tool_calls_executed", []),
+            ),
+        )
     await _refresh_mutated_views(result)
     return {
         **result,

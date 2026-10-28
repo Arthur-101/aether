@@ -14,6 +14,10 @@ from platformdirs import user_data_dir
 
 from .config_schema import (
     DEFAULT_MAX_TOOL_ROUNDS,
+    DEFAULT_MEMORY_CLOUD_RECENT_TURNS,
+    DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES,
+    DEFAULT_MEMORY_LOCAL_RECENT_TURNS,
+    DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES,
     default_appearance,
     default_clock,
     default_general,
@@ -103,11 +107,19 @@ def get_default_config() -> Dict[str, Any]:
             "kv_cache_type": "q8_0",
             "thinking_mode": False,  # Default: Normal mode (Direct, low-latency)
             "max_tool_rounds": DEFAULT_MAX_TOOL_ROUNDS,
+            "memory_local_recent_turns": DEFAULT_MEMORY_LOCAL_RECENT_TURNS,
+            "memory_local_semantic_matches": DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES,
+            "memory_cloud_recent_turns": DEFAULT_MEMORY_CLOUD_RECENT_TURNS,
+            "memory_cloud_semantic_matches": DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES,
         },
         "voice": {
             "stt_engine": "local_phonon2",
+            "stt_provider": "local",
+            "stt_model": "",
             "stt_model_dir": phonon2_dir,
             "tts_engine": "local_paradee",
+            "tts_provider": "local",
+            "tts_model": "",
             "tts_model_path": paradee_path,
             "tts_voice_id": "af_heart",
             "tts_speed": 1.0,
