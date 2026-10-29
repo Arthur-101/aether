@@ -3,6 +3,7 @@ import {
   WHEEL_INNER_RADIUS,
   WHEEL_RADIUS,
   WHEEL_SIZE,
+  sliceKind,
 } from './geometry';
 
 interface RadialWheelCanvasProps {
@@ -63,6 +64,31 @@ export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
         const wedgeTransform = isHovered
           ? `translate(${center} ${center}) scale(1.06) translate(-${center} -${center})`
           : undefined;
+        // Conversions, edits, and Ask AI each get their own tint so the three
+        // groups read as arcs around the ring instead of one flat colour.
+        const kind = sliceKind(slice);
+        const fill = isHovered
+          ? 'url(#activeSliceGradient)'
+          : kind === 'ask'
+            ? 'var(--aether-accent)'
+            : kind === 'utility'
+              ? '#60a5fa'
+              : '#ffffff';
+        const fillOpacity = isHovered
+          ? 1
+          : kind === 'ask'
+            ? 0.2
+            : kind === 'utility'
+              ? 0.12
+              : 0.05;
+        const stroke = isHovered
+          ? '#FFFFFF'
+          : kind === 'ask'
+            ? 'var(--aether-accent)'
+            : kind === 'utility'
+              ? '#60a5fa'
+              : 'rgba(255, 255, 255, 0.12)';
+        const strokeOpacity = isHovered ? 1 : kind === 'ask' ? 0.5 : kind === 'utility' ? 0.32 : 1;
 
         return (
           <g
@@ -75,15 +101,17 @@ export const RadialWheelCanvas: React.FC<RadialWheelCanvasProps> = ({
             <g transform={wedgeTransform}>
               <path
                 d={pathD}
-                fill={isHovered ? 'url(#activeSliceGradient)' : 'rgba(255, 255, 255, 0.06)'}
-                stroke={isHovered ? '#FFFFFF' : 'rgba(255, 255, 255, 0.12)'}
+                fill={fill}
+                fillOpacity={fillOpacity}
+                stroke={stroke}
+                strokeOpacity={strokeOpacity}
                 strokeWidth={isHovered ? '2' : '1.5'}
               />
               <text
                 x={textX}
                 y={textY}
                 textAnchor="middle"
-                fill={isHovered ? '#FFFFFF' : '#C7C7C7'}
+                fill={isHovered ? '#FFFFFF' : kind === 'ask' ? 'var(--aether-accent-text)' : '#C7C7C7'}
                 fontSize={isHovered ? '11.5' : '10.5'}
                 fontWeight={isHovered ? '700' : '600'}
                 className="pointer-events-none select-none font-sans"

@@ -42,7 +42,7 @@ def test_appearance_is_clamped_and_sanitized():
             "auto_hide_pill": True,
         }
     )
-    assert appearance["pill_opacity"] == 0.3
+    assert appearance["pill_opacity"] == 0.05
     assert appearance["island_opacity"] == 1.0
     assert appearance["button_primary"] == "#aabbcc"
     assert appearance["button_secondary"] == "#f4df9a"
@@ -72,14 +72,16 @@ def test_appearance_grain_and_pop_are_clamped_and_backfilled():
     assert defaults["island_pop"] == 60
 
 
-def test_widget_opacity_can_reach_zero_but_pill_cannot():
+def test_surface_opacity_can_reach_zero():
     assert normalize_appearance({})["widget_opacity"] == 0.9
     assert normalize_appearance({"widget_opacity": 0})["widget_opacity"] == 0.0
     assert normalize_appearance({"widget_opacity": -1})["widget_opacity"] == 0.0
     assert normalize_appearance({"widget_opacity": 2})["widget_opacity"] == 1.0
-    # The pill and island keep a readable minimum.
-    assert normalize_appearance({"pill_opacity": 0})["pill_opacity"] == 0.3
-    assert normalize_appearance({"island_opacity": 0})["island_opacity"] == 0.3
+    # The pill and island can also be taken fully transparent.
+    assert normalize_appearance({"pill_opacity": 0})["pill_opacity"] == 0.0
+    assert normalize_appearance({"island_opacity": 0})["island_opacity"] == 0.0
+    assert normalize_appearance({"pill_opacity": 0.05})["pill_opacity"] == 0.05
+    assert normalize_appearance({"island_opacity": 0.05})["island_opacity"] == 0.05
 
 
 def test_widget_clock_switches_default_on_and_require_booleans():

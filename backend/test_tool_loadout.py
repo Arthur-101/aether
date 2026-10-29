@@ -138,7 +138,7 @@ def test_schema_filter_honours_individual_tool_exceptions():
     }
     assert "delete_note" not in names
     assert "list_notes" in names
-    assert len(names) == 51
+    assert len(names) == 52
 
 
 def test_empty_loadout_returns_no_schemas():
@@ -171,8 +171,8 @@ def test_execute_tool_allows_enabled_tool(monkeypatch):
 
 def test_tool_group_summary_reports_counts_and_tokens():
     summary = tool_group_summary(TOOL_GROUP_IDS, [])
-    assert summary["total_tools"] == 52
-    assert summary["enabled_tools"] == 52
+    assert summary["total_tools"] == 53
+    assert summary["enabled_tools"] == 53
     assert summary["total_tokens"] == summary["enabled_tokens"]
     assert {group["id"] for group in summary["groups"]} == set(TOOL_GROUP_IDS)
     assert all(group["tools"] for group in summary["groups"])

@@ -23,6 +23,7 @@ from backend.db.database import get_db, init_db
 from backend.db.sessions import SessionManager
 from backend.mcp_tools.media_tools import (
     convert_image_format,
+    black_and_white,
     compress_media,
     strip_image_metadata,
 )
@@ -81,6 +82,15 @@ def run_tests():
         clean_out = strip_image_metadata(str(sample_img))
         assert Path(clean_out).exists()
         print(f"  PASS: Stripped metadata: {Path(clean_out).name}")
+
+        # Black & white
+        bw_out = black_and_white(str(sample_img))
+        assert Path(bw_out).exists() and "_bw" in Path(bw_out).stem
+        with Image.open(bw_out) as bw_img:
+            assert bw_img.mode == "L"
+            r, g, b = bw_img.convert("RGB").getpixel((100, 100))
+            assert r == g == b
+        print(f"  PASS: Converted to black & white: {Path(bw_out).name}")
 
         # Compress media
         comp_out = compress_media(str(sample_img), target_mb=1.0)
@@ -157,7 +167,7 @@ def run_tests():
         # ----------------------------------------------------
         print("\n[Test 4] Testing FastMCP Server & OpenAI Tool Schemas...")
         schemas = get_openai_tool_schemas()
-        assert len(schemas) == 52
+        assert len(schemas) == 53
         tool_names = [s["function"]["name"] for s in schemas]
         print(f"  Registered LLM Tools: {tool_names}")
         assert "convert_image_format" in tool_names

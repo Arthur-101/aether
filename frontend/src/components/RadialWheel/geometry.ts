@@ -38,7 +38,22 @@ export function sliceActionLabel(label: string, isPdf: boolean): string {
   if (label === 'ADD BG') return 'Add Background';
   if (label === 'COMPRESS') return 'Compress';
   if (label === 'METADATA') return 'Strip Metadata';
+  if (label === 'B&W') return 'Black & White';
   return isPdf ? `Convert → ${label}` : `Convert → .${label}`;
+}
+
+export type WheelSliceKind = 'convert' | 'utility' | 'ask';
+
+const IMAGE_EXTENSIONS = new Set([
+  'png', 'jpg', 'jpeg', 'webp', 'heic', 'avif', 'bmp', 'tiff', 'gif',
+]);
+
+const UTILITY_ACTIONS = new Set(['COMPRESS', 'CROP', 'ADD BG', 'METADATA', 'B&W']);
+
+/** Groups a slice for the wheel's tinting: conversions, edits, or Ask AI. */
+export function sliceKind(label: string): WheelSliceKind {
+  if (label === 'ASK') return 'ask';
+  return UTILITY_ACTIONS.has(label) ? 'utility' : 'convert';
 }
 
 export function buildSlices(ext: string, askEligible: boolean): string[] {
@@ -51,6 +66,8 @@ export function buildSlices(ext: string, askEligible: boolean): string[] {
       : ['WEBP', 'PNG', 'JPG', 'PDF', 'HEIC', 'AVIF'];
   // Edits share one ring with conversions; dedupe keeps video's COMPRESS once.
   const edits = ['COMPRESS', 'CROP', 'ADD BG', 'METADATA'];
+  // Black & white only makes sense for raster images.
+  if (IMAGE_EXTENSIONS.has(ext)) edits.push('B&W');
   const slices = [...format, ...edits.filter((slice) => !format.includes(slice))];
   if (askEligible) slices.push('ASK');
   return slices;

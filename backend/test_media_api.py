@@ -14,6 +14,7 @@ from backend.mcp_tools import media_tools
 from backend.mcp_tools.media_tools import (
     _build_background,
     add_background,
+    black_and_white,
     crop_image,
     image_preview,
 )
@@ -162,6 +163,31 @@ def test_preview_and_background_follow_exif_orientation(tmp_path, monkeypatch):
 
     with Image.open(output) as result:
         assert result.size == (60, 90)
+
+
+def test_black_and_white_preserves_size_and_alpha(tmp_path, monkeypatch):
+    source = tmp_path / "colour.png"
+    image = Image.new("RGBA", (40, 30), (200, 40, 60, 255))
+    image.putpixel((0, 0), (200, 40, 60, 0))
+    image.save(source)
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    monkeypatch.setattr(
+        media_tools,
+        "exported_path",
+        lambda _source, name: output_dir / name,
+    )
+
+    output = black_and_white(str(source))
+
+    assert Path(output).name == "colour_bw.png"
+    with Image.open(output) as result:
+        assert result.size == (40, 30)
+        assert result.mode == "RGBA"
+        r, g, b, a = result.getpixel((20, 15))
+        assert r == g == b
+        assert a == 255
+        assert result.getpixel((0, 0))[3] == 0
 
 
 def test_crop_options_accept_json_and_legacy_targets():

@@ -40,6 +40,10 @@ interface NotchShellProps {
   tabsWidth: number;
   /** Height of the rendered tab body, in pixels. */
   contentHeight: number;
+  /** Primary monitor width in CSS pixels, independent of the window size. */
+  viewportWidth: number;
+  /** Primary monitor height in CSS pixels, independent of the window size. */
+  viewportHeight: number;
   tucked: boolean;
   onMetricsChange: (metrics: AutoHidePillMetrics) => void;
   /** Tracks keyboard focus inside the shell so auto-hide can pause. */
@@ -63,6 +67,8 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   tabWidth,
   tabsWidth,
   contentHeight,
+  viewportWidth,
+  viewportHeight,
   tucked,
   onMetricsChange,
   onFocusWithinChange,
@@ -78,10 +84,6 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   const peekFocusGraceUntil = useRef(0);
   const reduceMotion = useReducedMotion();
   const timeFormat = useTimeFormat();
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window === 'undefined' ? 1200 : window.innerWidth,
-    height: typeof window === 'undefined' ? 800 : window.innerHeight,
-  }));
   const enterTimer = useRef<number | null>(null);
   const leaveTimer = useRef<number | null>(null);
   const mediaActive = Boolean(media?.is_playing);
@@ -102,15 +104,19 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    // The pill only shows minutes. Re-rendering the full-screen shell every
+    // second made the transparent window repaint continuously, so keep the
+    // ticking cheap and skip the render unless the displayed minute changed.
+    const timer = window.setInterval(() => {
+      setNow((prev) => {
+        const next = new Date();
+        return next.getHours() === prev.getHours() &&
+          next.getMinutes() === prev.getMinutes()
+          ? prev
+          : next;
+      });
+    }, 1000);
     return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const onResize = () =>
-      setViewport({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
   }, []);
 
   useEffect(() => {
@@ -273,8 +279,8 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   );
   // The peek grows with the number of apps rather than scrolling.
   const peekLayout = useMemo(
-    () => computePeekLayout(apps.length, viewport.width),
-    [apps.length, viewport.width]
+    () => computePeekLayout(apps.length, viewportWidth),
+    [apps.length, viewportWidth]
   );
   // The expanded island sizes itself to the active tab: the width the tab
   // asks for, and the height its content actually needed. It is never
@@ -284,7 +290,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     Math.min(
       Math.max(tabWidth, tabsWidth),
       MAX_ISLAND_WIDTH,
-      viewport.width - 32
+      viewportWidth - 32
     )
   );
   const expandedHeight = Math.max(
@@ -295,7 +301,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
         SHELL_BORDER +
         contentHeight +
         CONTENT_PADDING,
-      viewport.height - 16
+      viewportHeight - 16
     )
   );
   const width = isExpanded

@@ -165,8 +165,16 @@ export function resolveAppearance(
     theme_mode: normalizeThemeMode(raw.theme_mode),
     glow_style: normalizeGlowStyle(raw.glow_style),
     glow_color: normalizeGlowColor(raw.glow_color),
-    pill_opacity: clampOpacity(raw.pill_opacity, DEFAULT_APPEARANCE.pill_opacity),
-    island_opacity: clampOpacity(raw.island_opacity, DEFAULT_APPEARANCE.island_opacity),
+    pill_opacity: clampOpacity(
+      raw.pill_opacity,
+      DEFAULT_APPEARANCE.pill_opacity,
+      0
+    ),
+    island_opacity: clampOpacity(
+      raw.island_opacity,
+      DEFAULT_APPEARANCE.island_opacity,
+      0
+    ),
     pill_grain: clampPercent(raw.pill_grain, DEFAULT_APPEARANCE.pill_grain),
     island_grain: clampPercent(raw.island_grain, DEFAULT_APPEARANCE.island_grain),
     pill_pop: clampPercent(raw.pill_pop, DEFAULT_APPEARANCE.pill_pop),

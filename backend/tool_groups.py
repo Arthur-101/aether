@@ -54,7 +54,7 @@ TOOL_GROUPS: Tuple[Dict[str, str], ...] = (
     {
         "id": "files",
         "label": "Image & File Tools",
-        "hint": "Convert, compress, crop, and strip metadata from image files.",
+        "hint": "Convert, compress, crop, black & white, and strip metadata from image files.",
     },
 )
 

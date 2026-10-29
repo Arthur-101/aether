@@ -2,6 +2,7 @@ use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 mod autostart;
 mod external_window;
+mod overlay;
 mod tray;
 mod widgets;
 
@@ -12,6 +13,7 @@ pub fn run() {
       autostart::get_autostart,
       autostart::set_autostart,
       external_window::open_external,
+      overlay::set_overlay_bounds,
       tray::set_tray_visible,
       widgets::sync_widgets,
       widgets::ensure_on_top

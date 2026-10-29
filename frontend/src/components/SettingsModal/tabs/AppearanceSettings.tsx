@@ -116,13 +116,13 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
           <SurfaceSlider
             label="Pill opacity"
-            min={30}
+            min={0}
             value={appearance.pill_opacity * 100}
             onChange={(value) => update({ pill_opacity: value / 100 })}
           />
           <SurfaceSlider
             label="Island opacity"
-            min={30}
+            min={0}
             value={appearance.island_opacity * 100}
             onChange={(value) => update({ island_opacity: value / 100 })}
           />

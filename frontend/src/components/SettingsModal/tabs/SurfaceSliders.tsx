@@ -16,7 +16,7 @@ export const SurfaceSlider: React.FC<{
   label: string;
   value: number;
   onChange: (value: number) => void;
-  /** The lowest value the surface may reach. Opacity starts at 30. */
+  /** The lowest value the surface may reach. Defaults to 30. */
   min?: number;
   max?: number;
   /** Unit shown after the value. Defaults to a percent sign. */

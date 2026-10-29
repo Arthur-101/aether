@@ -73,6 +73,7 @@ TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
     "convert_document": ToolPermission("write", "documents"),
     "search_dropped_file": ToolPermission("read", "documents"),
     "convert_image_format": ToolPermission("write", "files"),
+    "black_and_white": ToolPermission("write", "files"),
     "compress_media": ToolPermission("write", "files"),
     "strip_image_metadata": ToolPermission("write", "files"),
     "crop_image": ToolPermission("write", "files"),

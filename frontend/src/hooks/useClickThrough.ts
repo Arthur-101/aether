@@ -1,14 +1,16 @@
 /**
  * Aether Click-Through Hit Testing
- * The overlay is a transparent, fullscreen, always-on-top Tauri window. Empty
- * areas must pass clicks to the desktop. Python streams global cursor
- * coordinates (so they keep arriving even while the window ignores the mouse);
- * this hook hit-tests those coordinates against [data-aether-interactive]
- * regions and toggles OS-level cursor transparency accordingly.
+ * The overlay is a transparent, always-on-top Tauri window that is normally
+ * only as large as the idle pill. Empty areas must pass clicks to the desktop.
+ * Python streams global cursor coordinates (so they keep arriving even while
+ * the window ignores the mouse); this hook translates those screen
+ * coordinates into window-local CSS pixels and hit-tests them against
+ * [data-aether-interactive] regions, toggling OS-level cursor transparency.
  */
 
 import { useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getOverlayGeometry } from './useOverlayBounds';
 
 type MouseSubscriber = (cb: (x: number, y: number) => void) => () => void;
 
@@ -95,11 +97,17 @@ export function useClickThrough(
       lastX = physicalX;
       lastY = physicalY;
 
-      const scale = window.devicePixelRatio || 1;
-      const x = physicalX / scale;
-      const y = physicalY / scale;
+      // Python reports global physical pixels. The window is no longer
+      // guaranteed to start at (0, 0) or cover the whole screen, so subtract
+      // its physical origin before converting to CSS pixels.
+      const bounds = getOverlayGeometry();
+      const scale = bounds.dpr || 1;
+      const x = (physicalX - bounds.x) / scale;
+      const y = (physicalY - bounds.y) / scale;
+      const width = bounds.width / scale;
+      const height = bounds.height / scale;
 
-      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+      if (x < 0 || y < 0 || x > width || y > height) {
         void applyIgnore(true);
         return;
       }

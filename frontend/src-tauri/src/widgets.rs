@@ -545,6 +545,12 @@ pub fn install_repaint_hook() {
     native::install_repaint_hook();
 }
 
+/// Returns the raw Win32 handle of a Tauri window, for callers outside this
+/// module that need to place a window in physical pixels.
+pub fn raw_hwnd(window: &tauri::WebviewWindow) -> Option<isize> {
+    native::raw_hwnd(window)
+}
+
 /// One widget as the main window describes it. Every coordinate and size is a
 /// **physical** pixel: the frontend converts its logical (CSS) layout with the
 /// real device pixel ratio before calling in, because Tauri's own scale factor

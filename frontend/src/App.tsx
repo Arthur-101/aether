@@ -199,6 +199,12 @@ export function App() {
   const [scaleUnit, setScaleUnit] = useState<ScaleUnit | null>(null);
   const [pickedColor, setPickedColor] = useState<string>(readPickedColor);
   const [isPickingColor, setIsPickingColor] = useState(false);
+  const [notificationHeight, setNotificationHeight] = useState(0);
+  const handleNotificationHeight = useCallback((height: number) => {
+    setNotificationHeight((previous) =>
+      Math.abs(previous - height) > 1 ? height : previous
+    );
+  }, []);
   const islandExpandedRef = useRef(false);
   const islandExpandedBeforeSettings = useRef(false);
   const settingsOpenRef = useRef(false);
@@ -550,6 +556,27 @@ export function App() {
   // everything.
   useIslandOnTop();
 
+  // The overlay window stays wrapped around the idle pill. Anything that
+  // paints beyond the pill — the expanded island, Settings, the wheel, region
+  // capture, or modals — needs the full monitor back. The bounds hook grows the
+  // window immediately and only shrinks it after the closing animation.
+  const notificationsActive =
+    !connected ||
+    voiceState !== 'idle' ||
+    Boolean(clockAlert) ||
+    Boolean(lastWheelResult) ||
+    Boolean(errorMessage);
+
+  const overlayFullScreen =
+    isIslandExpanded ||
+    isSettingsOpen ||
+    Boolean(radialWheel) ||
+    Boolean(cropFile) ||
+    Boolean(addBgFile) ||
+    Boolean(scaleUnit) ||
+    isPickingColor ||
+    isRegionOpen;
+
   return (
     <main
       // Aether follows the Windows theme by default, so the overlay, the
@@ -640,6 +667,9 @@ export function App() {
         onSetColor={setColor}
         hidden={isPickingColor}
         autoHideSuspended={isSettingsOpen}
+        overlayFullScreen={overlayFullScreen}
+        notificationActive={notificationsActive}
+        notificationHeight={notificationHeight}
         connected={connected}
         subscribeMouse={subscribeMouse}
         brandName={brandName}
@@ -764,6 +794,8 @@ export function App() {
         onSnoozeAlarm={snoozeAlarm}
         onClearWheelResult={clearWheelResult}
         onClearError={clearError}
+        compact={!overlayFullScreen}
+        onHeightChange={handleNotificationHeight}
       />
     </main>
   );

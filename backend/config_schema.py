@@ -291,10 +291,14 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
             glow_color if glow_color in _GLOW_COLORS else DEFAULT_APPEARANCE["glow_color"]
         ),
         "pill_opacity": _clamp_opacity(
-            raw.get("pill_opacity"), DEFAULT_APPEARANCE["pill_opacity"]
+            raw.get("pill_opacity"),
+            DEFAULT_APPEARANCE["pill_opacity"],
+            minimum=0.0,
         ),
         "island_opacity": _clamp_opacity(
-            raw.get("island_opacity"), DEFAULT_APPEARANCE["island_opacity"]
+            raw.get("island_opacity"),
+            DEFAULT_APPEARANCE["island_opacity"],
+            minimum=0.0,
         ),
         "pill_grain": _clamp_percent(
             raw.get("pill_grain"), DEFAULT_APPEARANCE["pill_grain"]

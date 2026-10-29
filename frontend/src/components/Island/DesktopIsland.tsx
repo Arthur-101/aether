@@ -38,6 +38,7 @@ import {
   type AutoHidePillMetrics,
   type MouseSubscriber,
 } from '../../hooks/useAutoHidePill';
+import { useOverlayBounds } from '../../hooks/useOverlayBounds';
 import type { ScaleUnit } from './scaleUnits';
 import type { DesktopWidgetsApi } from '../../hooks/useDesktopWidgets';
 import { TAB_WIDTH } from './tabSizes';
@@ -122,6 +123,12 @@ interface DesktopIslandProps {
   onSetColor: (hex: string) => void;
   hidden?: boolean;
   autoHideSuspended?: boolean;
+  /** A panel that needs the whole monitor is open. */
+  overlayFullScreen?: boolean;
+  /** A notification is docked under the pill. */
+  notificationActive?: boolean;
+  /** Measured height of the notification column, in CSS pixels. */
+  notificationHeight?: number;
   connected: boolean;
   subscribeMouse: MouseSubscriber;
   brandName: string;
@@ -215,6 +222,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onSetColor,
   hidden = false,
   autoHideSuspended = false,
+  overlayFullScreen = false,
+  notificationActive = false,
+  notificationHeight = 0,
   connected,
   subscribeMouse,
   brandName,
@@ -261,10 +271,23 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   // Keep the pill out while a keyboard user is somewhere inside it.
   const suspendAutoHide = hidden || autoHideSuspended || isExpanded || focusWithin;
   const { tucked } = useAutoHidePill({
-    enabled: appearance.auto_hide_pill && connected,
+    // A visible notification is more important than a tucked pill: reveal the
+    // pill and hold it out until the notification clears.
+    enabled: appearance.auto_hide_pill && connected && !notificationActive,
     suspended: suspendAutoHide,
     subscribeMouse,
     metrics: shellMetrics,
+  });
+  // Keep the native window wrapped around the idle pill. The returned size is
+  // the monitor in CSS pixels, not the window viewport: while idle the window
+  // is only a strip, but the peek and expanded layouts must still be measured
+  // against the whole screen.
+  const overlayScreen = useOverlayBounds({
+    fullScreen: overlayFullScreen,
+    metrics: shellMetrics,
+    tucked,
+    notificationActive,
+    notificationHeight,
   });
   const showRevealSensor = tucked && appearance.auto_hide_pill && connected && !suspendAutoHide;
 
@@ -341,6 +364,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
           tabWidth={TAB_WIDTH[effectiveTab] ?? 960}
           tabsWidth={tabsWidth}
           contentHeight={contentHeight}
+          viewportWidth={overlayScreen.width}
+          viewportHeight={overlayScreen.height}
           tucked={tucked}
           onMetricsChange={handleShellMetrics}
           onFocusWithinChange={handleFocusWithinChange}

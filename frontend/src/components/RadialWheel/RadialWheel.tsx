@@ -92,6 +92,8 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
       onAction(data.file_path, 'COMPRESS');
     } else if (label === 'METADATA') {
       onAction(data.file_path, 'STRIP_META');
+    } else if (label === 'B&W') {
+      onAction(data.file_path, 'B&W');
     } else {
       onAction(data.file_path, isPdf ? 'CONVERT_DOC' : 'CONVERT', label.toLowerCase());
     }

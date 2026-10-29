@@ -38,7 +38,6 @@ export const MediaBars: React.FC<MediaBarsProps> = ({
           }}
         />
       ))}
-      <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-current opacity-70" />
     </span>
   );
 };

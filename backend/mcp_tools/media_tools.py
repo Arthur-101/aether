@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageSequence
 
 from ..output_paths import exported_path
 
@@ -93,6 +93,52 @@ def strip_image_metadata(file_path: str) -> str:
         clean_img = Image.new(img.mode, img.size)
         clean_img.putdata(data)
         clean_img.save(out_path)
+
+    return str(out_path)
+
+
+def black_and_white(file_path: str) -> str:
+    """Converts an image to black and white (grayscale).
+
+    Transparency and animated frames survive the conversion so the output
+    keeps the source's alpha channel and any motion.
+    """
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Source file not found: {file_path}")
+
+    fmt = p.suffix.lower().lstrip(".")
+    # JPEG and BMP have no alpha channel, so those stay single-channel grey.
+    keep_alpha = fmt not in ("jpg", "jpeg", "bmp")
+    out_path = exported_path(p, f"{p.stem}_bw{p.suffix}")
+    save_fmt = {"jpg": "JPEG", "jpeg": "JPEG", "heic": "HEIF"}.get(fmt, fmt.upper())
+
+    def to_gray(frame: Image.Image) -> Image.Image:
+        rgba = frame.convert("RGBA")
+        gray = ImageOps.grayscale(rgba.convert("RGB"))
+        alpha = rgba.getchannel("A")
+        if keep_alpha and alpha.getextrema()[0] < 255:
+            return Image.merge("RGBA", (gray, gray, gray, alpha))
+        return gray
+
+    with Image.open(p) as img:
+        if getattr(img, "is_animated", False) and getattr(img, "n_frames", 1) > 1:
+            frames = []
+            durations = []
+            for frame in ImageSequence.Iterator(img):
+                frames.append(to_gray(frame))
+                durations.append(frame.info.get("duration", 100))
+            frames[0].save(
+                out_path,
+                format=save_fmt,
+                save_all=True,
+                append_images=frames[1:],
+                duration=durations,
+                loop=img.info.get("loop", 0),
+                disposal=2,
+            )
+        else:
+            to_gray(img).save(out_path, format=save_fmt)
 
     return str(out_path)
 

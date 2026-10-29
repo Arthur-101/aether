@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getOverlayGeometry } from './useOverlayBounds';
 
 export type MouseSubscriber = (cb: (x: number, y: number) => void) => () => void;
 
@@ -29,13 +30,19 @@ const RETRACT_DELAY_MS = 600;
 const ACTIVE_ZONE_PADDING = 8;
 
 function toPrimaryViewportPoint(physicalX: number, physicalY: number): ViewportPoint | null {
-  const scale = window.devicePixelRatio || 1;
-  const x = physicalX / scale;
-  const y = physicalY / scale;
+  // The overlay window can be a small strip centred on the primary monitor,
+  // not a screen-origin fullscreen window. Translate the global physical
+  // cursor into window-local CSS pixels before testing the reveal band.
+  const bounds = getOverlayGeometry();
+  const scale = bounds.dpr || 1;
+  const x = (physicalX - bounds.x) / scale;
+  const y = (physicalY - bounds.y) / scale;
+  const width = bounds.width / scale;
+  const height = bounds.height / scale;
 
-  // The overlay itself is deliberately sized to the primary monitor. Do not
-  // let a cursor on another display arm the primary display's reveal band.
-  if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+  // Do not let a cursor outside the overlay (including on another display)
+  // arm the primary display's reveal band.
+  if (x < 0 || y < 0 || x > width || y > height) {
     return null;
   }
   return { x, y };
