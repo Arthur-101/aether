@@ -26,10 +26,10 @@ _dialog_lock = threading.Lock()
 _FILE_FILTERS: Dict[str, List[Tuple[str, str]]] = {
     "gguf": [("GGUF models", "*.gguf"), ("All files", "*.*")],
     "onnx": [("ONNX models", "*.onnx"), ("All files", "*.*")],
-    "audio": [("Audio files", "*.wav *.mp3 *.flac"), ("All files", "*.*")],
-    "image": [("Images", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")],
-    "document": [("Documents", "*.pdf *.docx *.md"), ("All files", "*.*")],
-    "app": [("Apps and shortcuts", "*.exe *.lnk"), ("All files", "*.*")],
+    "audio": [("Audio files", "*.wav;*.mp3;*.flac"), ("All files", "*.*")],
+    "image": [("Images", "*.png;*.jpg;*.jpeg;*.webp"), ("All files", "*.*")],
+    "document": [("Documents", "*.pdf;*.docx;*.md"), ("All files", "*.*")],
+    "app": [("Apps and shortcuts", "*.exe;*.lnk"), ("All files", "*.*")],
     "all": [("All files", "*.*")],
 }
 

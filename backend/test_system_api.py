@@ -27,6 +27,15 @@ def test_unknown_filter_falls_back_to_all_files():
     assert "All files\0*.*" in value
 
 
+def test_multi_pattern_filters_use_semicolons():
+    # Win32 OPENFILENAME requires ';' between patterns inside one display name.
+    # Spaces make the pattern match nothing, so the dialog only lists folders.
+    assert "*.exe;*.lnk" in system_api._filter_string("app")
+    assert "*.wav;*.mp3;*.flac" in system_api._filter_string("audio")
+    assert "*.png;*.jpg;*.jpeg;*.webp" in system_api._filter_string("image")
+    assert "*.pdf;*.docx;*.md" in system_api._filter_string("document")
+
+
 def test_pick_file_returns_the_selected_path(monkeypatch):
     monkeypatch.setattr(
         system_api,
