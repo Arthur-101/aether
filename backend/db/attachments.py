@@ -61,6 +61,17 @@ def remove_attachment(session_id: str, file_path: str) -> None:
         conn.close()
 
 
+def attachment_paths() -> List[str]:
+    """Returns every distinct attached file path across all sessions."""
+    conn = get_db()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT file_path FROM session_attachments")
+        return [row["file_path"] for row in cur.fetchall() if row["file_path"]]
+    finally:
+        conn.close()
+
+
 def list_attachments(session_id: str, include_text: bool = False) -> List[Dict[str, Any]]:
     """Returns attachment rows, optionally including the full inline buffer."""
     conn = get_db()

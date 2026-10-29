@@ -10,15 +10,18 @@ writes a PNG that the existing vision/attachment pipeline can consume.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, Optional
 
 logger = logging.getLogger("aether.region")
 
 MIN_EDGE = 8
+CAPTURE_PREFIX = "region-"
+ORPHAN_MAX_AGE_HOURS = 24
 _local = threading.local()
 
 
@@ -69,6 +72,95 @@ def _coerce_rect(
     }
 
 
+def _normalized(path: Any) -> str:
+    """Case- and separator-stable key for comparing file paths on Windows."""
+    try:
+        return os.path.normcase(str(Path(str(path)).resolve()))
+    except (OSError, ValueError):
+        return os.path.normcase(str(path))
+
+
+def _referenced_paths(override: Optional[Iterable[str]]) -> set:
+    """Attachment paths still in use, or an explicit set for tests."""
+    if override is not None:
+        return {_normalized(p) for p in override}
+    try:
+        from ..db.attachments import attachment_paths
+
+        return {_normalized(p) for p in attachment_paths()}
+    except Exception:
+        logger.debug("Attachment lookup failed; assuming no references")
+        return set()
+
+
+def is_capture_path(path: Any) -> bool:
+    """True only for `region-*.png` files inside the captures folder."""
+    if not path:
+        return False
+    name = Path(str(path)).name
+    if not name.startswith(CAPTURE_PREFIX) or Path(name).suffix.lower() != ".png":
+        return False
+    try:
+        captures = _normalized(get_captures_dir())
+    except OSError:
+        return False
+    return os.path.dirname(_normalized(path)) == captures
+
+
+def discard_capture(
+    path: Any, referenced_paths: Optional[Iterable[str]] = None
+) -> bool:
+    """Deletes a Region to Ask PNG once nothing references it.
+
+    Only files under `get_captures_dir()` matching `region-*.png` are eligible,
+    so dropped user images are never touched. Returns True when a file was
+    removed. When `referenced_paths` is omitted, live attachment rows are read.
+    """
+    if not is_capture_path(path):
+        return False
+    target = Path(path).resolve()
+    if _normalized(target) in _referenced_paths(referenced_paths):
+        return False
+    try:
+        target.unlink()
+        return True
+    except OSError as exc:
+        logger.debug("Could not delete capture %s: %s", target, exc)
+        return False
+
+
+def sweep_orphan_captures(
+    max_age_hours: float = ORPHAN_MAX_AGE_HOURS,
+    referenced_paths: Optional[Iterable[str]] = None,
+) -> int:
+    """Removes stale captures that no attachment row references.
+
+    Runs once at startup rather than on a timer: it catches leftovers from
+    crashes, deleted sessions, and captures made before this cleanup existed.
+    Returns the number of files removed.
+    """
+    referenced = _referenced_paths(referenced_paths)
+    try:
+        directory = get_captures_dir()
+    except OSError:
+        return 0
+    cutoff = time.time() - max(0.0, float(max_age_hours)) * 3600
+    removed = 0
+    for entry in directory.glob(f"{CAPTURE_PREFIX}*.png"):
+        try:
+            if entry.stat().st_mtime >= cutoff:
+                continue
+            if _normalized(entry) in referenced:
+                continue
+            entry.unlink()
+            removed += 1
+        except OSError:
+            continue
+    if removed:
+        logger.info("Removed %d orphaned Region to Ask capture(s)", removed)
+    return removed
+
+
 def capture_region(
     x: int,
     y: int,
@@ -115,4 +207,10 @@ def capture_region(
     }
 
 
-__all__ = ["capture_region", "get_captures_dir"]
+__all__ = [
+    "capture_region",
+    "get_captures_dir",
+    "is_capture_path",
+    "discard_capture",
+    "sweep_orphan_captures",
+]

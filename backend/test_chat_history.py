@@ -117,6 +117,31 @@ def test_commit_turn_defaults_to_empty_metadata(session_db):
     assert turn["tools_used"] == []
 
 
+def test_combined_text_records_tool_names_only(session_db):
+    manager = SessionManager()
+    manager.commit_turn(
+        "session-1",
+        "check the weather",
+        "It is sunny.",
+        tools_used=[
+            {"name": "get_weather", "ok": True, "output": "22C and clear"},
+            {"name": "get_weather", "ok": True},
+        ],
+    )
+
+    conn = get_db(session_db)
+    row = conn.execute(
+        "SELECT combined_text FROM chat_memory WHERE session_id = ?",
+        ("session-1",),
+    ).fetchone()
+    conn.close()
+
+    assert row["combined_text"] == (
+        "User: check the weather\nAI: It is sunny.\nTools: get_weather"
+    )
+    assert "22C" not in row["combined_text"]
+
+
 def test_history_tolerates_missing_or_corrupt_metadata(session_db):
     manager = SessionManager()
     manager.commit_turn("session-1", "Hello", "Hi")

@@ -6,6 +6,7 @@ Boots with CORS, lifespan management, telemetry, OS hooks, and system control.
 import asyncio
 import json
 import logging
+import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
@@ -45,6 +46,16 @@ async def lifespan(app: FastAPI):
         start_runtime()
     except Exception as exc:
         logger.warning("Runtime wiring skipped: %s", exc)
+
+    # One background pass over stale Region to Ask screenshots; never blocks
+    # startup and never runs on a timer.
+    from .os_hooks.region_capture import sweep_orphan_captures
+
+    threading.Thread(
+        target=sweep_orphan_captures,
+        name="capture-sweep",
+        daemon=True,
+    ).start()
 
     logger.info("Aether daemon ready.")
     try:

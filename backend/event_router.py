@@ -12,6 +12,7 @@ from .ai.errors import ModelNotConfiguredError
 from .chat_execution import execute_chat_turn, resolve_tool_approval
 from .db.attachments import list_attachments
 from .db.sessions import session_manager
+from .os_hooks.region_capture import discard_capture
 from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether.router")
@@ -183,9 +184,19 @@ async def _handle_delete_session(payload: Dict[str, Any]) -> None:
     from .mcp_tools.clock_scheduler import cancel_tasks_for_session
 
     await loop.run_in_executor(None, lambda: cancel_tasks_for_session(sid))
+    # Collect this session's capture paths before the rows disappear; discard
+    # after deletion so references held by other sessions are respected.
+    from .os_hooks.region_capture import is_capture_path
+
+    session_files = await loop.run_in_executor(
+        None, lambda: [row["file_path"] for row in list_attachments(sid)]
+    )
+    captures = [path for path in session_files if is_capture_path(path)]
     deleted = await loop.run_in_executor(
         None, lambda: session_manager.delete_session(sid)
     )
+    for path in captures:
+        await loop.run_in_executor(None, lambda p=path: discard_capture(p))
     sessions = await loop.run_in_executor(None, session_manager.list_sessions)
     await ws_manager.broadcast(
         "SESSION_DELETED",

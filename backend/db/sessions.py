@@ -51,6 +51,21 @@ def _tool_metadata(rows: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]
     return metadata
 
 
+def _tool_names(tools_used: Any) -> str:
+    """Deduped, order-preserving tool names for memory blocks and embeddings.
+
+    Only names are surfaced; arguments and outputs are never stored anywhere.
+    """
+    names: List[str] = []
+    for row in _json_list(tools_used):
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get("name") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    return ", ".join(names)
+
+
 # Memory depth is user-tunable in Settings, per backend category. Local GGUF
 # and Ollama share one pair; cloud APIs have their own, deeper pair. The context
 # length stays a local/Ollama launch option; cloud providers own their windows.
@@ -502,9 +517,11 @@ class SessionManager:
         recent_blocks: List[str] = []
         used = 0
         for row in recent_rows:  # newest first
-            block = _clip_memory_text(
-                f"User: {row['user_prompt']}\nAI: {row['ai_reply']}", block_chars
-            )
+            block_text = f"User: {row['user_prompt']}\nAI: {row['ai_reply']}"
+            tool_line = _tool_names(row.get("tools_used"))
+            if tool_line:
+                block_text += f"\nTools: {tool_line}"
+            block = _clip_memory_text(block_text, block_chars)
             cost = _approx_tokens(block) + 2
             if recent_blocks and used + cost > token_budget:
                 break
@@ -515,10 +532,13 @@ class SessionManager:
         semantic_blocks: List[str] = []
         remaining = max(0, token_budget - used)
         for row in semantic_rows:
-            block = _clip_memory_text(
-                f"Past User: {row['user_prompt']}\nPast AI: {row['ai_reply']}",
-                block_chars,
+            block_text = (
+                f"Past User: {row['user_prompt']}\nPast AI: {row['ai_reply']}"
             )
+            tool_line = _tool_names(row.get("tools_used"))
+            if tool_line:
+                block_text += f"\nTools: {tool_line}"
+            block = _clip_memory_text(block_text, block_chars)
             cost = _approx_tokens(block) + 2
             if cost > remaining:
                 break
@@ -617,7 +637,10 @@ class SessionManager:
             conn.close()
             return False
 
+        tool_names = _tool_names(tools_used)
         combined = f"User: {prompt}\nAI: {reply}"
+        if tool_names:
+            combined += f"\nTools: {tool_names}"
         vec_bytes = embed_text(combined)
 
         cur.execute("""

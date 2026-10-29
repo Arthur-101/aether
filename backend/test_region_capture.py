@@ -1,5 +1,8 @@
 """Tests for Region to Ask's desktop capture helper."""
 
+import os
+import time
+
 from PIL import Image
 import pytest
 
@@ -86,3 +89,70 @@ def test_capture_region_rejects_selections_outside_the_desktop(
         region_capture.capture_region(
             4000, 4000, 100, 100, capture=FakeCapture()
         )
+
+
+def test_is_capture_path_recognizes_only_region_pngs_in_captures(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(region_capture, "get_captures_dir", lambda: tmp_path)
+    capture = tmp_path / "region-20261029-120000-abc123.png"
+    capture.write_bytes(b"x")
+    note = tmp_path / "note.png"
+    note.write_bytes(b"x")
+    wrong_ext = tmp_path / "region-20261029-120000-abc123.jpg"
+    wrong_ext.write_bytes(b"x")
+    outside = tmp_path.parent / "region-outside.png"
+    outside.write_bytes(b"x")
+
+    assert region_capture.is_capture_path(capture)
+    assert not region_capture.is_capture_path(note)
+    assert not region_capture.is_capture_path(wrong_ext)
+    assert not region_capture.is_capture_path(outside)
+    assert not region_capture.is_capture_path("")
+
+
+def test_discard_capture_deletes_only_unreferenced_captures(tmp_path, monkeypatch):
+    monkeypatch.setattr(region_capture, "get_captures_dir", lambda: tmp_path)
+    keep = tmp_path / "region-20261029-120000-aaaaaa.png"
+    drop = tmp_path / "region-20261029-120001-bbbbbb.png"
+    keep.write_bytes(b"x")
+    drop.write_bytes(b"x")
+
+    referenced = [str(keep)]
+    assert region_capture.discard_capture(drop, referenced_paths=referenced) is True
+    assert not drop.exists()
+    assert region_capture.discard_capture(keep, referenced_paths=referenced) is False
+    assert keep.exists()
+
+
+def test_discard_capture_ignores_non_capture_files(tmp_path, monkeypatch):
+    monkeypatch.setattr(region_capture, "get_captures_dir", lambda: tmp_path)
+    dropped = tmp_path / "user-photo.png"
+    dropped.write_bytes(b"x")
+
+    assert region_capture.discard_capture(dropped, referenced_paths=[]) is False
+    assert dropped.exists()
+
+
+def test_sweep_orphan_captures_removes_only_stale_unreferenced(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(region_capture, "get_captures_dir", lambda: tmp_path)
+    stale = tmp_path / "region-20261001-000000-aaaaaa.png"
+    fresh = tmp_path / "region-20261029-000000-bbbbbb.png"
+    referenced = tmp_path / "region-20261001-000001-cccccc.png"
+    for path in (stale, fresh, referenced):
+        path.write_bytes(b"x")
+
+    old = time.time() - 48 * 3600
+    os.utime(stale, (old, old))
+    os.utime(referenced, (old, old))
+
+    removed = region_capture.sweep_orphan_captures(
+        max_age_hours=24, referenced_paths=[str(referenced)]
+    )
+
+    assert removed == 1
+    assert not stale.exists()
+    assert fresh.exists()
+    assert referenced.exists()

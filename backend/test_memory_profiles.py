@@ -183,6 +183,32 @@ def test_settings_override_changes_local_context_depth(session_db, memory_config
     assert context.count("Past User:") <= 1
 
 
+def test_memory_blocks_include_tool_names_only(session_db):
+    manager = SessionManager()
+    manager.commit_turn(
+        "session-1",
+        "what is on my clipboard",
+        "It says hello.",
+        tools_used=[
+            {
+                "name": "read_clipboard",
+                "ok": True,
+                "output": "secret clipboard text",
+            },
+            {"name": "read_clipboard", "ok": True},
+            {"name": "list_notes", "ok": False, "output": "Error: nope"},
+        ],
+    )
+
+    context = manager.build_session_context(
+        "session-1", "what is on my clipboard", mode="cloud"
+    )
+
+    assert "Tools: read_clipboard, list_notes" in context
+    assert "secret clipboard text" not in context
+    assert "nope" not in context
+
+
 def test_retrieval_skips_failed_only_and_fallback_turns(session_db):
     manager = SessionManager()
     manager.commit_turn("session-1", "good question", "good answer")

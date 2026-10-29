@@ -14,6 +14,7 @@ from .db.sessions import session_manager
 from .event_router import register_handler
 from .mcp_tools.doc_tools import attach_file_for_ask
 from .mcp_tools.server import execute_tool
+from .os_hooks.region_capture import discard_capture
 from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether.tools")
@@ -189,6 +190,9 @@ async def _handle_detach_file(payload: Dict[str, Any]) -> None:
         return
     loop = asyncio.get_running_loop()
     await loop.run_in_executor(None, lambda: remove_attachment(sid, file_path))
+    # A Region to Ask capture is deleted only after its row is gone and no
+    # other session still points at it, so live image follow-ups keep working.
+    await loop.run_in_executor(None, lambda: discard_capture(file_path))
     await ws_manager.broadcast(
         "ATTACHMENTS_STATE",
         {
