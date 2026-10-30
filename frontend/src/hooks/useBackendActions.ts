@@ -299,6 +299,11 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshLocalVoices = useCallback(
+    () => sendEvent({ type: 'GET_LOCAL_VOICES', payload: {} }),
+    [sendEvent]
+  );
+
   const connectSpotify = useCallback(
     (clientId: string) =>
       sendEvent({ type: 'SPOTIFY_CONNECT', payload: { client_id: clientId } }),
@@ -469,6 +474,7 @@ export function useBackendActions(
     updateConfigValue,
     refreshSpotify,
     refreshToolGroups,
+    refreshLocalVoices,
     connectSpotify,
     disconnectSpotify,
     setVolume,

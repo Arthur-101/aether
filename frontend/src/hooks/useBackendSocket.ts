@@ -15,6 +15,7 @@ import type {
   ClockAlert,
   DisplayInfo,
   IncomingEnvelope,
+  LocalVoiceState,
   MediaSnapshot,
   ModelStatus,
   OutgoingEvent,
@@ -80,6 +81,7 @@ export function useBackendSocket() {
     message: '',
   });
   const [toolGroups, setToolGroups] = useState<ToolGroupsState | null>(null);
+  const [localVoices, setLocalVoices] = useState<LocalVoiceState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [radialWheel, setRadialWheel] = useState<RadialWheelPayload | null>(null);
   const [wheelCursor, setWheelCursor] = useState<RadialWheelCursor | null>(null);
@@ -424,6 +426,9 @@ export function useBackendSocket() {
         case 'TOOL_GROUPS_STATE':
           setToolGroups(payload as ToolGroupsState);
           break;
+        case 'LOCAL_VOICES_STATE':
+          setLocalVoices(payload as LocalVoiceState);
+          break;
         case 'ERROR_CONFIG_MISSING':
           setConfigError(payload.message || 'AI engine is not configured.');
           break;
@@ -468,7 +473,7 @@ export function useBackendSocket() {
   });
   useEffect(() => {
     if (!connected) return;
-    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE', 'LIST_AUDIO_DEVICES', 'GET_DISPLAY_INFO', 'GET_WALLPAPER_STATE'];
+    const bootTypes: OutgoingEvent['type'][] = ['LIST_SESSIONS', 'LIST_TASKS', 'GET_CONFIG', 'GET_SYSTEM_STATE', 'GET_MODEL_STATUS', 'GET_WEATHER', 'GET_TASKBAR_APPS', 'GET_MEDIA_STATE', 'LIST_AUDIO_DEVICES', 'GET_DISPLAY_INFO', 'GET_WALLPAPER_STATE', 'GET_LOCAL_VOICES'];
     bootTypes.forEach((type) => sendEvent({ type, payload: {} } as OutgoingEvent));
     const weatherTimer = window.setInterval(
       () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
@@ -552,6 +557,7 @@ export function useBackendSocket() {
     configError,
     spotifyAuth,
     toolGroups,
+    localVoices,
     errorMessage,
     radialWheel,
     wheelCursor,

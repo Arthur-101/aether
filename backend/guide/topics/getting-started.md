@@ -31,7 +31,7 @@ Press **Ctrl + Space** (default) or click the top pill. The island expands to th
    - **Local GGUF** for a private offline model. Browse to a `.gguf` file.
    - **Ollama** for a model already managed by Ollama. Enter the base URL and model name.
    - **Cloud API** for Gemini, Groq, OpenAI, Mistral, or OpenRouter. Choose a provider, type the model ID, and paste its API key.
-2. **Choose a voice path.** Open Settings → **Voice Engine**. Local Phonon-2 speech-to-text needs the one-time `setup_stt.ps1` runtime and a model folder. Local Paradee text-to-speech needs a `paradee.onnx` file. Cloud voice is optional and reuses the key you saved in AI & Models.
+2. **Choose a voice path.** Open Settings → **Voice Engine**. Local Phonon-2 speech-to-text needs the one-time `setup_stt.ps1` runtime and a model folder. Local text-to-speech needs a local `.onnx` model file; its voices are read from the model's folder. Cloud voice is optional and reuses the key you saved in AI & Models.
 3. **Set up optional tools.** Add a Tavily key in AI & Models for web search, and a Spotify Client ID in Integrations for music control. Both are optional.
 4. **Review the tool loadout.** Settings → **Tools** starts with every group enabled. If you use a small local model, try the **Lean loadout** to keep only notes, media, web, and clock tools.
 5. **Say hello.** Ask “What can you do?”, “Set the volume to 30”, “Remind me at 6 pm to stretch”, or “Search the web for today’s Windows news”.

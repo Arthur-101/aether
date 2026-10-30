@@ -12,7 +12,7 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
 * **Backend:** Python 3.11+ async daemon (FastAPI + WebSockets + FastMCP).
 * **Local LLM:** Exclusively powered by `Ternary-Bonsai-2-9B` GGUF via `llama-cpp-python` with `q8_0` KV cache (total VRAM < 4.5 GB).
 * **Memory & Context Pipeline:** 1-Turn raw buffer (`last_turn_prompt` + `last_turn_reply`) + session-scoped episodic vector search via `sqlite-vec` & CPU `fastembed` (`bge-small-en-v1.5`, 384 dims, 0 VRAM).
-* **Voice Stack:** Local `Phonon-2` STT + 24kHz `Paradee` TTS.
+* **Voice Stack:** Local `Phonon-2` STT + 24kHz ONNX TTS (Kokoro/Paradee families) with voices discovered from the model's sidecar.
 * **Deterministic Tooling:** Typed FastMCP tools for image/document conversions, metadata stripping (`piexif`), and APScheduler reverse-trigger loops.
 * **Zero Hardcoded Paths:** Dynamically resolves `%APPDATA%/Aether` and user-configurable paths via `config_manager.py`.
 
@@ -34,7 +34,8 @@ aether/
 │   │   ├── embedder.py           # CPU fastembed (bge-small-en-v1.5)
 │   │   ├── llm_router.py         # Ternary-Bonsai-2-9B local runner
 │   │   ├── stt_engine.py         # Phonon-2 STT engine
-│   │   └── tts_engine.py         # Paradee TTS engine
+│   │   ├── tts_engine.py         # Family-detected local ONNX TTS engine
+│   │   └── local_voices.py       # Voice-sidecar discovery + phoneme tokenization
 │   ├── mcp_tools/                # FastMCP deterministic tools & APScheduler
 │   └── os_hooks/                 # Windows OS hooks (pynput, win32com, pywinauto, winsdk)
 └── frontend/                     # Tauri v2 + React overlays (DesktopIsland, RadialWheel, Drawer)

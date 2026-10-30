@@ -53,9 +53,9 @@ The daemon must stay open while you use Aether. Closing its terminal stops chat,
 
 **Local TTS**
 
-- Select the Paradee `paradee.onnx` file.
+- Select a local `.onnx` TTS model.
 - Confirm the output device in Playback is the one you expect.
-- Paradee has one local voice (`af_heart`); choosing another local voice is not possible.
+- Voices come from the model's folder (`voices*.bin` / `voices*.npz` or a `voices/` folder). If the list is empty, the model has no voices sidecar and uses its built-in voice.
 
 **Cloud voice**
 

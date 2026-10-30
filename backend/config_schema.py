@@ -9,7 +9,6 @@ import re
 from typing import Any, Dict, List
 
 from .ai.voice_providers import (
-    LOCAL_TTS_VOICE_ID,
     VOICE_PROVIDER_IDS,
     default_stt_model,
     default_tts_model,
@@ -431,14 +430,12 @@ def normalize_voice(value: Any) -> Dict[str, Any]:
 
     tts_voice = _optional_text(raw.get("tts_voice_id"), 160)
     if tts_provider == "local":
-        # Paradee has a single voice; the engine applies it implicitly. Keeping
-        # the field empty lets the Settings select show "Default".
-        if tts_voice == LOCAL_TTS_VOICE_ID:
-            tts_voice = ""
-    elif tts_voice in (LOCAL_TTS_VOICE_ID, default_tts_voice(tts_provider)):
+        # A local voice id is model-specific and discovered at runtime, so it is
+        # kept verbatim. An empty field means "use the model's default voice".
+        pass
+    elif tts_voice == default_tts_voice(tts_provider):
         # The engine already falls back to the provider default, so storing it
-        # would only make the Settings field look prefilled. The local voice id
-        # is also cleared so switching providers never carries it across.
+        # would only make the Settings field look prefilled.
         tts_voice = ""
 
     presets_raw = raw.get("tts_voice_presets")
@@ -475,7 +472,7 @@ def normalize_voice(value: Any) -> Dict[str, Any]:
         "stt_provider": stt_provider,
         "stt_model": stt_model,
         "stt_model_dir": _optional_text(raw.get("stt_model_dir"), 1000),
-        "tts_engine": _optional_text(raw.get("tts_engine"), 80) or "local_paradee",
+        "tts_engine": _optional_text(raw.get("tts_engine"), 80) or "local",
         "tts_provider": tts_provider,
         "tts_model": tts_model,
         "tts_model_path": _optional_text(raw.get("tts_model_path"), 1000),

@@ -1,7 +1,11 @@
 """
-Aether TTS Engine — local Paradee 24kHz synthesis plus optional cloud TTS.
-Ultra-fast onnxruntime synthesis using Paradee ONNX and sounddevice audio playback.
-Zero PyTorch dependency, low latency, 24,000 Hz sample rate.
+Aether TTS Engine — local ONNX synthesis plus optional cloud TTS.
+
+The local path is model-family agnostic: an ONNX graph that takes a ``style``
+input is treated as Kokoro-family (phoneme tokens + a voice style vector) and
+anything else as the older single-voice character-token graph. Voices are
+discovered from the model's own sidecar files, never from a hardcoded catalog.
+Synthesis runs on onnxruntime with no PyTorch dependency, at 24,000 Hz.
 """
 
 import base64
@@ -11,12 +15,18 @@ import logging
 import re
 import threading
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import httpx
 import numpy as np
 import sounddevice as sd
 import soundfile as sf
 from ..config_manager import config_manager, find_model_file, get_models_dir
+from .local_voices import (
+    detect_family,
+    discover_voices,
+    find_voice_archive,
+    tokenize_with_vocab,
+)
 from .voice_providers import (
     VOICE_PROVIDER_IDS,
     default_tts_voice,
@@ -28,6 +38,12 @@ logger = logging.getLogger("aether.tts")
 SAMPLE_RATE = 24000
 CLOUD_TIMEOUT_S = 120.0
 CLOUD_TEXT_CHUNK = 4000
+# Kokoro caps a style vector at 510 token positions. Chunk text so a single
+# utterance stays well below that; prosody is preserved because splits happen
+# on sentence boundaries.
+KOKORO_TEXT_CHUNK = 320
+KOKORO_MAX_TOKENS = 508
+KOKORO_CHUNK_GAP_S = 0.08
 # Groq Orpheus rejects inputs over 200 characters; the rest are kept well
 # below their provider limits so one spoken reply rarely needs more than a call.
 CLOUD_TTS_CHUNK_LIMITS = {
@@ -44,13 +60,23 @@ GEMINI_INTERACTIONS_URL = (
 )
 
 
-class ParadeeTTSEngine:
-    """Manages Paradee ONNX session, vocab tokenization, and audio output."""
+class LocalTTSEngine:
+    """Manages a local ONNX session, voice discovery, and audio output."""
 
     def __init__(self):
         self._session = None
-        self._vocab = None
+        self._vocab: Dict[str, int] = {}
+        self._token_keys: Tuple[str, ...] = ()
+        self._config: Optional[Dict[str, Any]] = None
+        self._config_path: Optional[Path] = None
         self._model_path: Optional[Path] = None
+        self._family = ""
+        self._input_names: Tuple[str, ...] = ()
+        self._voices: Optional[List[Dict[str, str]]] = None
+        self._voices_path: Optional[Path] = None
+        self._voice_archive = None
+        self._style_cache: Dict[str, np.ndarray] = {}
+        self._phonemizer_ready = False
 
     def _resolve_paths(self) -> tuple[Path, Path]:
         """Resolves the ONNX model path and config.json path dynamically."""
@@ -58,49 +84,198 @@ class ParadeeTTSEngine:
         if configured and Path(configured).exists():
             model_p = Path(configured)
         else:
-            discovered = find_model_file(
-                ["paradee.onnx", "**/paradee.onnx", "*.onnx"], get_models_dir()
+            discovered = find_model_file(["*.onnx"], get_models_dir())
+            model_p = (
+                Path(discovered) if discovered else get_models_dir() / "model.onnx"
             )
-            model_p = Path(discovered) if discovered else get_models_dir() / "paradee.onnx"
 
-        # config.json lives next to /models or in an ancestor models folder
+        # Prefer a config beside the model, then an ancestor models folder.
         config_candidates = [
-            model_p.parent.parent / "config.json",
             model_p.parent / "config.json",
+            model_p.parent.parent / "config.json",
             get_models_dir() / "models" / "config.json",
             get_models_dir() / "config.json",
         ]
-        config_p = next((p for p in config_candidates if p.exists()), config_candidates[0])
+        config_p = next(
+            (p for p in config_candidates if p.exists()), config_candidates[0]
+        )
         return model_p, config_p
+
+    def _read_config(self) -> Dict[str, Any]:
+        """Loads the model's config.json once, without creating a session."""
+        _, config_p = self._resolve_paths()
+        if self._config is not None and self._config_path == config_p:
+            return self._config
+        config: Dict[str, Any] = {}
+        if config_p.exists():
+            try:
+                with open(config_p, "r", encoding="utf-8") as handle:
+                    loaded = json.load(handle)
+                if isinstance(loaded, dict):
+                    config = loaded
+            except Exception as exc:
+                logger.warning("Could not read local TTS config %s: %s", config_p, exc)
+        self._config = config
+        self._config_path = config_p
+        return config
+
+    def _release_local_model(self) -> None:
+        """Drops the loaded session and caches so a new model path takes effect."""
+        if self._voice_archive is not None:
+            try:
+                self._voice_archive.close()
+            except Exception:
+                pass
+        self._session = None
+        self._vocab = {}
+        self._token_keys = ()
+        self._config = None
+        self._config_path = None
+        self._model_path = None
+        self._family = ""
+        self._input_names = ()
+        self._voices = None
+        self._voices_path = None
+        self._voice_archive = None
+        self._style_cache = {}
 
     def _ensure_loaded(self) -> None:
         """Lazy-loads the ONNX runtime session and token vocabulary."""
+        model_p, _ = self._resolve_paths()
         if self._session is not None:
-            return
+            if self._model_path == model_p:
+                return
+            self._release_local_model()
 
-        model_p, config_p = self._resolve_paths()
         if not model_p.exists():
-            raise FileNotFoundError(f"Paradee ONNX model not found at: {model_p}")
+            raise FileNotFoundError(f"Local TTS ONNX model not found at: {model_p}")
 
         import onnxruntime as ort
-        # Use CPU provider with optimal thread count
+
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 4
         opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # Constant-folding warnings for Kokoro's half-precision graph are noise.
+        opts.log_severity_level = 3
 
-        self._session = ort.InferenceSession(str(model_p), sess_options=opts, providers=["CPUExecutionProvider"])
+        session = ort.InferenceSession(
+            str(model_p), sess_options=opts, providers=["CPUExecutionProvider"]
+        )
+        self._session = session
         self._model_path = model_p
+        self._input_names = tuple(item.name for item in session.get_inputs())
+        self._family = detect_family(self._input_names)
 
-        if config_p.exists():
-            with open(config_p, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-            self._vocab = cfg.get("vocab", {})
-        else:
-            self._vocab = {}
+        vocab = self._read_config().get("vocab", {})
+        self._vocab = vocab if isinstance(vocab, dict) else {}
+        self._token_keys = tuple(
+            sorted((key for key in self._vocab if key), key=len, reverse=True)
+        )
 
     def is_available(self) -> bool:
-        """True when either the selected cloud provider or local Paradee can run."""
+        """True when either the selected cloud provider or local model can run."""
         return self._cloud_configured() or self._local_available()
+
+    def available_voices(self) -> List[Dict[str, str]]:
+        """Returns the voices bundled with the selected local model."""
+        model_p, _ = self._resolve_paths()
+        if self._voices is None or self._voices_path != model_p:
+            self._voices = discover_voices(model_p)
+            self._voices_path = model_p
+        return list(self._voices)
+
+    def default_voice_id(self) -> str:
+        """Returns the model-declared default voice, else its first voice."""
+        config = self._read_config()
+        for key in ("default_voice", "default_voice_id"):
+            value = config.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        voices = self.available_voices()
+        return voices[0]["id"] if voices else ""
+
+    def resolve_voice_id(self, voice_id: str = "") -> str:
+        """Returns an explicit voice, or the model default when it is empty."""
+        return str(voice_id or "").strip() or self.default_voice_id()
+
+    def _ensure_phonemizer(self) -> None:
+        """Points phonemizer at the bundled espeak-ng once per process."""
+        if self._phonemizer_ready:
+            return
+        try:
+            import espeakng_loader
+            from phonemizer.backend.espeak.wrapper import EspeakWrapper
+
+            EspeakWrapper.set_library(str(espeakng_loader.get_library_path()))
+            EspeakWrapper.set_data_path(str(espeakng_loader.get_data_path()))
+        except Exception as exc:
+            logger.warning("espeak-ng setup failed: %s", exc)
+        self._phonemizer_ready = True
+
+    def phonemize(self, text: str) -> str:
+        """Converts text to IPA phonemes for Kokoro-family models."""
+        self._ensure_phonemizer()
+        from phonemizer import phonemize
+
+        try:
+            return phonemize(
+                text,
+                language="en-us",
+                backend="espeak",
+                strip=True,
+                preserve_punctuation=True,
+                with_stress=True,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                "Local TTS could not phonemize the reply. Install phonemizer-fork "
+                "and espeakng-loader (see backend/requirements.txt)."
+            ) from exc
+
+    def tokenize_phonemes(self, phonemes: str) -> List[int]:
+        """Maps IPA text onto the model's phoneme vocab."""
+        return tokenize_with_vocab(phonemes, self._vocab, self._token_keys)
+
+    def _load_voice_styles(self, voice_id: str) -> np.ndarray:
+        """Loads the style matrix for one voice, from the archive or a file."""
+        cached = self._style_cache.get(voice_id)
+        if cached is not None:
+            return cached
+
+        model_p = self._model_path or self._resolve_paths()[0]
+        archive = find_voice_archive(model_p)
+        if archive is not None:
+            if self._voice_archive is None:
+                self._voice_archive = np.load(archive, allow_pickle=False)
+            if voice_id in self._voice_archive.files:
+                styles = np.asarray(self._voice_archive[voice_id], dtype=np.float32)
+                self._style_cache[voice_id] = styles
+                return styles
+
+        voice_file = model_p.parent / "voices" / f"{voice_id}.pt"
+        if voice_file.exists():
+            try:
+                import torch
+
+                loaded = torch.load(str(voice_file), map_location="cpu")
+                if isinstance(loaded, dict):
+                    loaded = next(iter(loaded.values()))
+                styles = np.asarray(loaded, dtype=np.float32)
+                self._style_cache[voice_id] = styles
+                return styles
+            except Exception as exc:
+                logger.warning("Could not load voice file %s: %s", voice_file, exc)
+
+        raise RuntimeError(
+            f"Voice '{voice_id or 'default'}' is not available for this local model. "
+            "Pick another voice in Settings → Voice Engine."
+        )
+
+    def _style_vector(self, voice_id: str, token_length: int) -> np.ndarray:
+        """Returns the style row indexed by the padded token length."""
+        styles = self._load_voice_styles(voice_id)
+        index = max(0, min(int(token_length), len(styles) - 1))
+        return styles[index].reshape(1, -1).astype(np.float32)
 
     def _local_available(self) -> bool:
         """Checks if local model files exist without loading them."""
@@ -119,7 +294,7 @@ class ParadeeTTSEngine:
         return provider != "local" and bool(provider_api_key(provider))
 
     def tokenize(self, text: str) -> list[int]:
-        """Maps characters to vocab token IDs."""
+        """Maps characters to vocab token IDs (character-token models only)."""
         self._ensure_loaded()
         if not self._vocab:
             return [ord(c) % 178 for c in text]
@@ -135,25 +310,80 @@ class ParadeeTTSEngine:
         return tokens if tokens else [self._vocab.get(" ", 16)]
 
     def synthesize(self, text: str, speed: float = 1.0) -> np.ndarray:
-        """Synthesizes text into 24kHz float32 audio waveform."""
+        """Synthesizes text into a 24kHz float32 waveform."""
         self._ensure_loaded()
+        if self._family == "kokoro":
+            return self._synthesize_kokoro(text, speed)
+        return self._synthesize_paradee(text, speed)
+
+    def _synthesize_paradee(self, text: str, speed: float) -> np.ndarray:
+        """Character-token models: input ids plus speed, one shot."""
         token_ids = self.tokenize(text)
+        outputs = self._session.run(
+            None,
+            {
+                "input_ids": np.array([token_ids], dtype=np.int64),
+                "speed": np.array([speed], dtype=np.float32),
+            },
+        )
+        return self._normalize_wave(np.squeeze(outputs[0]))
 
-        input_ids = np.array([token_ids], dtype=np.int64)
-        speed_tensor = np.array([speed], dtype=np.float32)
+    def _synthesize_kokoro(self, text: str, speed: float) -> np.ndarray:
+        """Phoneme-token models: per-chunk style vector indexed by token count."""
+        voice_id = self.resolve_voice_id(
+            str(config_manager.get("voice", "tts_voice_id", "") or "")
+        )
+        chunks = self._split_text(text, KOKORO_TEXT_CHUNK)
+        if not chunks:
+            return np.zeros(0, dtype=np.float32)
 
-        outputs = self._session.run(None, {
-            "input_ids": input_ids,
-            "speed": speed_tensor
-        })
+        parts: List[np.ndarray] = []
+        for chunk in chunks:
+            phonemes = self.phonemize(chunk)
+            token_ids = self.tokenize_phonemes(phonemes)
+            if not token_ids:
+                continue
+            # Kokoro expects a pad token (0) at both ends; style is indexed by
+            # this padded length.
+            token_ids = token_ids[: KOKORO_MAX_TOKENS - 2]
+            padded = [0, *token_ids, 0]
+            style = self._style_vector(voice_id, len(padded))
+            outputs = self._session.run(
+                None,
+                {
+                    "input_ids": np.array([padded], dtype=np.int64),
+                    "style": style,
+                    "speed": np.array([speed], dtype=np.float32),
+                },
+            )
+            parts.append(np.asarray(outputs[0]).reshape(-1))
 
-        # Waveform shape: (1, num_samples) -> squeeze to (num_samples,)
-        audio = np.squeeze(outputs[0]).astype(np.float32)
-        # Normalize audio amplitude to avoid clipping
-        max_val = np.max(np.abs(audio))
-        if max_val > 1.0:
-            audio = audio / max_val
-        return audio
+        if not parts:
+            return np.zeros(0, dtype=np.float32)
+        gap = np.zeros(int(SAMPLE_RATE * KOKORO_CHUNK_GAP_S), dtype=np.float32)
+        joined: List[np.ndarray] = []
+        for index, part in enumerate(parts):
+            if index:
+                joined.append(gap)
+            joined.append(part)
+        logger.info(
+            "Local TTS (%s) synthesized %d chars in %d chunk(s) with voice %s.",
+            self._family,
+            len(text),
+            len(parts),
+            voice_id or "default",
+        )
+        return self._normalize_wave(np.concatenate(joined))
+
+    @staticmethod
+    def _normalize_wave(audio: np.ndarray) -> np.ndarray:
+        """Flattens to mono float32 and prevents clipping."""
+        wave = np.asarray(audio, dtype=np.float32).reshape(-1)
+        if wave.size:
+            peak = float(np.max(np.abs(wave)))
+            if peak > 1.0:
+                wave = wave / peak
+        return wave
 
     @staticmethod
     def _split_text(text: str, limit: int) -> list[str]:
@@ -187,7 +417,7 @@ class ParadeeTTSEngine:
 
     @staticmethod
     def _resample(audio: np.ndarray, source_rate: int, target_rate: int) -> np.ndarray:
-        """Linearly resamples provider audio to Paradee's 24 kHz output rate."""
+        """Linearly resamples provider audio to the engine's 24 kHz output rate."""
         if audio.size == 0 or source_rate == target_rate:
             return np.ascontiguousarray(audio, dtype=np.float32)
         target_size = max(1, int(round(audio.size * target_rate / source_rate)))
@@ -370,7 +600,7 @@ class ParadeeTTSEngine:
         """Synthesizes text and streams to speakers via sounddevice.
 
         Cloud is only used when the user explicitly selected a cloud TTS
-        provider with a stored key. Cloud failures fall back to local Paradee;
+        provider with a stored key. Cloud failures fall back to the local model;
         local failures never escalate to a provider.
 
         ``cancel`` lets a caller abandon a queued utterance: it is checked
@@ -393,18 +623,18 @@ class ParadeeTTSEngine:
                             sd.wait()
                         return
                     logger.warning(
-                        "Cloud TTS (%s) returned no audio; falling back to local Paradee.",
+                        "Cloud TTS (%s) returned no audio; falling back to the local model.",
                         provider,
                     )
                 except Exception as exc:
                     logger.warning(
-                        "Cloud TTS (%s) failed: %s; falling back to local Paradee.",
+                        "Cloud TTS (%s) failed: %s; falling back to the local model.",
                         provider,
                         exc,
                     )
             else:
                 logger.warning(
-                    "Cloud TTS (%s) has no saved key; using local Paradee.",
+                    "Cloud TTS (%s) has no saved key; using the local model.",
                     provider,
                 )
 
@@ -427,4 +657,6 @@ class ParadeeTTSEngine:
 
 
 # Global singleton instance
-tts_engine = ParadeeTTSEngine()
+tts_engine = LocalTTSEngine()
+# Backwards-compatible alias for callers written against the old class name.
+ParadeeTTSEngine = LocalTTSEngine

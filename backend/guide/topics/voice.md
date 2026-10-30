@@ -1,7 +1,7 @@
 ---
 id: voice
 title: Voice
-summary: Local Phonon-2 and Paradee, cloud STT/TTS, hold-to-talk, and fallback.
+summary: Local Phonon-2 STT and ONNX TTS, cloud STT/TTS, hold-to-talk, and fallback.
 tags: [voice, stt, tts, phonon, paradee, microphone, speech]
 related: [ai-engines, interface, privacy-and-local-first, troubleshooting]
 order: 40
@@ -33,19 +33,21 @@ The recorded clip is sent to the provider for transcription. If the cloud call f
 
 ## Text to speech
 
-### Local Paradee
+### Local model
 
 Local TTS renders spoken replies on this machine.
 
-- Browse to the Paradee `paradee.onnx` file.
-- The local voice is **Heart · US English** (`af_heart`). Paradee 8M is a single-voice model; additional local voices are not included.
+- Browse to a local `.onnx` TTS model, such as a Kokoro or Paradee build.
+- Voices are read from the model's own folder: a `voices*.bin` / `voices*.npz` archive or a `voices/` folder of per-voice files. The dropdown lists every voice that is found.
+- Leave the voice on **Default** to use the model's own default voice. Selecting a voice stores that voice id.
+- If the model has no voices sidecar, it uses its built-in voice and the dropdown stays on Default.
 - The speed slider applies locally.
 
 ### Cloud TTS
 
 Choose a cloud provider, then set the model and voice. Cloud TTS reuses the provider key from AI & Models. The model and voice fields accept custom IDs.
 
-The reply text is sent to the provider. If the cloud call fails and the local Paradee model is installed, Aether falls back to local speech. Long replies are split at sentence boundaries where a provider has a per-request limit.
+The reply text is sent to the provider. If the cloud call fails and a local TTS model is installed, Aether falls back to local speech. Long replies are split at sentence boundaries where a provider has a per-request limit.
 
 ## Hold-to-talk and dictation
 

@@ -86,7 +86,7 @@ def get_default_config() -> Dict[str, Any]:
     models_dir = get_models_dir()
     ternary_gguf = find_model_file(["*Ternary*Bonsai*.gguf", "*.gguf"], models_dir)
     phonon2_dir = find_model_dir(["*phonon2*", "*phonon*"], models_dir)
-    paradee_path = find_model_file(["paradee.onnx", "**/paradee.onnx"], models_dir)
+    local_tts_path = find_model_file(["*.onnx"], models_dir)
 
     return {
         "first_run_completed": False,
@@ -117,10 +117,10 @@ def get_default_config() -> Dict[str, Any]:
             "stt_provider": "local",
             "stt_model": "",
             "stt_model_dir": phonon2_dir,
-            "tts_engine": "local_paradee",
+            "tts_engine": "local",
             "tts_provider": "local",
             "tts_model": "",
-            "tts_model_path": paradee_path,
+            "tts_model_path": local_tts_path,
             "tts_voice_id": "",
             "tts_voice_presets": {},
             "tts_speed": 1.0,

@@ -21,7 +21,7 @@ from .ws_manager import ws_manager
 logger = logging.getLogger("aether.tts_events")
 
 UNAVAILABLE_NOTICE = (
-    "Voice output isn't available. Choose the Paradee model or a cloud "
+    "Voice output isn't available. Choose a local TTS model or a cloud "
     "provider with a saved key in Settings → Voice Engine."
 )
 FAILED_NOTICE = "Voice output failed. Check Settings → Voice Engine."
@@ -30,6 +30,19 @@ EMPTY_NOTICE = "There is nothing to read in that reply."
 _speech_lock = threading.Lock()
 _playback_lock = threading.Lock()
 _state: Dict[str, Any] = {"generation": 0, "cancel": None, "request_id": ""}
+
+def local_voice_state() -> Dict[str, Any]:
+    """Describes the voices bundled with the selected local model."""
+    return {
+        "voices": tts_engine.available_voices(),
+        "default_voice": tts_engine.default_voice_id(),
+    }
+
+
+async def broadcast_local_voices() -> None:
+    """Pushes the discovered local voice catalog to the Settings UI."""
+    await ws_manager.broadcast("LOCAL_VOICES_STATE", local_voice_state())
+
 
 _FENCED_CODE = re.compile(r"```.*?```", re.S)
 _INLINE_CODE = re.compile(r"`([^`]*)`")
@@ -118,7 +131,7 @@ async def _run_speech(
         await loop.run_in_executor(None, _speak_blocking, text, cancel)
     except FileNotFoundError:
         message = UNAVAILABLE_NOTICE
-        logger.warning("Voice output unavailable: the Paradee model is missing.")
+        logger.warning("Voice output unavailable: the local TTS model is missing.")
     except Exception as exc:
         message = FAILED_NOTICE
         logger.warning("Voice output failed: %s", exc)
@@ -164,6 +177,11 @@ async def _handle_speak(payload: Dict[str, Any]) -> None:
     asyncio.create_task(_run_speech(text, request_id, generation, cancel))
 
 
+async def _handle_get_local_voices(payload: Dict[str, Any]) -> None:
+    """Replies with the voices bundled with the selected local model."""
+    await broadcast_local_voices()
+
+
 async def _handle_stop(payload: Dict[str, Any]) -> None:
     """Stops the current utterance, if any."""
     with _speech_lock:
@@ -189,3 +207,4 @@ def register_tts_events() -> None:
 
     register_handler("SPEAK_TEXT", _handle_speak)
     register_handler("STOP_SPEAKING", _handle_stop)
+    register_handler("GET_LOCAL_VOICES", _handle_get_local_voices)

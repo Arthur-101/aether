@@ -34,12 +34,15 @@ screen-brightness-control>=0.23.0
 # Cloud LLM Providers (Gemini / Groq / OpenAI via LiteLLM)
 litellm>=1.50.0
 
-# Audio & Voice Pipeline (Phonon-2 & Paradee)
+# Audio & Voice Pipeline (Phonon-2, local ONNX TTS)
 sounddevice>=0.5.0
 soundfile>=0.12.1
 pyaudiowpatch>=0.2.12
 onnxruntime>=1.19.0
 numpy>=1.26.0
+# Grapheme-to-phoneme for phoneme-token TTS models (Kokoro family).
+phonemizer-fork>=3.3.2
+espeakng-loader>=0.2.4
 
 # Media & Document Processing Tools
 pillow>=10.2.0

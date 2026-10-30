@@ -84,6 +84,11 @@ async def apply_config_update(updates: Dict[str, Any]) -> Dict[str, Any]:
         from .wallpaper_events import broadcast_wallpaper_state
 
         await broadcast_wallpaper_state()
+    if "voice" in updates:
+        # The selected model may have changed, so its voice sidecar changed too.
+        from .tts_events import broadcast_local_voices
+
+        await broadcast_local_voices()
     return current
 
 
@@ -134,6 +139,10 @@ async def _handle_update_config(payload: Dict[str, Any]) -> None:
         from .wallpaper_events import broadcast_wallpaper_state
 
         await broadcast_wallpaper_state()
+    if section == "voice":
+        from .tts_events import broadcast_local_voices
+
+        await broadcast_local_voices()
     await ws_manager.broadcast(
         "CONFIG_UPDATED", {"section": section, "key": key, "value": value}
     )

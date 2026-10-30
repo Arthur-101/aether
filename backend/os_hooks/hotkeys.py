@@ -41,8 +41,8 @@ STT_UNAVAILABLE_NOTICE = (
     "provider with a saved key in Settings → Voice Engine."
 )
 TTS_UNAVAILABLE_NOTICE = (
-    "Voice output isn't available. The reply is in Quick Chat; choose the Paradee "
-    "model or a cloud provider with a saved key in Settings → Voice Engine."
+    "Voice output isn't available. The reply is in Quick Chat; choose a local "
+    "TTS model or a cloud provider with a saved key in Settings → Voice Engine."
 )
 TTS_FAILED_NOTICE = "Voice output failed. The reply is in Quick Chat."
 
@@ -339,7 +339,7 @@ class HotkeyManager:
                     if not tts_engine.is_available():
                         self.on_error(TTS_UNAVAILABLE_NOTICE)
                         logger.warning(
-                            "Voice output is unavailable: no local Paradee model or cloud TTS key is configured."
+                            "Voice output is unavailable: no local TTS model or cloud key is configured."
                         )
                     else:
                         self.on_voice_state("speaking", reply)
@@ -348,7 +348,7 @@ class HotkeyManager:
                         except FileNotFoundError:
                             self.on_error(TTS_UNAVAILABLE_NOTICE)
                             logger.warning(
-                                "Voice output is unavailable: Paradee model is missing."
+                                "Voice output is unavailable: the local TTS model is missing."
                             )
                         except Exception as exc:
                             self.on_error(TTS_FAILED_NOTICE)

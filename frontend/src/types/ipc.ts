@@ -550,6 +550,17 @@ export interface ToolsConfig {
   disabled_tools: string[];
 }
 
+export interface LocalVoiceMeta {
+  id: string;
+  label: string;
+}
+
+export interface LocalVoiceState {
+  voices: LocalVoiceMeta[];
+  /** Voice used when the selection is left empty. */
+  default_voice: string;
+}
+
 export interface AppConfig {
   first_run_completed?: boolean;
   brand_name?: string;
@@ -620,6 +631,7 @@ export type OutgoingEvent =
   | { type: 'TOGGLE_THINKING_MODE'; payload: { enabled: boolean } }
   | { type: 'GET_CONFIG'; payload: Record<string, never> }
   | { type: 'GET_TOOL_GROUPS'; payload: Record<string, never> }
+  | { type: 'GET_LOCAL_VOICES'; payload: Record<string, never> }
   | { type: 'GET_SYSTEM_STATE'; payload: Record<string, never> }
   | { type: 'GET_MODEL_STATUS'; payload: Record<string, never> }
   | { type: 'LOAD_MODEL'; payload: Record<string, never> }

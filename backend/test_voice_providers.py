@@ -22,8 +22,6 @@ from backend.ai.stt_engine import STTEngine
 from backend.ai.tts_engine import SAMPLE_RATE as TTS_RATE
 from backend.ai.tts_engine import ParadeeTTSEngine
 from backend.ai.voice_providers import (
-    LOCAL_TTS_VOICE_ID,
-    LOCAL_TTS_VOICES,
     VOICE_PROVIDER_IDS,
     VOICE_PROVIDERS,
     default_stt_model,
@@ -111,11 +109,16 @@ def test_local_voice_is_the_default():
     assert voice["tts_voice_id"] == ""
 
 
-def test_local_voice_catalog_matches_the_paradee_default():
-    assert LOCAL_TTS_VOICE_ID == "af_heart"
-    assert [voice["id"] for voice in LOCAL_TTS_VOICES] == [LOCAL_TTS_VOICE_ID]
-    assert all(voice["label"] for voice in LOCAL_TTS_VOICES)
+def test_local_voice_stays_empty_by_default_and_keeps_a_selection():
+    # Empty means "use the model's default voice"; a picked voice is preserved
+    # because local voice ids are model-specific and cannot be validated here.
     assert normalize_voice({"tts_provider": "local"})["tts_voice_id"] == ""
+    assert (
+        normalize_voice({"tts_provider": "local", "tts_voice_id": "af_heart"})[
+            "tts_voice_id"
+        ]
+        == "af_heart"
+    )
 
 
 def test_cloud_voice_fills_provider_defaults_without_touching_chat_model():
@@ -165,12 +168,7 @@ def test_custom_voice_presets_are_sanitized_per_provider():
     assert voice["tts_voice_presets"] == {"gemini": ["Kore", "MyVoice", "7"]}
 
 
-def test_switching_cloud_tts_replaces_the_local_voice_placeholder():
-    voice = normalize_voice(
-        {"tts_provider": "mistral", "tts_voice_id": "af_heart"}
-    )
 
-    assert voice["tts_voice_id"] == ""
 
 
 def test_invalid_voice_provider_falls_back_to_local():

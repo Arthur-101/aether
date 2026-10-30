@@ -9,12 +9,14 @@ import {
   Play,
   X,
 } from 'lucide-react';
-import type { AIProviderConfig, VoiceConfig } from '../../../types/ipc';
+import type {
+  AIProviderConfig,
+  LocalVoiceState,
+  VoiceConfig,
+} from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
 import { placementBesideSettings } from '../../../lib/externalWindows';
 import {
-  LOCAL_TTS_DEFAULT_VOICE,
-  LOCAL_TTS_VOICES,
   LOCAL_VOICE_LABEL,
   VOICE_PROVIDERS,
   voiceProvider,
@@ -33,6 +35,7 @@ import { SliderRow } from './SurfaceSliders';
 interface VoiceSettingsProps {
   voice: VoiceConfig;
   ai: AIProviderConfig;
+  localVoices: LocalVoiceState | null;
   onChange: (patch: Partial<VoiceConfig>) => void;
 }
 
@@ -66,6 +69,7 @@ const KeyStatus: React.FC<{
 export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   voice,
   ai,
+  localVoices,
   onChange,
 }) => {
   const sttProviderId = voice.stt_provider || 'local';
@@ -76,9 +80,14 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   const ttsIsCloud = Boolean(ttsProvider);
   const keySaved = (providerId: string) =>
     Boolean(ai.cloud_providers?.[providerId]?.api_key);
-  const localVoiceIds = LOCAL_TTS_VOICES.map((localVoice) => localVoice.id);
-  const localVoiceId = voice.tts_voice_id?.trim() || LOCAL_TTS_DEFAULT_VOICE;
-  const localVoiceIsKnown = localVoiceIds.includes(localVoiceId);
+  // Local voices are discovered from the model's own sidecar; an empty field
+  // means "use the model's default voice", so the select stays on Default.
+  const localVoiceList = localVoices?.voices ?? [];
+  const localVoiceId = voice.tts_voice_id?.trim() ?? '';
+  const localDefaultVoice = localVoices?.default_voice?.trim() ?? '';
+  const localVoiceIsKnown = localVoiceList.some(
+    (localVoice) => localVoice.id === localVoiceId
+  );
   const [voiceDraft, setVoiceDraft] = useState('');
 
   const selectedVoice = voice.tts_voice_id?.trim() ?? '';
@@ -259,7 +268,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       <SettingsGroup
         icon={<AudioLines size={13} />}
         title="Text to speech"
-        hint="Spoken replies. Local Paradee renders on this machine; cloud providers send the reply text to their API."
+        hint="Spoken replies. A local ONNX model renders on this machine; cloud providers send the reply text to their API."
       >
         <label className="flex flex-col gap-1">
           <span className={settingsLabelClass}>Provider</span>
@@ -268,7 +277,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
             onChange={(event) => selectTtsProvider(event.target.value)}
             className={`${settingsInputClass} w-full`}
           >
-            <option value="local">{LOCAL_VOICE_LABEL} · Paradee</option>
+            <option value="local">{LOCAL_VOICE_LABEL} · ONNX</option>
             {VOICE_PROVIDERS.map((provider) => (
               <option key={provider.id} value={provider.id}>
                 {provider.label}
@@ -393,7 +402,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
                   type="text"
                   value={voice.tts_model_path}
                   onChange={(event) => onChange({ tts_model_path: event.target.value })}
-                  placeholder="Select paradee.onnx…"
+                  placeholder="Select a local TTS .onnx model..."
                   spellCheck={false}
                   className={`${settingsMonoInputClass} min-w-0 flex-1`}
                 />
@@ -416,19 +425,27 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
                 }
                 className={`${settingsInputClass} w-full`}
               >
-                {LOCAL_TTS_VOICES.map((localVoice) => (
+                <option value="">
+                  Default
+                  {localDefaultVoice ? ` · ${localDefaultVoice}` : ''}
+                </option>
+                {localVoiceList.map((localVoice) => (
                   <option key={localVoice.id} value={localVoice.id}>
-                    {localVoice.label} ({localVoice.id})
+                    {localVoice.label}
                   </option>
                 ))}
-                {!localVoiceIsKnown ? (
+                {localVoiceId && !localVoiceIsKnown ? (
                   <option value={localVoiceId}>{localVoiceId} (custom)</option>
                 ) : null}
               </select>
               <span className={settingsHintClass}>
-                {LOCAL_TTS_VOICES.length > 1
-                  ? 'Voices bundled with the selected local model.'
-                  : 'Paradee ships a single built-in voice. Cloud providers offer more voices.'}
+                {localVoiceList.length > 0
+                  ? `${localVoiceList.length} voice${
+                      localVoiceList.length === 1 ? '' : 's'
+                    } found next to this model. Leave on Default to use ${
+                      localDefaultVoice || 'the model default'
+                    }.`
+                  : 'No voices file was found next to this model; its built-in voice is used.'}
               </span>
             </label>
           </div>
@@ -450,7 +467,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           </div>
         </div>
         <span className={settingsHintClass}>
-          Speed applies to local Paradee and OpenAI TTS. Other cloud providers
+          Speed applies to local ONNX and OpenAI TTS. Other cloud providers
           speak at their natural pace.
         </span>
       </SettingsGroup>

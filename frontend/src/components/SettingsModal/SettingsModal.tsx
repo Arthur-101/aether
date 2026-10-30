@@ -23,6 +23,7 @@ import type {
   AppearanceConfig,
   AppConfig,
   GeneralConfig,
+  LocalVoiceState,
   SpotifyAuthState,
   TaskbarAppsConfig,
   TaskbarAppsState,
@@ -53,6 +54,7 @@ interface SettingsModalProps {
   configError: string | null;
   spotifyAuth: SpotifyAuthState;
   toolGroups: ToolGroupsState | null;
+  localVoices: LocalVoiceState | null;
   notesDirectory: string;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
@@ -62,6 +64,7 @@ interface SettingsModalProps {
   onSpotifyDisconnect: () => void;
   onSpotifyRefresh: () => void;
   onRefreshToolGroups: () => void;
+  onRefreshLocalVoices: () => void;
   taskbarState: TaskbarAppsState | null;
   widgets: DesktopWidget[];
   onWidgetAppearanceChange: (id: string, patch: WidgetAppearanceOverrides) => void;
@@ -106,6 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   configError,
   spotifyAuth,
   toolGroups,
+  localVoices,
   notesDirectory,
   onToggleThinking,
   onSave,
@@ -115,6 +119,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSpotifyDisconnect,
   onSpotifyRefresh,
   onRefreshToolGroups,
+  onRefreshLocalVoices,
   taskbarState,
   widgets,
   onWidgetAppearanceChange,
@@ -185,6 +190,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen && activeTab === 'appearance') onRefreshTaskbar();
   }, [isOpen, activeTab, onRefreshTaskbar]);
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'voice') onRefreshLocalVoices();
+  }, [isOpen, activeTab, onRefreshLocalVoices]);
 
   const updateGeneral = (patch: Partial<GeneralConfig>) => {
     setDraft((prev) =>
@@ -478,6 +487,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <VoiceSettings
                       voice={draft.voice}
                       ai={draft.ai_provider}
+                      localVoices={localVoices}
                       onChange={updateVoice}
                     />
                   )}
