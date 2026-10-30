@@ -36,6 +36,11 @@ from .note_tools import (
     set_note_pinned,
     update_note,
 )
+from .app_tools import (
+    focus_window,
+    get_app_tool_schemas,
+    launch_app,
+)
 from .clipboard_tools import (
     get_clipboard_tool_schemas,
     read_clipboard,
@@ -118,6 +123,8 @@ mcp.tool()(read_guide)
 mcp.tool()(search_guide)
 mcp.tool()(read_clipboard)
 mcp.tool()(write_clipboard)
+mcp.tool()(launch_app)
+mcp.tool()(focus_window)
 mcp.tool()(media_play)
 mcp.tool()(media_pause)
 mcp.tool()(media_toggle)
@@ -183,6 +190,8 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "search_guide": search_guide,
     "read_clipboard": _read_clipboard_tolerant,
     "write_clipboard": write_clipboard,
+    "launch_app": launch_app,
+    "focus_window": focus_window,
     "media_play": media_play,
     "media_pause": media_pause,
     "media_toggle": media_toggle,
@@ -349,7 +358,7 @@ def get_openai_tool_schemas(
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_guide_tool_schemas() + get_clipboard_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_guide_tool_schemas() + get_clipboard_tool_schemas() + get_app_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
     return filter_tool_schemas(schemas, enabled_groups, disabled_tools)
 
 

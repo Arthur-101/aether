@@ -291,7 +291,7 @@ class LLMRouter:
                     if duplicates >= 2:
                         force_final = True
                     continue
-                if requires_approval(name):
+                if requires_approval(name, args):
                     approval_id = approval_store.create_id()
                     approval_store.put(PendingApproval(
                         approval_id=approval_id,

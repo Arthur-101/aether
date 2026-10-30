@@ -8,6 +8,7 @@
 
 import {
   Activity,
+  AppWindow,
   AudioLines,
   Bluetooth,
   CalendarClock,
@@ -23,6 +24,7 @@ import {
   ListMusic,
   ListPlus,
   MonitorSpeaker,
+  MonitorUp,
   NotebookPen,
   Pause,
   Pencil,
@@ -86,6 +88,8 @@ const TOOL_META: Record<string, ToolMeta> = {
   set_brightness: { label: 'Set brightness', icon: Sun },
   set_wifi: { label: 'Toggle Wi-Fi', icon: Wifi },
   set_bluetooth: { label: 'Toggle Bluetooth', icon: Bluetooth },
+  launch_app: { label: 'Launch app', icon: AppWindow },
+  focus_window: { label: 'Focus window', icon: MonitorUp },
   // Spotify
   spotify_search: { label: 'Spotify search', icon: Search },
   spotify_play: { label: 'Play on Spotify', icon: Play },

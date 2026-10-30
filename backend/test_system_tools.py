@@ -22,6 +22,8 @@ SYSTEM_TOOLS = {
     "set_brightness",
     "set_wifi",
     "set_bluetooth",
+    "launch_app",
+    "focus_window",
 }
 
 
@@ -48,17 +50,25 @@ def test_system_schemas_are_filtered_with_their_group():
     assert "disabled" in result.lower()
 
 
-def test_only_mute_and_radios_require_approval():
+def test_only_guarded_system_tools_require_approval():
     for name in ("set_mute", "set_wifi", "set_bluetooth"):
         assert tool_permissions.tool_permission(name).risk == "system"
         assert tool_permissions.requires_approval(name) is True
 
-    for name in ("get_system_stats", "set_volume", "set_brightness"):
+    for name in (
+        "get_system_stats",
+        "set_volume",
+        "set_brightness",
+        "launch_app",
+        "focus_window",
+    ):
         assert tool_permissions.requires_approval(name) is False
 
     assert tool_permissions.tool_permission("get_system_stats").risk == "read"
     assert tool_permissions.tool_permission("set_volume").risk == "write"
     assert tool_permissions.tool_permission("set_brightness").risk == "write"
+    assert tool_permissions.tool_permission("launch_app").risk == "write"
+    assert tool_permissions.tool_permission("focus_window").risk == "write"
 
 
 def test_set_volume_converts_percent_and_clamps(monkeypatch):

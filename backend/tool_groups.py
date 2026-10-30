@@ -29,7 +29,7 @@ TOOL_GROUPS: Tuple[Dict[str, str], ...] = (
     {
         "id": "system",
         "label": "System",
-        "hint": "Check system stats and control volume, mute, brightness, Wi-Fi, and Bluetooth.",
+        "hint": "Check system stats, control volume, mute, brightness, Wi-Fi, and Bluetooth, and launch or focus taskbar apps.",
     },
     {
         "id": "spotify",

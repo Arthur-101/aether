@@ -5,10 +5,12 @@ from __future__ import annotations
 import secrets
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Callable, Dict, Literal, Optional
 
 ToolRisk = Literal["read", "write", "destructive", "system"]
 GUARDED_RISKS = {"destructive", "system"}
+ApprovalCheck = Callable[[Dict[str, Any]], bool]
+_APPROVAL_CHECKS: Dict[str, ApprovalCheck] = {}
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,11 @@ TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
     "set_brightness": ToolPermission("write", "system"),
     "set_wifi": ToolPermission("system", "system"),
     "set_bluetooth": ToolPermission("system", "system"),
+    # The taskbar allow-list is the safety boundary, so the first three
+    # launches in a minute run immediately; app_tools registers a dynamic
+    # check that pauses the fourth for approval.
+    "launch_app": ToolPermission("write", "system"),
+    "focus_window": ToolPermission("write", "system"),
     "web_search": ToolPermission("read", "web"),
     "fetch_url": ToolPermission("read", "web"),
     "spotify_search": ToolPermission("read", "spotify"),
@@ -86,9 +93,17 @@ def tool_permission(name: str) -> ToolPermission:
     return TOOL_PERMISSIONS.get(name, ToolPermission("write", "other"))
 
 
-def requires_approval(name: str) -> bool:
+def register_approval_check(name: str, check: ApprovalCheck) -> None:
+    """Adds a runtime condition that can pause an otherwise unguarded tool."""
+    _APPROVAL_CHECKS[name] = check
+
+
+def requires_approval(name: str, args: Optional[Dict[str, Any]] = None) -> bool:
     """Whether a call must stop for explicit user approval."""
-    return tool_permission(name).risk in GUARDED_RISKS
+    if tool_permission(name).risk in GUARDED_RISKS:
+        return True
+    check = _APPROVAL_CHECKS.get(name)
+    return bool(check and check(args or {}))
 
 
 @dataclass

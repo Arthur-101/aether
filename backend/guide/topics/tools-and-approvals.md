@@ -19,7 +19,7 @@ Every group starts enabled:
 - **Notes** — create, read, search, pin, edit, delete notes, and read this guide.
 - **Clipboard** — read the Windows clipboard and write text to it.
 - **Media** — play, pause, skip, and inspect the active media session.
-- **System** — system stats, volume, mute, brightness, Wi-Fi, and Bluetooth.
+- **System** — system stats, volume, mute, brightness, Wi-Fi, Bluetooth, and launching or focusing taskbar apps.
 - **Spotify** — search, queue, and control Spotify playback.
 - **Web** — Tavily web search and direct page reading.
 - **Clock & Tasks** — timers, alarms, reminders, and recurring routines.
@@ -41,9 +41,10 @@ Most tools run immediately. A few actions pause the turn and ask for explicit ap
 - **Mute / unmute** the system output.
 - **Turn Wi-Fi on or off.**
 - **Turn Bluetooth on or off.**
+- **Launch a fourth app within a rolling minute** (the first three taskbar launches run immediately).
 - **Replace or delete a note** (destructive note actions).
 
-Volume and brightness changes do **not** ask for approval. They run immediately because they are easy to reverse.
+Volume and brightness changes do **not** ask for approval. They run immediately because they are easy to reverse. Focusing a taskbar window also runs immediately; only apps in the taskbar deck can be opened.
 
 When an approval prompt appears:
 
