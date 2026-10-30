@@ -247,11 +247,13 @@ def _register_builtin_handlers() -> None:
     from .spotify_events import register_spotify_events
     from .task_events import register_task_events
     from .tool_events import register_tool_events
+    from .tts_events import register_tts_events
     from .wallpaper_events import register_wallpaper_events
     from .weather_events import register_weather_events
 
     register_config_events()
     register_tool_events()
+    register_tts_events()
     register_region_events()
     register_task_events()
     register_weather_events()

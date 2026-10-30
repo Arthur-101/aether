@@ -15,7 +15,9 @@ import {
   Send,
   Server,
   Sparkles,
+  Square,
   StickyNote,
+  Volume2,
   X,
 } from 'lucide-react';
 import type {
@@ -25,6 +27,7 @@ import type {
   HotkeysConfig,
   ModelStatus,
   SessionItem,
+  SpeechState,
   TimeFormat,
   ToolCallEvent,
   ToolApprovalRequest,
@@ -44,6 +47,9 @@ interface QuickChatProps {
   history: ChatTurn[];
   pending: string | null;
   draft?: string;
+  speechState?: SpeechState;
+  onSpeakText?: (text: string, requestId: string) => void;
+  onStopSpeaking?: () => void;
   activeToolCalls?: ToolCallEvent[];
   toolApproval?: ToolApprovalRequest | null;
   onResolveToolApproval?: (approval: ToolApprovalRequest, approved: boolean) => void;
@@ -75,6 +81,12 @@ const PROMPTS = [
   'What is using the most memory?',
   'Plan the rest of my afternoon',
 ];
+
+const IDLE_SPEECH: SpeechState = {
+  status: 'idle',
+  request_id: '',
+  message: '',
+};
 
 const BACKEND_CYCLE: Record<
   AIProviderConfig['mode'],
@@ -164,6 +176,9 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   history,
   pending,
   draft = '',
+  speechState = IDLE_SPEECH,
+  onSpeakText,
+  onStopSpeaking,
   activeToolCalls = [],
   toolApproval = null,
   onResolveToolApproval,
@@ -199,6 +214,11 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const attachRef = useRef<HTMLDivElement>(null);
+  const speechSeqRef = useRef(0);
+  const [speechRequest, setSpeechRequest] = useState<{
+    id: string;
+    index: number;
+  } | null>(null);
 
   const engine = useMemo(() => engineInfo(ai), [ai]);
   const EngineIcon = engine.icon;
@@ -206,6 +226,31 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   const attachedFiles = attachments.filter(
     (item) => item.mode === 'inline' || item.mode === 'rag_vector'
   ).length;
+
+  const speakingIndex =
+    speechRequest !== null &&
+    speechState.status === 'speaking' &&
+    speechState.request_id === speechRequest.id
+      ? speechRequest.index
+      : null;
+  const speechError =
+    speechRequest !== null &&
+    speechState.status === 'idle' &&
+    speechState.request_id === speechRequest.id &&
+    speechState.message
+      ? { index: speechRequest.index, message: speechState.message }
+      : null;
+
+  const toggleSpeech = (index: number, text: string) => {
+    if (speakingIndex === index) {
+      onStopSpeaking?.();
+      return;
+    }
+    speechSeqRef.current += 1;
+    const id = `speech-${speechSeqRef.current}`;
+    setSpeechRequest({ id, index });
+    onSpeakText?.(text, id);
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -460,6 +505,41 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                               ok: tool.ok ?? true,
                             }))}
                           />
+                        ) : null}
+                        {!turn.error && turn.ai.trim() ? (
+                          <div className="mt-1.5 flex items-center justify-end gap-2">
+                            {speechError?.index === index ? (
+                              <span className="mr-auto text-[9px] leading-snug text-[#ff99a4]">
+                                {speechError.message}
+                              </span>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => toggleSpeech(index, turn.ai)}
+                              title={
+                                speakingIndex === index
+                                  ? 'Stop reading aloud'
+                                  : 'Read this reply aloud'
+                              }
+                              aria-label={
+                                speakingIndex === index
+                                  ? 'Stop reading this reply aloud'
+                                  : 'Read this reply aloud'
+                              }
+                              aria-pressed={speakingIndex === index}
+                              className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--aether-accent)] ${
+                                speakingIndex === index
+                                  ? 'border-[var(--aether-accent)]/45 bg-[var(--aether-accent)]/12 text-[var(--aether-accent-text)]'
+                                  : 'border-transparent text-[var(--aether-text-3)] hover:border-[var(--aether-line)] hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]'
+                              }`}
+                            >
+                              {speakingIndex === index ? (
+                                <Square size={8} className="fill-current" />
+                              ) : (
+                                <Volume2 size={12} />
+                              )}
+                            </button>
+                          </div>
                         ) : null}
                       </div>
                     </div>

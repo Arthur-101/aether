@@ -431,9 +431,32 @@ def normalize_voice(value: Any) -> Dict[str, Any]:
 
     tts_voice = _optional_text(raw.get("tts_voice_id"), 160)
     if tts_provider == "local":
-        tts_voice = tts_voice or LOCAL_TTS_VOICE_ID
-    elif not tts_voice or tts_voice == LOCAL_TTS_VOICE_ID:
-        tts_voice = default_tts_voice(tts_provider)
+        # Paradee has a single voice; the engine applies it implicitly. Keeping
+        # the field empty lets the Settings select show "Default".
+        if tts_voice == LOCAL_TTS_VOICE_ID:
+            tts_voice = ""
+    elif tts_voice in (LOCAL_TTS_VOICE_ID, default_tts_voice(tts_provider)):
+        # The engine already falls back to the provider default, so storing it
+        # would only make the Settings field look prefilled. The local voice id
+        # is also cleared so switching providers never carries it across.
+        tts_voice = ""
+
+    presets_raw = raw.get("tts_voice_presets")
+    tts_voice_presets: Dict[str, List[str]] = {}
+    if isinstance(presets_raw, dict):
+        for provider, entries in presets_raw.items():
+            provider_id = _optional_text(provider, 40).lower()
+            if provider_id not in VOICE_PROVIDER_IDS:
+                continue
+            if not isinstance(entries, (list, tuple)):
+                continue
+            cleaned: List[str] = []
+            for entry in entries:
+                voice_id = _optional_text(entry, 160)
+                if voice_id and voice_id not in cleaned:
+                    cleaned.append(voice_id)
+            if cleaned:
+                tts_voice_presets[provider_id] = cleaned[:40]
 
     try:
         tts_speed = float(raw.get("tts_speed", 1.0))
@@ -457,6 +480,7 @@ def normalize_voice(value: Any) -> Dict[str, Any]:
         "tts_model": tts_model,
         "tts_model_path": _optional_text(raw.get("tts_model_path"), 1000),
         "tts_voice_id": tts_voice,
+        "tts_voice_presets": tts_voice_presets,
         "tts_speed": tts_speed,
         "mic_device_index": mic_device_index,
     }

@@ -17,6 +17,7 @@ import type {
   PowerActionResult,
   ScheduledTask,
   SessionItem,
+  SpeechState,
   SpeedTestResult,
   SystemStats,
   TaskInput,
@@ -58,6 +59,9 @@ interface DesktopIslandProps {
   chatHistory: ChatTurn[];
   chatPending: string | null;
   chatDraft: string;
+  speechState: SpeechState;
+  onSpeakText: (text: string, requestId: string) => void;
+  onStopSpeaking: () => void;
   activeToolCalls: ToolCallEvent[];
   toolApproval: ToolApprovalRequest | null;
   onResolveToolApproval: (approval: ToolApprovalRequest, approved: boolean) => void;
@@ -157,6 +161,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   chatHistory,
   chatPending,
   chatDraft,
+  speechState,
+  onSpeakText,
+  onStopSpeaking,
   activeToolCalls,
   toolApproval,
   onResolveToolApproval,
@@ -424,6 +431,9 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               history: chatHistory,
               pending: chatPending,
               draft: chatDraft,
+              speechState,
+              onSpeakText,
+              onStopSpeaking,
               activeToolCalls,
               toolApproval,
               onResolveToolApproval,

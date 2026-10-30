@@ -7,6 +7,13 @@ import type { NoteSaveInput } from './notes';
 
 export type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
+/** State of Quick Chat's read-aloud button, echoed per request id. */
+export interface SpeechState {
+  status: 'idle' | 'speaking';
+  request_id: string;
+  message: string;
+}
+
 export interface ModelStatus {
   loaded: boolean;
   starting: boolean;
@@ -482,6 +489,8 @@ export interface VoiceConfig {
   tts_model: string;
   tts_model_path: string;
   tts_voice_id: string;
+  /** Extra voice IDs the user saved, keyed by provider id. */
+  tts_voice_presets: Record<string, string[]>;
   tts_speed: number;
   mic_device_index: number | null;
 }
@@ -652,7 +661,12 @@ export type OutgoingEvent =
       payload: { request_id: string; radius?: number };
     }
   | { type: 'RUN_SPEED_TEST'; payload: { duration_seconds?: number } }
-  | { type: 'OPEN_SETTINGS_PAGE'; payload: { page: string } };
+  | { type: 'OPEN_SETTINGS_PAGE'; payload: { page: string } }
+  | {
+      type: 'SPEAK_TEXT';
+      payload: { text: string; request_id: string };
+    }
+  | { type: 'STOP_SPEAKING'; payload: Record<string, never> };
 
 export interface IncomingEnvelope<T = any> {
   type: string;

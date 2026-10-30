@@ -459,20 +459,6 @@ export const AiSettings: React.FC<AiSettingsProps> = ({
             ) : null}
           </div>
         </details>
-
-        <label className="flex flex-col gap-1">
-          <span className={settingsLabelClass}>Tavily web search API key</span>
-          <input
-            type="password"
-            value={ai.tavily_api_key ?? ''}
-            onChange={(event) => onChange({ tavily_api_key: event.target.value })}
-            placeholder="Optional · stored locally in %APPDATA%/Aether"
-            className={`${settingsMonoInputClass} w-full`}
-          />
-          <span className={settingsHintClass}>
-            Enables live web search. Direct URL reading works without a key.
-          </span>
-        </label>
       </SettingsGroup>
     </div>
   );

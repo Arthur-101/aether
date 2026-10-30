@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AudioLines,
   Cloud,
@@ -7,6 +7,7 @@ import {
   KeyRound,
   Mic,
   Play,
+  X,
 } from 'lucide-react';
 import type { AIProviderConfig, VoiceConfig } from '../../../types/ipc';
 import { pickNativePath } from '../../../lib/system';
@@ -78,6 +79,19 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   const localVoiceIds = LOCAL_TTS_VOICES.map((localVoice) => localVoice.id);
   const localVoiceId = voice.tts_voice_id?.trim() || LOCAL_TTS_DEFAULT_VOICE;
   const localVoiceIsKnown = localVoiceIds.includes(localVoiceId);
+  const [voiceDraft, setVoiceDraft] = useState('');
+
+  const selectedVoice = voice.tts_voice_id?.trim() ?? '';
+  const builtInVoices = ttsProvider?.voices ?? [];
+  const customVoices = voice.tts_voice_presets?.[ttsProviderId] ?? [];
+  const voiceOptions = [
+    ...builtInVoices,
+    ...customVoices.filter((voiceId) => !builtInVoices.includes(voiceId)),
+  ];
+  if (selectedVoice && !voiceOptions.includes(selectedVoice)) {
+    voiceOptions.push(selectedVoice);
+  }
+  const defaultVoice = ttsProvider?.ttsVoice ?? '';
 
   const browseStt = async () => {
     const path = await pickNativePath('directory', 'all', placementBesideSettings());
@@ -109,13 +123,8 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
     const previous = voiceProvider(ttsProviderId);
     const next = voiceProvider(nextId);
     const currentModel = voice.tts_model?.trim() ?? '';
-    const currentVoice = voice.tts_voice_id?.trim() ?? '';
     const modelIsDefault =
       !currentModel || (previous ? currentModel === previous.ttsModel : false);
-    const voiceIsDefault =
-      !currentVoice ||
-      localVoiceIds.includes(currentVoice) ||
-      (previous ? currentVoice === previous.ttsVoice : false);
 
     const ttsModel = next
       ? modelIsDefault
@@ -124,17 +133,43 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       : modelIsDefault
         ? ''
         : currentModel;
-    const ttsVoice = next
-      ? voiceIsDefault
-        ? next.ttsVoice
-        : currentVoice
-      : voiceIsDefault
-        ? LOCAL_TTS_DEFAULT_VOICE
-        : currentVoice;
+    // Voice IDs are provider-specific, so a switch always returns to the
+    // provider default (stored as an empty field).
+    setVoiceDraft('');
     onChange({
       tts_provider: nextId,
       tts_model: ttsModel,
-      tts_voice_id: ttsVoice,
+      tts_voice_id: '',
+    });
+  };
+
+  const addCustomVoice = () => {
+    if (!ttsProvider) return;
+    const voiceId = voiceDraft.trim();
+    if (!voiceId) return;
+    const saved = voice.tts_voice_presets?.[ttsProvider.id] ?? [];
+    const presets = { ...(voice.tts_voice_presets ?? {}) };
+    if (!ttsProvider.voices.includes(voiceId) && !saved.includes(voiceId)) {
+      presets[ttsProvider.id] = [...saved, voiceId];
+    }
+    onChange({ tts_voice_id: voiceId, tts_voice_presets: presets });
+    setVoiceDraft('');
+  };
+
+  const removeCustomVoice = (voiceId: string) => {
+    if (!ttsProvider) return;
+    const saved = (voice.tts_voice_presets?.[ttsProvider.id] ?? []).filter(
+      (entry) => entry !== voiceId
+    );
+    const presets = { ...(voice.tts_voice_presets ?? {}) };
+    if (saved.length > 0) {
+      presets[ttsProvider.id] = saved;
+    } else {
+      delete presets[ttsProvider.id];
+    }
+    onChange({
+      tts_voice_presets: presets,
+      ...(selectedVoice === voiceId ? { tts_voice_id: '' } : {}),
     });
   };
 
@@ -265,27 +300,81 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
               </label>
               <label className="flex min-w-0 flex-col gap-1">
                 <span className={settingsLabelClass}>Voice</span>
-                <input
-                  type="text"
-                  list={`aether-tts-voices-${ttsProvider.id}`}
-                  value={voice.tts_voice_id}
+                <select
+                  value={selectedVoice}
                   onChange={(event) =>
                     onChange({ tts_voice_id: event.target.value })
                   }
-                  placeholder={ttsProvider.ttsVoice}
-                  spellCheck={false}
-                  className={`${settingsMonoInputClass} w-full`}
-                />
-                <datalist id={`aether-tts-voices-${ttsProvider.id}`}>
-                  {ttsProvider.voices.map((voiceId) => (
-                    <option key={voiceId} value={voiceId} />
+                  className={`${settingsInputClass} w-full`}
+                >
+                  <option value="">
+                    Default{defaultVoice ? ` · ${defaultVoice}` : ''}
+                  </option>
+                  {voiceOptions.map((voiceId) => (
+                    <option key={voiceId} value={voiceId}>
+                      {voiceId}
+                      {customVoices.includes(voiceId) &&
+                      !builtInVoices.includes(voiceId)
+                        ? ' · custom'
+                        : ''}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </label>
             </div>
             <span className={settingsHintClass}>
-              Custom model and voice IDs are accepted. Groq speaks in short
-              segments; longer replies are split automatically.
+              Leave empty to use the provider's default voice
+              {defaultVoice ? ` (${defaultVoice})` : ''}.
+            </span>
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={voiceDraft}
+                onChange={(event) => setVoiceDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addCustomVoice();
+                  }
+                }}
+                placeholder="Add a custom voice ID…"
+                spellCheck={false}
+                className={`${settingsMonoInputClass} min-w-0 flex-1`}
+              />
+              <button
+                type="button"
+                onClick={addCustomVoice}
+                disabled={!voiceDraft.trim()}
+                className={settingsSecondaryButtonClass}
+              >
+                Add
+              </button>
+            </div>
+            {customVoices.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {customVoices.map((voiceId) => (
+                  <span
+                    key={voiceId}
+                    className="inline-flex items-center gap-1 rounded-md border border-[var(--aether-line)] bg-[var(--aether-fill)] py-0.5 pl-1.5 pr-0.5 text-[9px] text-[var(--aether-text-2)]"
+                  >
+                    <span className="font-mono">{voiceId}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeCustomVoice(voiceId)}
+                      title={`Remove ${voiceId} from the voice list`}
+                      aria-label={`Remove ${voiceId} from the voice list`}
+                      className="grid h-4 w-4 place-items-center rounded text-[var(--aether-text-3)] transition hover:bg-black/20 hover:text-[var(--aether-text-1)]"
+                    >
+                      <X size={9} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <span className={settingsHintClass}>
+              Custom voices are saved for this provider and stay in the
+              dropdown. Groq speaks in short segments; longer replies are split
+              automatically.
             </span>
             <KeyStatus
               providerId={ttsProvider.id}

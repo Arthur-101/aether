@@ -89,12 +89,12 @@ type Tab = SettingsTab;
 const tabs = [
   { id: 'general' as const, label: 'General', icon: Settings2 },
   { id: 'ai' as const, label: 'AI & Models', icon: Cpu },
-  { id: 'tools' as const, label: 'Tools', icon: Wrench },
   { id: 'voice' as const, label: 'Voice Engine', icon: Mic },
-  { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
   { id: 'storage' as const, label: 'Storage & Files', icon: HardDrive },
   { id: 'appearance' as const, label: 'Appearance', icon: Palette },
   { id: 'widgets' as const, label: 'Widgets', icon: LayoutGrid },
+  { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
+  { id: 'tools' as const, label: 'Tools', icon: Wrench },
   { id: 'integrations' as const, label: 'Integrations', icon: Plug },
   { id: 'guide' as const, label: 'Guide', icon: BookOpen },
 ];
@@ -526,6 +526,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onConnect={onSpotifyConnect}
                       onDisconnect={onSpotifyDisconnect}
                       onRefresh={onSpotifyRefresh}
+                      tavilyKey={draft.ai_provider.tavily_api_key ?? ''}
+                      onTavilyKeyChange={(value) =>
+                        updateAi({ tavily_api_key: value })
+                      }
                     />
                   )}
                 </>

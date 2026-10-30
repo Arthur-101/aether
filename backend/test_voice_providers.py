@@ -7,6 +7,7 @@ shape sent to each provider.
 
 import base64
 import io
+import threading
 import types
 
 import numpy as np
@@ -107,16 +108,14 @@ def test_local_voice_is_the_default():
     assert voice["tts_provider"] == "local"
     assert voice["stt_model"] == ""
     assert voice["tts_model"] == ""
-    assert voice["tts_voice_id"] == "af_heart"
+    assert voice["tts_voice_id"] == ""
 
 
 def test_local_voice_catalog_matches_the_paradee_default():
     assert LOCAL_TTS_VOICE_ID == "af_heart"
     assert [voice["id"] for voice in LOCAL_TTS_VOICES] == [LOCAL_TTS_VOICE_ID]
     assert all(voice["label"] for voice in LOCAL_TTS_VOICES)
-    assert normalize_voice({"tts_provider": "local"})["tts_voice_id"] == (
-        LOCAL_TTS_VOICE_ID
-    )
+    assert normalize_voice({"tts_provider": "local"})["tts_voice_id"] == ""
 
 
 def test_cloud_voice_fills_provider_defaults_without_touching_chat_model():
@@ -124,7 +123,9 @@ def test_cloud_voice_fills_provider_defaults_without_touching_chat_model():
 
     assert voice["stt_model"] == "whisper-large-v3-turbo"
     assert voice["tts_model"] == "gemini-3.8-flash-tts"
-    assert voice["tts_voice_id"] == "Kore"
+    # The engine applies the provider default; the stored field stays empty so
+    # the Settings select shows "Default" instead of a prefilled voice.
+    assert voice["tts_voice_id"] == ""
 
 
 def test_cloud_voice_keeps_custom_model_and_voice_ids():
@@ -143,12 +144,33 @@ def test_cloud_voice_keeps_custom_model_and_voice_ids():
     assert voice["tts_voice_id"] == "en_paul_cheerful"
 
 
+def test_explicit_provider_default_voice_is_stored_as_empty():
+    voice = normalize_voice({"tts_provider": "gemini", "tts_voice_id": "Kore"})
+
+    assert voice["tts_voice_id"] == ""
+
+
+def test_custom_voice_presets_are_sanitized_per_provider():
+    voice = normalize_voice(
+        {
+            "tts_provider": "gemini",
+            "tts_voice_presets": {
+                "gemini": ["Kore", "  MyVoice  ", "Kore", "", 7],
+                "not-a-provider": ["ignored"],
+                "openai": "not-a-list",
+            },
+        }
+    )
+
+    assert voice["tts_voice_presets"] == {"gemini": ["Kore", "MyVoice", "7"]}
+
+
 def test_switching_cloud_tts_replaces_the_local_voice_placeholder():
     voice = normalize_voice(
         {"tts_provider": "mistral", "tts_voice_id": "af_heart"}
     )
 
-    assert voice["tts_voice_id"] == "en_paul_neutral"
+    assert voice["tts_voice_id"] == ""
 
 
 def test_invalid_voice_provider_falls_back_to_local():
@@ -182,7 +204,8 @@ def test_normalize_config_includes_voice_section():
     assert voice["stt_model"] == "openai/whisper-large-v3"
     assert voice["tts_provider"] == "groq"
     assert voice["tts_model"] == "canopylabs/orpheus-v1-english"
-    assert voice["tts_voice_id"] == "troy"
+    assert voice["tts_voice_id"] == ""
+    assert voice["tts_voice_presets"] == {}
     assert voice["tts_speed"] == 2.0
     assert voice["mic_device_index"] == 3
 
@@ -411,6 +434,26 @@ def test_local_tts_never_escalates_to_cloud(monkeypatch):
 
     engine.speak("hello")
     assert played["audio"].size == 80
+
+
+def test_cancelled_tts_never_starts_playback(monkeypatch):
+    patch_config(monkeypatch, voice={"tts_provider": "local"})
+    engine = ParadeeTTSEngine()
+    played = []
+    monkeypatch.setattr(
+        tts_module.sd, "play", lambda *args, **kwargs: played.append(True)
+    )
+    monkeypatch.setattr(
+        engine,
+        "synthesize",
+        lambda text, speed: pytest.fail("a cancelled request must not synthesize"),
+    )
+    cancel = threading.Event()
+    cancel.set()
+
+    engine.speak("hello", cancel=cancel)
+
+    assert played == []
 
 
 def test_cloud_tts_is_available_without_local_model(monkeypatch, tmp_path):

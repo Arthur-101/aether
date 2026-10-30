@@ -66,6 +66,7 @@ export function App() {
     connected,
     voiceState,
     voiceTranscript,
+    ttsState,
     activeSessionId,
     activeSessionTitle,
     chatHistory,
@@ -111,6 +112,8 @@ export function App() {
     subscribeMouse,
     requestScreenSample,
     sendChatMessage,
+    speakText,
+    stopSpeaking,
     resolveToolApproval,
     newSession,
     switchSession,
@@ -602,6 +605,9 @@ export function App() {
         chatHistory={chatHistory}
         chatPending={chatPending}
         chatDraft={chatDraft}
+        speechState={ttsState}
+        onSpeakText={speakText}
+        onStopSpeaking={stopSpeaking}
         activeToolCalls={activeToolCalls}
         toolApproval={toolApproval}
         onResolveToolApproval={resolveToolApproval}

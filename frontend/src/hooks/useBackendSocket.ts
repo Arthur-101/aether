@@ -26,6 +26,7 @@ import type {
   ScreenSample,
   SessionItem,
   ScheduledTask,
+  SpeechState,
   SpeedTestResult,
   SpotifyAuthState,
   SystemStats,
@@ -48,6 +49,11 @@ const EMPTY_STATS: SystemStats = { cpu_percent: 0, ram_percent: 0, disk_percent:
 export function useBackendSocket() {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [ttsState, setTtsState] = useState<SpeechState>({
+    status: 'idle',
+    request_id: '',
+    message: '',
+  });
   const [activeSessionId, setActiveSessionId] = useState('');
   const [activeSessionTitle, setActiveSessionTitle] = useState('New Session');
   const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
@@ -116,6 +122,13 @@ export function useBackendSocket() {
         case 'VOICE_STATE':
           setVoiceState(payload.state || 'idle');
           setVoiceTranscript(payload.transcript || '');
+          break;
+        case 'TTS_STATE':
+          setTtsState({
+            status: payload.state === 'speaking' ? 'speaking' : 'idle',
+            request_id: String(payload.request_id || ''),
+            message: String(payload.message || ''),
+          });
           break;
         case 'SHOW_RADIAL_WHEEL':
         case 'RADIAL_WHEEL_OPEN':
@@ -467,9 +480,10 @@ export function useBackendSocket() {
   useEffect(() => {
     // A daemon restart can reconnect without ever sending an idle event. Clear
     // any stale "Thinking..." state when a fresh connection comes up.
-    if (connected && !wasConnectedRef.current) {
+    if (!connected || !wasConnectedRef.current) {
       setVoiceState('idle');
       setVoiceTranscript('');
+      setTtsState({ status: 'idle', request_id: '', message: '' });
     }
     wasConnectedRef.current = connected;
   }, [connected]);
@@ -517,6 +531,7 @@ export function useBackendSocket() {
     // Derive idle while offline so the "Thinking..." pill cannot persist.
     voiceState: connected ? voiceState : 'idle',
     voiceTranscript: connected ? voiceTranscript : '',
+    ttsState,
     activeSessionId,
     activeSessionTitle,
     chatHistory,

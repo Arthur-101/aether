@@ -63,6 +63,17 @@ export function useBackendActions(
     [sendEvent, setChatDraft, setChatPending, setActiveToolCalls]
   );
 
+  const speakText = useCallback(
+    (text: string, requestId: string) =>
+      sendEvent({ type: 'SPEAK_TEXT', payload: { text, request_id: requestId } }),
+    [sendEvent]
+  );
+
+  const stopSpeaking = useCallback(
+    () => sendEvent({ type: 'STOP_SPEAKING', payload: {} }),
+    [sendEvent]
+  );
+
   const newSession = useCallback(() => {
     setChatHistory([]);
     setChatPending(null);
@@ -422,6 +433,8 @@ export function useBackendActions(
 
   return {
     sendChatMessage,
+    speakText,
+    stopSpeaking,
     resolveToolApproval,
     newSession,
     switchSession,

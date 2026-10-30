@@ -9,6 +9,7 @@ import io
 import json
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Optional, Tuple
 import httpx
@@ -359,19 +360,33 @@ class ParadeeTTSEngine:
         )
         return audio
 
-    def speak(self, text: str, speed: float = 1.0, blocking: bool = True) -> None:
+    def speak(
+        self,
+        text: str,
+        speed: float = 1.0,
+        blocking: bool = True,
+        cancel: Optional[threading.Event] = None,
+    ) -> None:
         """Synthesizes text and streams to speakers via sounddevice.
 
         Cloud is only used when the user explicitly selected a cloud TTS
         provider with a stored key. Cloud failures fall back to local Paradee;
         local failures never escalate to a provider.
+
+        ``cancel`` lets a caller abandon a queued utterance: it is checked
+        before synthesis and again before playback, so a superseded request
+        never talks over the one that replaced it.
         """
+        if cancel is not None and cancel.is_set():
+            return
         speed = float(config_manager.get("voice", "tts_speed", speed) or speed)
         provider = self._provider()
         if provider != "local":
             if self._cloud_configured():
                 try:
                     audio = self._synthesize_cloud(provider, text, speed)
+                    if cancel is not None and cancel.is_set():
+                        return
                     if audio.size:
                         sd.play(audio, samplerate=SAMPLE_RATE)
                         if blocking:
@@ -393,7 +408,11 @@ class ParadeeTTSEngine:
                     provider,
                 )
 
+        if cancel is not None and cancel.is_set():
+            return
         audio = self.synthesize(text, speed=speed)
+        if cancel is not None and cancel.is_set():
+            return
         sd.play(audio, samplerate=SAMPLE_RATE)
         if blocking:
             sd.wait()
