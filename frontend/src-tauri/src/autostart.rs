@@ -153,10 +153,22 @@ mod platform {
 
 #[tauri::command]
 pub fn get_autostart() -> Result<bool, String> {
+    // A dev build loads the Vite dev server, so it must never be launched by
+    // the Windows Run key; report "off" even if an old entry still exists.
+    if tauri::is_dev() {
+        return Ok(false);
+    }
     platform::is_enabled()
 }
 
 #[tauri::command]
 pub fn set_autostart(enabled: bool) -> Result<(), String> {
+    // The dev executable points at http://localhost:1420. Starting it at
+    // sign-in without `npm run dev` only yields WebView2's connection-error
+    // page, so refuse to register it and clear anything an older build wrote.
+    if tauri::is_dev() {
+        let _ = enabled;
+        return platform::set_enabled(false);
+    }
     platform::set_enabled(enabled)
 }

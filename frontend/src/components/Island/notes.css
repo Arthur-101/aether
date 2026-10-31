@@ -475,6 +475,27 @@
   font-size: 0.9em;
 }
 
+.note-surface .ProseMirror .tiptap-mathematics-render {
+  cursor: default;
+}
+
+.note-surface .ProseMirror .tiptap-mathematics-render[data-type='block-math'] {
+  display: block;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.note-surface .ProseMirror .tiptap-mathematics-render[data-type='inline-math'] {
+  display: inline-block;
+}
+
+.note-surface .ProseMirror .tiptap-mathematics-render.block-math-error,
+.note-surface .ProseMirror .tiptap-mathematics-render.inline-math-error {
+  color: #f87171;
+  white-space: pre-wrap;
+}
+
 .note-surface .ProseMirror a {
   color: var(--note-accent);
   text-decoration: underline;

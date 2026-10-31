@@ -3,22 +3,30 @@ import {
   ChevronDown,
   ChevronRight,
   CircleAlert,
+  FolderOpen,
   Gauge,
+  Plus,
+  ShieldCheck,
   Wrench,
+  X,
 } from 'lucide-react';
-import type { ToolGroupsState, ToolRisk } from '../../../types/ipc';
+import type { AppConfig, ToolGroupsState, ToolRisk } from '../../../types/ipc';
+import { pickNativePath } from '../../../lib/system';
 import { SettingsGroup, SettingsToggleRow } from '../SettingsControls';
 import {
   settingsCardClass,
   settingsHintClass,
   settingsRowClass,
+  settingsSecondaryButtonClass,
 } from '../settingsStyles';
 
 interface ToolsSettingsProps {
   enabledGroups: string[];
   disabledTools: string[];
   state: ToolGroupsState | null;
+  filesystem: NonNullable<AppConfig['filesystem']>;
   onChange: (next: { enabled_groups: string[]; disabled_tools: string[] }) => void;
+  onFilesystemChange: (next: NonNullable<AppConfig['filesystem']>) => void;
   onRefresh: () => void;
 }
 
@@ -40,10 +48,13 @@ export const ToolsSettings: React.FC<ToolsSettingsProps> = ({
   enabledGroups,
   disabledTools,
   state,
+  filesystem,
   onChange,
+  onFilesystemChange,
   onRefresh,
 }) => {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [pickingRoot, setPickingRoot] = useState(false);
 
   // Settings mounts this tab on demand, so ask the daemon for live counts.
   useEffect(() => {
@@ -99,6 +110,29 @@ export const ToolsSettings: React.FC<ToolsSettingsProps> = ({
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
+    });
+  };
+
+  const extraRoots = filesystem.allowed_roots ?? [];
+  const addRoot = async () => {
+    if (pickingRoot || extraRoots.length >= 10) return;
+    setPickingRoot(true);
+    try {
+      const picked = await pickNativePath('directory');
+      if (!picked) return;
+      const normalized = picked.replace(/[\\/]+$/, '');
+      if (extraRoots.some((root) => root.toLowerCase() === normalized.toLowerCase())) {
+        return;
+      }
+      onFilesystemChange({ allowed_roots: [...extraRoots, normalized] });
+    } finally {
+      setPickingRoot(false);
+    }
+  };
+
+  const removeRoot = (path: string) => {
+    onFilesystemChange({
+      allowed_roots: extraRoots.filter((root) => root !== path),
     });
   };
 
@@ -252,6 +286,83 @@ export const ToolsSettings: React.FC<ToolsSettingsProps> = ({
             );
           })}
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup
+        icon={<FolderOpen size={13} />}
+        title="File System roots"
+        hint="Aether can read and change files only inside these folders. Every subfolder is included automatically."
+        action={
+          <span className={`font-mono text-[9px] ${settingsHintClass}`}>
+            {extraRoots.length}/10 added
+          </span>
+        }
+      >
+        <div className={settingsCardClass}>
+          {['Desktop', 'Downloads', 'Documents'].map((label) => (
+            <div key={label} className={settingsRowClass}>
+              <div className="flex min-w-0 items-center gap-2">
+                <ShieldCheck size={13} className="shrink-0 text-emerald-300" />
+                <div className="min-w-0">
+                  <p className="text-[11px] text-[var(--aether-text-1)]">{label}</p>
+                  <p className={settingsHintClass}>
+                    Included by default · all subfolders
+                  </p>
+                </div>
+              </div>
+              <span className="font-mono text-[8px] uppercase tracking-wide text-emerald-300">
+                default
+              </span>
+            </div>
+          ))}
+          {extraRoots.map((root) => (
+            <div key={root} className={settingsRowClass}>
+              <div className="flex min-w-0 items-center gap-2">
+                <FolderOpen
+                  size={13}
+                  className="shrink-0 text-[var(--aether-accent-text)]"
+                />
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-[10px] text-[var(--aether-text-1)]" title={root}>
+                    {root}
+                  </p>
+                  <p className={settingsHintClass}>All subfolders included</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeRoot(root)}
+                aria-label={`Remove ${root}`}
+                title="Stop allowing this folder"
+                className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-rose-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--aether-accent)]"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center justify-between gap-3 px-2.5 py-2">
+            <p className={settingsHintClass}>
+              Add a folder to grant its entire subtree. Profile, AppData,
+              Windows, Program Files, ProgramData, and drive roots are rejected.
+            </p>
+            <button
+              type="button"
+              onClick={addRoot}
+              disabled={pickingRoot || extraRoots.length >= 10}
+              className={settingsSecondaryButtonClass}
+            >
+              <Plus size={12} />
+              {pickingRoot ? 'Choosing…' : 'Add folder'}
+            </button>
+          </div>
+        </div>
+        {!enabledSet.has('filesystem') ? (
+          <p className={`flex items-start gap-1.5 ${settingsHintClass}`}>
+            <CircleAlert size={11} className="mt-0.5 shrink-0 text-amber-300" />
+            The File System group is off, so these roots are not used until you
+            enable it above.
+          </p>
+        ) : null}
       </SettingsGroup>
     </div>
   );

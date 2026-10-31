@@ -23,6 +23,9 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   onChange,
 }) => {
   const [version, setVersion] = useState('0.1.0');
+  // `tauri dev` serves the UI from Vite, so the debug executable cannot boot
+  // without the dev server. Only a packaged build can start with Windows.
+  const autostartSupported = !import.meta.env.DEV;
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -42,8 +45,13 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
           <div className={settingsRowClass}>
             <SettingsToggleRow
               label="Start Aether when I sign in"
-              hint="Adds Aether to your Windows startup apps. You can turn it off at any time."
-              checked={general.start_on_startup}
+              hint={
+                autostartSupported
+                  ? 'Adds Aether to your Windows startup apps. You can turn it off at any time.'
+                  : 'Available in the packaged app. The dev build needs the local dev server, so it cannot start on its own.'
+              }
+              checked={autostartSupported && general.start_on_startup}
+              disabled={!autostartSupported}
               onChange={(value) => onChange({ start_on_startup: value })}
             />
           </div>

@@ -47,6 +47,19 @@ GUIDE_TOOL_PROMPT = """For questions about Aether itself — setup, settings, mo
 
 GUIDE_TOOL_PROMPT_GENERIC = """For questions about Aether itself, call an available guide tool and answer from what it returns instead of guessing at setup steps."""
 
+FILESYSTEM_TOOL_PROMPT = """File-system tools work only inside the folders allowed in Settings -> Tools -> File System (Desktop, Downloads, and Documents by default, including all subfolders). Call find_files before assuming a file exists. Use create_folder or create_file only when the user asks, prefer .md for notes, and never create a script unless explicitly requested. Moves, renames, and organize_folder show the user an exact plan and wait for approval; never claim a change happened until the tool returns a success message. Never overwrite: if a target exists, choose a new name or report the conflict."""
+
+FILESYSTEM_TOOL_PROMPT_GENERIC = """File-system tools work only inside the folders allowed in Settings -> Tools -> File System and their subfolders. Call an available file-system tool, never assume a file exists, and report conflicts instead of overwriting. Moves, renames, and organizes wait for the user's approval."""
+
+_NAMED_FILESYSTEM_TOOLS = {
+    "find_files",
+    "create_folder",
+    "create_file",
+    "move_file",
+    "rename_file",
+    "organize_folder",
+}
+
 _NAMED_CLOCK_TOOLS = {
     "list_scheduled_tasks",
     "schedule_alarm",
@@ -126,6 +139,7 @@ def build_assistant_messages(
                 APP_TOOL_PROMPT,
                 CLIPBOARD_TOOL_PROMPT,
                 GUIDE_TOOL_PROMPT,
+                FILESYSTEM_TOOL_PROMPT,
             ]
         )
     else:
@@ -161,6 +175,12 @@ def build_assistant_messages(
                 GUIDE_TOOL_PROMPT_GENERIC
                 if _NAMED_GUIDE_TOOLS & blocked
                 else GUIDE_TOOL_PROMPT
+            )
+        if "filesystem" in enabled:
+            tool_rules.append(
+                FILESYSTEM_TOOL_PROMPT_GENERIC
+                if _NAMED_FILESYSTEM_TOOLS & blocked
+                else FILESYSTEM_TOOL_PROMPT
             )
     if tool_rules:
         system_sections.append(

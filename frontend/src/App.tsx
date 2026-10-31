@@ -195,6 +195,14 @@ export function App() {
     }
   }, []);
 
+  // The native window starts hidden. Reveal it only after React has mounted so
+  // a failed webview load can never paint WebView2's fullscreen error page over
+  // the desktop (for example a dev build started without the Vite server).
+  useEffect(() => {
+    if (!isTauri()) return;
+    void getCurrentWindow().show().catch(() => undefined);
+  }, []);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab | null>(null);
   const [isIslandExpanded, setIsIslandExpanded] = useState(false);

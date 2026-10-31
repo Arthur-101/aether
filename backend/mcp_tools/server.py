@@ -25,6 +25,15 @@ from .media_tools import (
     strip_image_metadata,
 )
 from .doc_tools import convert_document, search_dropped_file
+from .filesystem_tools import (
+    create_file,
+    create_folder,
+    find_files,
+    get_filesystem_tool_schemas,
+    move_file,
+    organize_folder,
+    rename_file,
+)
 from .note_tools import (
     append_to_note,
     create_note,
@@ -159,6 +168,12 @@ mcp.tool()(complete_task_tool)
 mcp.tool()(pause_task_tool)
 mcp.tool()(resume_task_tool)
 mcp.tool()(schedule_alarm)
+mcp.tool()(find_files)
+mcp.tool()(create_folder)
+mcp.tool()(create_file)
+mcp.tool()(move_file)
+mcp.tool()(rename_file)
+mcp.tool()(organize_folder)
 
 def _read_clipboard_tolerant(**_kwargs: Any) -> str:
     """Reads the clipboard even when a model sends a stray argument.
@@ -228,6 +243,12 @@ TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "schedule_alarm": schedule_alarm,
     "crop_image": crop_image,
     "add_background": add_background,
+    "find_files": find_files,
+    "create_folder": create_folder,
+    "create_file": create_file,
+    "move_file": move_file,
+    "rename_file": rename_file,
+    "organize_folder": organize_folder,
 }
 
 # Tools that must receive the active session id even if the model omits it.
@@ -358,7 +379,7 @@ def get_openai_tool_schemas(
                 }
             }
         },
-    ] + get_note_tool_schemas() + get_guide_tool_schemas() + get_clipboard_tool_schemas() + get_app_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas()
+    ] + get_note_tool_schemas() + get_guide_tool_schemas() + get_clipboard_tool_schemas() + get_app_tool_schemas() + get_media_control_tool_schemas() + get_web_tool_schemas() + get_system_tool_schemas() + get_spotify_tool_schemas() + get_clock_tool_schemas() + get_filesystem_tool_schemas()
     return filter_tool_schemas(schemas, enabled_groups, disabled_tools)
 
 

@@ -241,6 +241,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setDraft((prev) => (prev ? { ...prev, tools } : prev));
   };
 
+  const updateFilesystem = (
+    filesystem: NonNullable<AppConfig['filesystem']>
+  ) => {
+    setDraft((prev) => (prev ? { ...prev, filesystem } : prev));
+  };
+
   const updateAppearance = (appearance: AppearanceConfig) => {
     setDraft((prev) => (prev ? { ...prev, appearance } : prev));
     // Live preview: the pill and island follow the draft while dragging.
@@ -479,7 +485,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }
                       disabledTools={draft.tools?.disabled_tools ?? []}
                       state={toolGroups}
+                      filesystem={draft.filesystem ?? { allowed_roots: [] }}
                       onChange={updateTools}
+                      onFilesystemChange={updateFilesystem}
                       onRefresh={onRefreshToolGroups}
                     />
                   )}

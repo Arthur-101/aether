@@ -969,6 +969,25 @@ main {
   }
 }
 
+/*
+ * KaTeX output inside chat and the guide. Display math can be wider than the
+ * bubble, so it scrolls sideways instead of stretching the message.
+ */
+.aether-markdown .katex {
+  font-size: 1.04em;
+}
+
+.aether-markdown .katex-display {
+  margin: 0.4rem 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 1px;
+}
+
+.aether-markdown .katex-display > .katex {
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /*
    * Global safety net for CSS transitions and keyframes. 1ms (rather than

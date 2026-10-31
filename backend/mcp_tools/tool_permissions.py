@@ -10,7 +10,9 @@ from typing import Any, Callable, Dict, Literal, Optional
 ToolRisk = Literal["read", "write", "destructive", "system"]
 GUARDED_RISKS = {"destructive", "system"}
 ApprovalCheck = Callable[[Dict[str, Any]], bool]
+PreviewBuilder = Callable[[Dict[str, Any]], "PreviewResult"]
 _APPROVAL_CHECKS: Dict[str, ApprovalCheck] = {}
+_PREVIEW_BUILDERS: Dict[str, PreviewBuilder] = {}
 
 
 @dataclass(frozen=True)
@@ -19,6 +21,19 @@ class ToolPermission:
 
     risk: ToolRisk
     group: str
+
+
+@dataclass(frozen=True)
+class PreviewResult:
+    """A read-only plan shown to the user before a guarded call runs.
+
+    ``args`` is the exact payload the approval will execute. Builders resolve
+    paths and collisions now, so approving never re-plans the operation.
+    """
+
+    text: str
+    args: Dict[str, Any]
+    risk: Optional[ToolRisk] = None
 
 
 # Unlisted tools are `write`: they execute but are visible through F2. Guarded
@@ -85,6 +100,12 @@ TOOL_PERMISSIONS: Dict[str, ToolPermission] = {
     "strip_image_metadata": ToolPermission("write", "files"),
     "crop_image": ToolPermission("write", "files"),
     "add_background": ToolPermission("write", "files"),
+    "find_files": ToolPermission("read", "filesystem"),
+    "create_folder": ToolPermission("write", "filesystem"),
+    "create_file": ToolPermission("write", "filesystem"),
+    "move_file": ToolPermission("destructive", "filesystem"),
+    "rename_file": ToolPermission("destructive", "filesystem"),
+    "organize_folder": ToolPermission("destructive", "filesystem"),
 }
 
 
@@ -96,6 +117,19 @@ def tool_permission(name: str) -> ToolPermission:
 def register_approval_check(name: str, check: ApprovalCheck) -> None:
     """Adds a runtime condition that can pause an otherwise unguarded tool."""
     _APPROVAL_CHECKS[name] = check
+
+
+def register_preview_builder(name: str, builder: PreviewBuilder) -> None:
+    """Adds the read-only planner that runs before a guarded call."""
+    _PREVIEW_BUILDERS[name] = builder
+
+
+def build_tool_preview(name: str, args: Dict[str, Any]) -> Optional[PreviewResult]:
+    """Builds the exact plan shown to the user, or None when unplanned."""
+    builder = _PREVIEW_BUILDERS.get(name)
+    if builder is None:
+        return None
+    return builder(args)
 
 
 def requires_approval(name: str, args: Optional[Dict[str, Any]] = None) -> bool:

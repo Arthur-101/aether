@@ -20,6 +20,7 @@ from .config_schema import (
     DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES,
     default_appearance,
     default_clock,
+    default_filesystem,
     default_general,
     default_spotify,
     default_taskbar_apps,
@@ -145,6 +146,7 @@ def get_default_config() -> Dict[str, Any]:
         "wallpaper": default_wallpaper(),
         "spotify": default_spotify(),
         "tools": default_tools(),
+        "filesystem": default_filesystem(),
     }
 
 

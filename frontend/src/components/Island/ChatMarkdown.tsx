@@ -7,9 +7,13 @@
  */
 
 import Markdown from 'react-markdown';
+import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import type { Components } from 'react-markdown';
 import { openExternalTarget } from '../../lib/externalWindows';
+import { normalizeMathDelimiters } from '../../lib/markdownMath';
+import 'katex/dist/katex.min.css';
 
 const components: Components = {
   p: ({ children }) => <p className="my-1 first:mt-0 last:mb-0">{children}</p>,
@@ -122,9 +126,15 @@ export function ChatMarkdown({
   streaming?: boolean;
 }) {
   return (
-    <div className={`break-words${streaming ? ' chat-stream-caret' : ''}`}>
-      <Markdown remarkPlugins={[remarkGfm]} components={components}>
-        {content}
+    <div className={`aether-markdown break-words${streaming ? ' chat-stream-caret' : ''}`}>
+      <Markdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[
+          [rehypeKatex, { throwOnError: false, strict: false, errorColor: '#f87171' }],
+        ]}
+        components={components}
+      >
+        {normalizeMathDelimiters(content)}
       </Markdown>
     </div>
   );

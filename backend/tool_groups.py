@@ -56,6 +56,11 @@ TOOL_GROUPS: Tuple[Dict[str, str], ...] = (
         "label": "Image & File Tools",
         "hint": "Convert, compress, crop, black & white, and strip metadata from image files.",
     },
+    {
+        "id": "filesystem",
+        "label": "File System",
+        "hint": "Find, create, move, rename, and organize files inside the folders you allow.",
+    },
 )
 
 TOOL_GROUP_IDS: Tuple[str, ...] = tuple(group["id"] for group in TOOL_GROUPS)
@@ -79,7 +84,17 @@ PREVIOUS_TOOL_GROUP_IDS: Tuple[str, ...] = (
     "files",
 )
 PREVIOUS_TOOL_GROUP_IDS_V2: Tuple[str, ...] = PREVIOUS_TOOL_GROUP_IDS + ("system",)
-TOOL_GROUPS_VERSION = 3
+PREVIOUS_TOOL_GROUP_IDS_V3: Tuple[str, ...] = PREVIOUS_TOOL_GROUP_IDS_V2 + ("clipboard",)
+TOOL_GROUPS_VERSION = 4
+
+# The all-on set for each earlier config version. Migration only adds newly
+# introduced groups when the saved selection exactly matched that version's
+# full set, so an explicit opt-out is never silently undone.
+PREVIOUS_ALL_ON_BY_VERSION: Dict[int, Tuple[str, ...]] = {
+    1: PREVIOUS_TOOL_GROUP_IDS,
+    2: PREVIOUS_TOOL_GROUP_IDS_V2,
+    3: PREVIOUS_TOOL_GROUP_IDS_V3,
+}
 
 DEFAULT_ENABLED_TOOL_GROUPS: Tuple[str, ...] = TOOL_GROUP_IDS
 

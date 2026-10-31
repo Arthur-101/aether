@@ -24,6 +24,7 @@ from ..mcp_tools.server import (
 from ..mcp_tools.tool_permissions import (
     PendingApproval,
     approval_store,
+    build_tool_preview,
     requires_approval,
     tool_permission,
 )
@@ -292,12 +293,26 @@ class LLMRouter:
                         force_final = True
                     continue
                 if requires_approval(name, args):
+                    try:
+                        preview = build_tool_preview(name, args)
+                    except Exception as exc:
+                        output = f"Error executing tool '{name}': {exc}"
+                        last_signature = signature
+                        last_output = output
+                        conversation.append({
+                            "role": "tool",
+                            "tool_call_id": call_id,
+                            "name": name,
+                            "content": output,
+                        })
+                        continue
+                    approval_args = preview.args if preview is not None else args
                     approval_id = approval_store.create_id()
                     approval_store.put(PendingApproval(
                         approval_id=approval_id,
                         session_id=session_id or "",
                         name=name,
-                        args=args,
+                        args=approval_args,
                         call_id=call_id,
                         conversation=conversation,
                         tools=list(tools or []),
@@ -306,6 +321,11 @@ class LLMRouter:
                         thinking_mode=thinking_mode,
                         loadout=loadout,
                     ))
+                    risk = (
+                        preview.risk
+                        if preview is not None and preview.risk is not None
+                        else tool_permission(name).risk
+                    )
                     return {
                         "content": result.get("content", "").strip(),
                         "reasoning": result.get("reasoning", ""),
@@ -313,8 +333,9 @@ class LLMRouter:
                         "approval_required": {
                             "approval_id": approval_id,
                             "name": name,
-                            "args": args,
-                            "risk": tool_permission(name).risk,
+                            "args": approval_args,
+                            "risk": risk,
+                            "preview": preview.text if preview is not None else "",
                         },
                     }
                 if on_tool_call is not None:

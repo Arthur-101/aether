@@ -588,6 +588,11 @@ export const QuickChat: React.FC<QuickChatProps> = ({
                             <p className="mt-0.5 text-[var(--aether-text-2)]">
                               Allow Aether to {toolMeta(toolApproval.name).label.toLowerCase()}?
                             </p>
+                            {toolApproval.preview ? (
+                              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-amber-300/25 bg-black/25 p-2 font-mono text-[9px] leading-snug text-[var(--aether-text-2)]">
+                                {toolApproval.preview}
+                              </pre>
+                            ) : null}
                             <div className="mt-2 flex gap-1.5">
                               <button
                                 type="button"

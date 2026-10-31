@@ -25,6 +25,7 @@ Every group starts enabled:
 - **Clock & Tasks** — timers, alarms, reminders, and recurring routines.
 - **Documents** — PDF conversion and questions about attached documents.
 - **Image & File Tools** — convert, compress, crop, and strip metadata from files.
+- **File System** — find files and create, move, rename, or organize them inside folders you allow.
 
 Turning a group off removes its tool schemas from the model request and rejects direct calls to those tools. Expand a group to disable individual tools without losing the rest. **Reset** re-enables every individually disabled tool.
 
@@ -43,6 +44,8 @@ Most tools run immediately. A few actions pause the turn and ask for explicit ap
 - **Turn Bluetooth on or off.**
 - **Launch a fourth app within a rolling minute** (the first three taskbar launches run immediately).
 - **Replace or delete a note** (destructive note actions).
+- **Move, rename, or organize files** (each plan is previewed first).
+- **Create a file with a code extension** such as `.py`, `.js`, or `.ts`.
 
 Volume and brightness changes do **not** ask for approval. They run immediately because they are easy to reverse. Focusing a taskbar window also runs immediately; only apps in the taskbar deck can be opened.
 
@@ -51,6 +54,8 @@ When an approval prompt appears:
 - **Approve** runs the tool once and continues the same turn.
 - **Decline** skips the tool and lets the model finish without it.
 - The approval is tied to the active session and expires after one decision.
+
+File actions also show the concrete plan above the buttons, such as `Move report.pdf → Archive\report.pdf` or the folders an organize pass will create. Approving runs exactly that plan. Files that changed after the preview are skipped and reported rather than re-planned, so nothing silently moves somewhere you did not see.
 
 The model is told never to claim a change succeeded unless the tool returned a success message. If Windows blocks a radio change, the tool reports that Windows did not allow it; use Quick Settings instead.
 

@@ -14,10 +14,10 @@ from .ai.voice_providers import (
     default_tts_model,
     default_tts_voice,
 )
+from .filesystem_roots import normalize_allowed_roots
 from .tool_groups import (
     DEFAULT_ENABLED_TOOL_GROUPS,
-    PREVIOUS_TOOL_GROUP_IDS,
-    PREVIOUS_TOOL_GROUP_IDS_V2,
+    PREVIOUS_ALL_ON_BY_VERSION,
     TOOL_GROUPS_VERSION,
     normalize_disabled_tools,
     normalize_enabled_tool_groups,
@@ -62,6 +62,11 @@ DEFAULT_SPOTIFY: Dict[str, Any] = {
 DEFAULT_TOOLS: Dict[str, Any] = {
     "enabled_groups": list(DEFAULT_ENABLED_TOOL_GROUPS),
     "disabled_tools": [],
+}
+
+DEFAULT_FILESYSTEM: Dict[str, Any] = {
+    # User-added roots. Desktop, Downloads, and Documents are always included.
+    "allowed_roots": [],
 }
 
 DEFAULT_APPEARANCE: Dict[str, Any] = {
@@ -168,6 +173,11 @@ def default_tools() -> Dict[str, Any]:
         "enabled_groups": list(DEFAULT_ENABLED_TOOL_GROUPS),
         "disabled_tools": [],
     }
+
+
+def default_filesystem() -> Dict[str, Any]:
+    """Returns a fresh file-system section with no extra roots."""
+    return {"allowed_roots": []}
 
 
 def normalize_brand_name(value: Any) -> str:
@@ -497,11 +507,12 @@ def normalize_tools(value: Any) -> Dict[str, Any]:
     enabled = normalize_enabled_tool_groups(raw.get("enabled_groups"))
     version = raw.get("groups_version")
     if version != TOOL_GROUPS_VERSION:
-        previous_all_on = {
-            frozenset(PREVIOUS_TOOL_GROUP_IDS),
-            frozenset(PREVIOUS_TOOL_GROUP_IDS_V2),
-        }
-        if frozenset(enabled) in previous_all_on:
+        try:
+            previous_version = int(version) if version is not None else 1
+        except (TypeError, ValueError):
+            previous_version = 1
+        expected = PREVIOUS_ALL_ON_BY_VERSION.get(previous_version)
+        if expected is not None and frozenset(enabled) == frozenset(expected):
             enabled = list(DEFAULT_ENABLED_TOOL_GROUPS)
         version = TOOL_GROUPS_VERSION
     return {
@@ -509,6 +520,12 @@ def normalize_tools(value: Any) -> Dict[str, Any]:
         "disabled_tools": normalize_disabled_tools(raw.get("disabled_tools")),
         "groups_version": version,
     }
+
+
+def normalize_filesystem(value: Any) -> Dict[str, Any]:
+    """Sanitizes the file-system roots added in Settings -> Tools."""
+    raw = value if isinstance(value, dict) else {}
+    return {"allowed_roots": normalize_allowed_roots(raw.get("allowed_roots"))}
 
 
 def normalize_clock(value: Any) -> Dict[str, Any]:
@@ -630,4 +647,5 @@ def normalize_config(config: Any) -> Dict[str, Any]:
     normalized["wallpaper"] = normalize_wallpaper(normalized.get("wallpaper"))
     normalized["spotify"] = normalize_spotify(normalized.get("spotify"))
     normalized["tools"] = normalize_tools(normalized.get("tools"))
+    normalized["filesystem"] = normalize_filesystem(normalized.get("filesystem"))
     return normalized

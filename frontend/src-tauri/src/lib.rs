@@ -39,7 +39,10 @@ pub fn run() {
           window.set_size(PhysicalSize::new(size.width, size.height + 1))?;
         }
         window.set_always_on_top(true)?;
-        window.show()?;
+        // Stay hidden until React mounts and asks to be shown. If the webview
+        // cannot load (for example a dev build started without the Vite
+        // server), showing here would paint WebView2's error page fullscreen
+        // over the desktop.
       }
 
       // Composition changes (Win+D and friends) can leave stale opaque pixels

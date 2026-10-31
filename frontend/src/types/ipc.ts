@@ -352,7 +352,9 @@ export interface ToolApprovalRequest {
   prompt: string;
   name: string;
   args: Record<string, unknown>;
-  risk: 'destructive' | 'system';
+  risk: ToolRisk;
+  /** Read-only plan shown above Approve/Decline; empty for unplanned tools. */
+  preview?: string;
 }
 
 export interface ChatTurn {
@@ -550,6 +552,11 @@ export interface ToolsConfig {
   disabled_tools: string[];
 }
 
+export interface FilesystemConfig {
+  /** User-added roots; Desktop, Downloads, and Documents are always included. */
+  allowed_roots: string[];
+}
+
 export interface LocalVoiceMeta {
   id: string;
   label: string;
@@ -582,6 +589,7 @@ export interface AppConfig {
     client_id?: string;
   };
   tools?: ToolsConfig;
+  filesystem?: FilesystemConfig;
 }
 
 export type OutgoingEvent =

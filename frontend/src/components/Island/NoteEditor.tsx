@@ -3,18 +3,21 @@ import type { Editor } from '@tiptap/core';
 import { mergeAttributes } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { BlockMath, InlineMath } from '@tiptap/extension-mathematics';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Markdown } from '@tiptap/markdown';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Loader2 } from 'lucide-react';
+import 'katex/dist/katex.min.css';
 
 import { noteAssetUrl, uploadNoteImage } from '../../lib/notesApi';
+import { normalizeMathDelimiters } from '../../lib/markdownMath';
 import { NoteToolbar } from './NoteToolbar';
 import './notes.css';
 
 /**
- * Images are stored as vault-relative paths (`assets/…`) inside the Markdown,
+ * Images are stored as vault-relative paths (`assets/...`) inside the Markdown,
  * but rendered through the local FastAPI asset route.
  */
 const NoteImage = Image.extend({
@@ -70,10 +73,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ content, onChange }) => 
       TaskList,
       TaskItem.configure({ nested: true }),
       NoteImage,
-      Placeholder.configure({ placeholder: 'Write something…' }),
+      Placeholder.configure({ placeholder: 'Write something...' }),
+      InlineMath,
+      BlockMath,
       Markdown,
     ],
-    content,
+    content: normalizeMathDelimiters(content),
     contentType: 'markdown',
     editorProps: {
       attributes: { class: 'note-prose' },
@@ -113,7 +118,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ content, onChange }) => 
         {uploading ? (
           <div className="note-upload-hint">
             <Loader2 size={11} className="animate-spin" />
-            Adding image…
+            Adding image...
           </div>
         ) : null}
       </div>

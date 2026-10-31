@@ -1,9 +1,9 @@
 ---
 id: documents-and-files
 title: Documents and files
-summary: Attach documents, use the radial wheel, and convert or compress files.
-tags: [documents, files, pdf, images, attachments, conversion, compression]
-related: [interface, chat-and-memory, notes]
+summary: Attach documents, use the radial wheel, and find, create, move, or organize files.
+tags: [documents, files, pdf, images, attachments, conversion, compression, find, organize, filesystem]
+related: [interface, chat-and-memory, notes, tools-and-approvals]
 order: 130
 ---
 # Documents and files
@@ -66,6 +66,30 @@ You can also ask in chat:
 - “Remove the location metadata from this photo.”
 
 The assistant calls the matching file tool. If the file path is missing or the format is unsupported, the tool returns an error and the assistant explains it.
+
+## Find, create, move, and organize files
+
+The **File System** tool group works only inside folders you allow. Desktop, Downloads, and Documents are included by default; add more under Settings → **Tools** → **File System roots**. A root grants its whole subtree, including folders created later. Your profile root, AppData, Windows, Program Files, ProgramData, and drive roots are always rejected, and a path outside the allowed roots is an error the assistant cannot approve away.
+
+Available actions:
+
+- **Find** files by name or pattern across the allowed roots.
+- **Create a file** — new text, data, or source files only; never overwrites, and the parent folder must already exist.
+- **Create a folder** — never overwrites an existing folder.
+- **Move** or **rename** a file.
+- **Organize** one folder by type into subfolders.
+
+Examples:
+
+- “Find the invoice PDF.”
+- “Create `todo.md` on my Desktop.”
+- “Move report.pdf into Archive.”
+- “Rename draft.txt to final.txt.”
+- “Sort my Downloads by type.”
+
+Move, rename, and organize show the exact plan before anything happens. Approving runs that plan; if a file changed since the preview, it is skipped and reported. There is no delete action, folders are never moved, and an existing file is never overwritten. `organize_folder` only sorts the files directly inside the chosen folder and leaves existing subfolders alone; name collisions get a numbered name shown in the preview.
+
+`create_file` accepts text, data, and common source files, capped at 64 KB, written as UTF-8 with normal line endings. Executable and script formats are refused, including `.bat`, `.cmd`, `.ps1`, `.vbs`, `.exe`, `.dll`, and `.msi`. Creating code such as `.py` or `.js` asks for approval because it can run later; creating a markdown or text file does not.
 
 ## Output folder
 
