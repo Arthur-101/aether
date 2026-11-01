@@ -75,3 +75,20 @@ STT Model at a directory containing `model.fermion` and `config.json`.
 Existing configs are upgraded in place with any newly added defaults. An
 unreadable `config.json` is preserved as `config.corrupt-<timestamp>.json`
 before Aether restores safe defaults.
+
+---
+
+## Licence
+
+Aether is free and open source under the [Apache License, Version 2.0](LICENSE).
+You may use, modify, and redistribute it, including commercially, provided you
+keep the copyright and licence notices.
+
+Bundled third-party components keep their own licences — `pynput` and FFmpeg are
+LGPL-3.0, `certifi` and `tqdm` are MPL-2.0 — and every one of them is listed with
+its licence text in [`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt). See
+[`NOTICE`](NOTICE) for the attribution summary.
+
+Optional downloads are separate works with their own terms: the espeak-ng voice
+pack is GPL-3.0-or-later, and model files (LLM, STT, TTS voices) carry the licence
+of the model you choose.

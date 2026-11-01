@@ -36,6 +36,12 @@
     "targets": "all",
     "publisher": "Aether",
     "copyright": "Copyright © 2026 Aether Contributors",
+    "licenseFile": "../../LICENSE",
+    "resources": {
+      "../../LICENSE": "LICENSE",
+      "../../NOTICE": "NOTICE",
+      "../../THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt"
+    },
     "category": "Utility",
     "shortDescription": "Local-first Windows AI desktop assistant.",
     "longDescription": "Aether is a local-first Windows AI desktop assistant with voice control, screen-region questions, file tools, and a top-anchored desktop island.",
