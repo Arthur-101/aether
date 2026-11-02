@@ -52,9 +52,9 @@
       "backend": "",
       "version": "1.52.0",
       "url": "https://github.com/Arthur-101/aether-packs/releases/download/espeak-ng-v1.52.0/espeak-ng-1.52.0.zip",
-      "sha256": "",
-      "size": 24536678,
-      "installed_size": 24536678,
+      "sha256": "1bca7a8c1689d5585beddf32cc8f50848d4cf120ff9c9c6fbfa6f9f427f9513e",
+      "size": 12448941,
+      "installed_size": 24531078,
       "min_app_version": "0.1.0",
       "recommended": false,
       "description": "Grapheme-to-phoneme data for local text-to-speech. Required by the local voice engine; licensed GPL-3.0 and shipped separately from the base app."
