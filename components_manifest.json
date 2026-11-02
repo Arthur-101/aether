@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "base_url": "",
+  "_note": "Optional component packs. A pack is offered for download only once it has a 64-character sha256; until then it reports state 'unavailable'. URLs point at the aether-packs releases; keep version in step with the published archive.",
+  "components": [
+    {
+      "id": "engine-vulkan",
+      "name": "Engine · Vulkan",
+      "kind": "engine",
+      "backend": "vulkan",
+      "version": "0.1.0",
+      "url": "https://github.com/Arthur-101/aether-packs/releases/download/engine-vulkan-v0.1.0/engine-vulkan-0.1.0.zip",
+      "sha256": "ff1c15e18745a16749cb98ffd16df0cf900b10dfdf210a5aec56719edf5218f6",
+      "size": 38243563,
+      "installed_size": 105510173,
+      "min_app_version": "0.1.0",
+      "recommended": true,
+      "description": "GPU inference through Vulkan. Works on most Windows GPUs, including integrated graphics, and is the recommended default."
+    },
+    {
+      "id": "engine-cpu",
+      "name": "Engine · CPU",
+      "kind": "engine",
+      "backend": "cpu",
+      "version": "0.1.0",
+      "url": "https://github.com/Arthur-101/aether-packs/releases/download/engine-cpu-v0.1.0/engine-cpu-0.1.0.zip",
+      "sha256": "b68def839aad38600f31a08130ee86241d30c3c32a5a6de0548fd8a2093458f2",
+      "size": 25284320,
+      "installed_size": 63525149,
+      "min_app_version": "0.1.0",
+      "recommended": false,
+      "description": "CPU-only inference. A fallback for machines with no usable GPU, and the smallest engine pack."
+    },
+    {
+      "id": "engine-cuda",
+      "name": "Engine · CUDA 12.4",
+      "kind": "engine",
+      "backend": "cuda",
+      "version": "0.1.0",
+      "url": "https://github.com/Arthur-101/aether-packs/releases/download/engine-cuda-v0.1.0/engine-cuda-0.1.0.zip",
+      "sha256": "",
+      "size": 705396736,
+      "installed_size": 1288490189,
+      "min_app_version": "0.1.0",
+      "recommended": false,
+      "description": "NVIDIA inference through CUDA 12.4. A large optional pack; install it only if the Vulkan engine underperforms on your GPU."
+    },
+    {
+      "id": "espeak-ng",
+      "name": "Voice · espeak-ng",
+      "kind": "voice",
+      "backend": "",
+      "version": "1.52.0",
+      "url": "https://github.com/Arthur-101/aether-packs/releases/download/espeak-ng-v1.52.0/espeak-ng-1.52.0.zip",
+      "sha256": "",
+      "size": 24536678,
+      "installed_size": 24536678,
+      "min_app_version": "0.1.0",
+      "recommended": false,
+      "description": "Grapheme-to-phoneme data for local text-to-speech. Required by the local voice engine; licensed GPL-3.0 and shipped separately from the base app."
+    },
+    {
+      "id": "stt-phonon2",
+      "name": "Speech · Phonon-2",
+      "kind": "stt",
+      "backend": "",
+      "version": "0.1.0",
+      "url": "https://github.com/Arthur-101/aether-packs/releases/download/stt-phonon2-v0.1.0/stt-phonon2-0.1.0.zip",
+      "sha256": "",
+      "size": 177209344,
+      "installed_size": 1177843712,
+      "min_app_version": "0.1.0",
+      "recommended": false,
+      "description": "Local speech-to-text runtime and Phonon-2 model. Optional; the base app can use cloud speech or none at all."
+    }
+  ]
+}

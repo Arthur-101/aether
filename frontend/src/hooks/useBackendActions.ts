@@ -436,6 +436,26 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const refreshComponents = useCallback(
+    () => sendEvent({ type: 'GET_COMPONENTS', payload: {} }),
+    [sendEvent]
+  );
+
+  const installComponent = useCallback(
+    (id: string) => sendEvent({ type: 'INSTALL_COMPONENT', payload: { id } }),
+    [sendEvent]
+  );
+
+  const cancelComponent = useCallback(
+    (id: string) => sendEvent({ type: 'CANCEL_COMPONENT', payload: { id } }),
+    [sendEvent]
+  );
+
+  const removeComponent = useCallback(
+    (id: string) => sendEvent({ type: 'REMOVE_COMPONENT', payload: { id } }),
+    [sendEvent]
+  );
+
   return {
     sendChatMessage,
     speakText,
@@ -500,6 +520,10 @@ export function useBackendActions(
     setWallpaperFolder,
     clearWallpaperRecent,
     runPowerAction,
+    refreshComponents,
+    installComponent,
+    cancelComponent,
+    removeComponent,
   };
 }
 

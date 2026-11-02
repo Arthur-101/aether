@@ -13,6 +13,9 @@ import type {
   BluetoothDeviceInfo,
   ChatTurn,
   ClockAlert,
+  ComponentInfo,
+  ComponentProgress,
+  ComponentResult,
   DisplayInfo,
   IncomingEnvelope,
   LocalVoiceState,
@@ -82,6 +85,11 @@ export function useBackendSocket() {
   });
   const [toolGroups, setToolGroups] = useState<ToolGroupsState | null>(null);
   const [localVoices, setLocalVoices] = useState<LocalVoiceState | null>(null);
+  const [components, setComponents] = useState<ComponentInfo[]>([]);
+  const [componentProgress, setComponentProgress] =
+    useState<ComponentProgress | null>(null);
+  const [componentResult, setComponentResult] =
+    useState<ComponentResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [radialWheel, setRadialWheel] = useState<RadialWheelPayload | null>(null);
   const [wheelCursor, setWheelCursor] = useState<RadialWheelCursor | null>(null);
@@ -397,6 +405,16 @@ export function useBackendSocket() {
         case 'MODEL_STATUS':
           setModelStatus(payload as ModelStatus);
           break;
+        case 'COMPONENTS_STATE':
+          setComponents((payload.components as ComponentInfo[] | undefined) || []);
+          break;
+        case 'COMPONENT_PROGRESS':
+          setComponentProgress(payload as ComponentProgress);
+          break;
+        case 'COMPONENT_RESULT':
+          setComponentProgress(null);
+          setComponentResult(payload as ComponentResult);
+          break;
         case 'THINKING_MODE_CHANGED':
           setThinkingMode(Boolean(payload.enabled));
           setConfig((prev) =>
@@ -558,6 +576,9 @@ export function useBackendSocket() {
     spotifyAuth,
     toolGroups,
     localVoices,
+    components,
+    componentProgress,
+    componentResult,
     errorMessage,
     radialWheel,
     wheelCursor,

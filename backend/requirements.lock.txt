@@ -1,0 +1,74 @@
+# Aether Backend — pinned dependency lock
+#
+# Generated from the working Python 3.12.4 environment so a build can be
+# reproduced exactly. This pins the *direct* dependencies declared in
+# requirements.txt (transitive versions are resolved by pip).
+#
+# Install with:  py -3.12 -m pip install -r requirements.lock.txt
+#
+# Notes:
+# - `pyaudiowpatch` is intentionally omitted: it is not installed and is not
+#   imported anywhere in the backend (loopback/Wasapi capture runs through
+#   `sounddevice`).
+# - `llama-cpp-python` is pinned for completeness but is NOT imported by Aether;
+#   the local engine runs the bundled `bin/llama-server.exe` subprocess. It is a
+#   candidate for removal (and has no Python 3.14 wheel).
+# - Security remediation (2026-11-01, `pip-audit` 56 -> 15 advisories):
+#   `pillow` 12.3.0 -> 13.0.0 (39 advisories) and `fastmcp` 4.1.1 -> 4.1.2
+#   (2 advisories). `fastembed` 0.9.0 -> 0.9.1 is required alongside the Pillow
+#   bump: 0.9.0 pins `pillow<13.0`, 0.9.1 widens it to `<14.0`.
+# - Known, deliberately unfixed: `filelock` 3.32.7 (13 advisories) is capped by
+#   `litellm` (`filelock>=3.16.1,<4.0`, unchanged even in litellm 1.106.6), and
+#   `diskcache` 5.6.3 (2 advisories) has no published fix. Both are transitive.
+# - Regenerate this file after ANY Python or dependency upgrade.
+
+# Core API & Async WebSocket Server
+fastapi==0.146.0
+uvicorn==0.42.0
+websockets==17.2
+platformdirs==4.3.6
+pydantic==2.14.1
+
+# Database & Vector Engine (CPU Embeddings, 0 VRAM)
+sqlite-vec==0.1.9
+fastembed==0.9.1
+
+# LLM & Local Runtime
+llama-cpp-python==0.3.20
+
+# FastMCP & Background Scheduler
+fastmcp==4.1.2
+APScheduler==3.10.4
+
+# OS Hooks & Telemetry
+pynput==1.8.2
+pywin32==312
+pywinauto==0.6.9
+pycaw==20260927
+mss==10.2.0
+pyperclip==1.11.0
+keyboard==0.13.5
+psutil==6.0.0
+winsdk==1.0.0b10
+nvidia-ml-py==13.615.71
+screen-brightness-control==0.27.2
+
+# Cloud LLM Providers (via LiteLLM)
+litellm==1.106.0
+
+# Audio & Voice Pipeline (Phonon-2, local ONNX TTS)
+sounddevice==0.5.0
+soundfile==0.12.1
+onnxruntime==1.20.1
+numpy==2.5.4
+
+# Media & Document Processing Tools
+pillow==13.0.0
+pillow-heif==1.8.1
+piexif==1.1.3
+pypdf==4.3.1
+pypdfium2==5.14.0
+markitdown==0.1.8
+
+# Notes Vault (YAML frontmatter)
+pyyaml==6.0.3

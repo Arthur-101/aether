@@ -14,7 +14,6 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
-import fitz
 
 # Ensure backend can be imported
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -40,6 +39,68 @@ from backend.mcp_tools.clock_scheduler import (
     register_wake_callback,
 )
 from backend.mcp_tools.server import execute_tool, get_openai_tool_schemas
+
+
+def _write_pdf(path: Path, page_texts: list[str]) -> None:
+    """Writes a small multi-page PDF without a third-party generator.
+
+    The suite used to build its fixture with PyMuPDF; this keeps it
+    dependency-free now that PyMuPDF is gone.
+    """
+    def escape(text: str) -> str:
+        return text.replace("\\", r"\\").replace("(", r"\(").replace(")", r"\)")
+
+    def content_stream(text: str) -> bytes:
+        lines = ["BT", "/F1 10 Tf", "14 TL", "50 740 Td"]
+        for line in text.splitlines() or [""]:
+            lines.append(f"({escape(line)}) Tj")
+            lines.append("T*")
+        lines.append("ET")
+        return "\n".join(lines).encode("ascii", "replace")
+
+    count = len(page_texts)
+    page_ids = [3 + index for index in range(count)]
+    content_ids = [3 + count + index for index in range(count)]
+    font_id = 3 + 2 * count
+
+    objects: list[bytes] = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        (
+            f"<< /Type /Pages /Kids [{' '.join(f'{pid} 0 R' for pid in page_ids)}] "
+            f"/Count {count} >>"
+        ).encode(),
+    ]
+    for index, _ in enumerate(page_ids):
+        objects.append(
+            (
+                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+                f"/Resources << /Font << /F1 {font_id} 0 R >> >> "
+                f"/Contents {content_ids[index]} 0 R >>"
+            ).encode()
+        )
+    for text in page_texts:
+        stream = content_stream(text)
+        objects.append(
+            b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n"
+            + stream + b"\nendstream"
+        )
+    objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+
+    out = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for index, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += f"{index} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref_at = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n".encode()
+    out += b"0000000000 65535 f \n"
+    for offset in offsets:
+        out += f"{offset:010d} 00000 n \n".encode()
+    out += (
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref_at}\n%%EOF\n"
+    ).encode()
+    path.write_bytes(out)
 
 
 def run_tests():
@@ -102,18 +163,20 @@ def run_tests():
         # ----------------------------------------------------
         print("\n[Test 2] Testing Document Conversion & Session RAG...")
         sample_pdf = tmp_path / "q3_budget_report.pdf"
-        doc = fitz.open()
-        for i in range(6):
-            page = doc.new_page()
-            page_text = (
-                f"Page {i + 1}: Aether Quarterly Financial Analysis Report.\n"
-                "The marketing allocation for Q3 2026 is strictly 75000 USD.\n"
-                "Key investments include local AI model inference on RTX 4070 laptops.\n"
-                "VRAM consumption must remain under 4.5 GB for Ternary-Bonsai.\n"
-            ) + ("financial budget analysis numbers " * 60)
-            page.insert_textbox(fitz.Rect(50, 50, 500, 700), page_text, fontsize=10)
-        doc.save(str(sample_pdf))
-        doc.close()
+        noise = "\n".join(["financial budget analysis numbers " * 4] * 15)
+        _write_pdf(
+            sample_pdf,
+            [
+                (
+                    f"Page {i + 1}: Aether Quarterly Financial Analysis Report.\n"
+                    "The marketing allocation for Q3 2026 is strictly 75000 USD.\n"
+                    "Key investments include local AI model inference on RTX 4070 laptops.\n"
+                    "VRAM consumption must remain under 4.5 GB for Ternary-Bonsai.\n"
+                    + noise
+                )
+                for i in range(6)
+            ],
+        )
 
         # Test PDF -> TXT conversion
         txt_out = convert_document(str(sample_pdf), "txt")

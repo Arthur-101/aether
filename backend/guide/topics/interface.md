@@ -16,6 +16,7 @@ The island has these tabs by default:
 
 - **Controls** — volume, brightness, Wi-Fi, Bluetooth, media transport, and quick actions.
 - **Chat** — Quick Chat with sessions, attachments, and tool activity.
+- **Calculator** — standard arithmetic with a running history, plus unit conversion for length, mass, temperature, area, volume, speed, data, time, angle, and pressure.
 - **Clock** — alarms, reminders, routines, weather, and task controls.
 - **Stats** — CPU, memory, disk, GPU, battery, and a network speed test.
 - **Notes** — your Markdown vault with a live editor.
@@ -43,6 +44,14 @@ Inside the composer:
 
 Assistant replies render Markdown, including lists, tables, code blocks, and links. During a foreground reply, the final answer streams into the bubble with a caret. Tool calls appear as a compact run list; the draft resets before a tool round so the tool UI is not mixed with partial text.
 
+## Calculator
+
+The Calculator tab opens on the keypad. Type digits and `+ - * / ^` directly, or click the keys. **Enter** evaluates, **Backspace** deletes, and **Esc** clears. Results collect in the history panel on the right; click an entry to keep working from that result.
+
+The scientific keys cover brackets, percent, √, x², xʸ, log (base 10), ln, π, and e. Functions wrap the expression currently on the display — type `9`, press **√**, and the display reads `√(9)`, which evaluates to `3`.
+
+Switch to **Units** for conversion. Pick a category — length, mass, temperature, area, volume, speed, data, time, angle, or pressure — then choose the source and target units. **Swap** reverses them, and the common-conversion chips jump straight to pairs such as inches → centimetres, metres → millimetres, kilograms → pounds, and °C → °F.
+
 ## Default shortcuts
 
 | Action | Default |
@@ -60,7 +69,7 @@ Change these in Settings → **Hotkeys**. Click a shortcut, press the new keys, 
 Hold the configured modifier (Shift by default) while dragging a file. The wheel opens around the cursor.
 
 - **Images:** convert to WebP, PNG, JPG, PDF, HEIC, or AVIF; compress; crop; add a background; strip metadata.
-- **PDFs:** convert to DOCX, JPG, PNG, or TXT; compress; strip metadata where supported.
+- **PDFs:** convert to JPG, PNG, or TXT; compress; strip metadata where supported.
 - **Video:** convert to MP3, GIF, or WebM; compress.
 - **Ask AI:** attach the file to Quick Chat for questions or summarization when the file type is supported.
 

@@ -352,12 +352,12 @@ def get_openai_tool_schemas(
             "type": "function",
             "function": {
                 "name": "convert_document",
-                "description": "Convert PDF to docx, jpg, png, or txt.",
+                "description": "Convert PDF to jpg, png, or txt.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "file_path": {"type": "string", "description": "Absolute path to document."},
-                        "target_format": {"type": "string", "description": "Target format: docx, jpg, png, txt."}
+                        "target_format": {"type": "string", "description": "Target format: jpg, png, txt."}
                     },
                     "required": ["file_path", "target_format"]
                 }

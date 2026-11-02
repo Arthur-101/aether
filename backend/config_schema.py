@@ -26,6 +26,7 @@ from .tool_groups import (
 DEFAULT_DASHBOARD_TABS: List[str] = [
     "controls",
     "chat",
+    "calc",
     "clock",
     "stats",
     "notes",
@@ -33,6 +34,13 @@ DEFAULT_DASHBOARD_TABS: List[str] = [
     "power",
 ]
 VALID_DASHBOARD_TABS = frozenset(DEFAULT_DASHBOARD_TABS)
+
+# Exact tab lists written by earlier releases. A stored config that still
+# matches one adopts today's default, so a newly shipped tab appears after an
+# upgrade. A customised or trimmed list is left untouched.
+LEGACY_DASHBOARD_LAYOUTS = (
+    ("controls", "chat", "clock", "stats", "notes", "wallpaper", "power"),
+)
 
 DEFAULT_BRAND_NAME = "Aether"
 MAX_BRAND_NAME_LENGTH = 24
@@ -72,7 +80,7 @@ DEFAULT_FILESYSTEM: Dict[str, Any] = {
 DEFAULT_APPEARANCE: Dict[str, Any] = {
     "dashboard_tabs": list(DEFAULT_DASHBOARD_TABS),
     "theme_mode": "system",
-    "glow_style": "glass",
+    "glow_style": "soft",
     "glow_color": "source",
     "pill_opacity": 0.88,
     "island_opacity": 0.92,
@@ -88,8 +96,8 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "widget_clock_daydate": True,
     "widget_theme": "default",
     "widget_text_color": "",
-    "button_primary": "#E8C56B",
-    "button_secondary": "#F4DF9A",
+    "button_primary": "#E792A8",
+    "button_secondary": "#F4BCCB",
     "button_gradient": True,
     "close_on_outside_click": False,
     "auto_hide_pill": False,
@@ -206,7 +214,10 @@ def normalize_dashboard_tabs(value: Any) -> List[str]:
             continue
         seen.add(tab_id)
         tabs.append(tab_id)
-    return tabs or list(DEFAULT_DASHBOARD_TABS)
+    tabs = tabs or list(DEFAULT_DASHBOARD_TABS)
+    if tuple(tabs) in LEGACY_DASHBOARD_LAYOUTS:
+        return list(DEFAULT_DASHBOARD_TABS)
+    return tabs
 
 
 def normalize_hex(value: Any, fallback: str) -> str:
@@ -606,6 +617,18 @@ def normalize_ai_provider(value: Any) -> Dict[str, Any]:
     raw["api_key"] = providers[selected]["api_key"]
     raw["cloud_model"] = providers[selected]["model"]
     raw["tavily_api_key"] = _optional_text(raw.get("tavily_api_key"), 400)
+    engine_backend = _optional_text(raw.get("engine_backend"), 20).lower()
+    if engine_backend not in ("vulkan", "cpu", "cuda"):
+        engine_backend = "vulkan"
+    raw["engine_backend"] = engine_backend
+    # Empty means "newest installed version" rather than a hard pin. Keep it a
+    # single safe path segment because it becomes a directory name.
+    engine_version = _optional_text(raw.get("engine_version"), 40)
+    if engine_version and not re.fullmatch(
+        r"[0-9A-Za-z][0-9A-Za-z._+-]*", engine_version
+    ):
+        engine_version = ""
+    raw["engine_version"] = engine_version
     raw["max_tool_rounds"] = normalize_max_tool_rounds(raw.get("max_tool_rounds"))
     raw["memory_local_recent_turns"] = normalize_memory_count(
         raw.get("memory_local_recent_turns"),

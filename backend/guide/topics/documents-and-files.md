@@ -45,7 +45,7 @@ Image slices:
 
 PDF slices:
 
-- **Convert** to DOCX, JPG, PNG, or TXT.
+- **Convert** to JPG, PNG, or TXT.
 - **Compress** reduces size.
 - **Strip Metadata** where the format supports it.
 

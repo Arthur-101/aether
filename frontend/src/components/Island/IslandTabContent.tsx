@@ -1,6 +1,7 @@
 import React from 'react';
 import type { DashboardTabId, SpeedTestResult, SystemStats } from '../../types/ipc';
 import type { NotesApi } from '../../types/notes';
+import { CalculatorTab } from './CalculatorTab';
 import { ClockTasksTab } from './ClockTasksTab';
 import { IslandControls } from './IslandControls';
 import { PowerTab } from './PowerTab';
@@ -39,6 +40,7 @@ export const IslandTabContent: React.FC<IslandTabContentProps> = ({
 }) => {
   if (tab === 'controls') return <IslandControls {...controls} />;
   if (tab === 'chat') return <QuickChat {...chat} />;
+  if (tab === 'calc') return <CalculatorTab />;
 
   if (tab === 'clock') return <ClockTasksTab {...clock} />;
 

@@ -11,6 +11,7 @@ import type { DashboardTabId } from '../../types/ipc';
 export const TAB_WIDTH: Record<DashboardTabId, number> = {
   controls: 1050,
   chat: 820,
+  calc: 820,
   clock: 940,
   stats: 1120,
   notes: 1020,
@@ -56,3 +57,11 @@ export const CONTROLS_HEIGHT = 470;
  * tab does not grow a little every time a process changes its RAM usage.
  */
 export const STATS_HEIGHT = 470;
+
+/**
+ * Height of the Calculator body.
+ *
+ * Standard and Units share one frame so switching modes does not resize the
+ * island; the keypad and the conversion cards both fill this height.
+ */
+export const CALC_HEIGHT = 462;

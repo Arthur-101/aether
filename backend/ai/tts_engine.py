@@ -21,6 +21,7 @@ import numpy as np
 import sounddevice as sd
 import soundfile as sf
 from ..config_manager import config_manager, find_model_file, get_models_dir
+from . import espeak_g2p
 from .local_voices import (
     detect_family,
     discover_voices,
@@ -76,7 +77,6 @@ class LocalTTSEngine:
         self._voices_path: Optional[Path] = None
         self._voice_archive = None
         self._style_cache: Dict[str, np.ndarray] = {}
-        self._phonemizer_ready = False
 
     def _resolve_paths(self) -> tuple[Path, Path]:
         """Resolves the ONNX model path and config.json path dynamically."""
@@ -198,39 +198,13 @@ class LocalTTSEngine:
         """Returns an explicit voice, or the model default when it is empty."""
         return str(voice_id or "").strip() or self.default_voice_id()
 
-    def _ensure_phonemizer(self) -> None:
-        """Points phonemizer at the bundled espeak-ng once per process."""
-        if self._phonemizer_ready:
-            return
-        try:
-            import espeakng_loader
-            from phonemizer.backend.espeak.wrapper import EspeakWrapper
-
-            EspeakWrapper.set_library(str(espeakng_loader.get_library_path()))
-            EspeakWrapper.set_data_path(str(espeakng_loader.get_data_path()))
-        except Exception as exc:
-            logger.warning("espeak-ng setup failed: %s", exc)
-        self._phonemizer_ready = True
-
     def phonemize(self, text: str) -> str:
-        """Converts text to IPA phonemes for Kokoro-family models."""
-        self._ensure_phonemizer()
-        from phonemizer import phonemize
+        """Converts text to IPA phonemes for Kokoro-family models.
 
-        try:
-            return phonemize(
-                text,
-                language="en-us",
-                backend="espeak",
-                strip=True,
-                preserve_punctuation=True,
-                with_stress=True,
-            )
-        except Exception as exc:
-            raise RuntimeError(
-                "Local TTS could not phonemize the reply. Install phonemizer-fork "
-                "and espeakng-loader (see backend/requirements.txt)."
-            ) from exc
+        espeak-ng is GPL-3.0 and ships as an optional component, so it runs as
+        an external tool in a subprocess and is never linked into this process.
+        """
+        return espeak_g2p.phonemize(text)
 
     def tokenize_phonemes(self, phonemes: str) -> List[int]:
         """Maps IPA text onto the model's phoneme vocab."""

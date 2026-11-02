@@ -52,6 +52,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

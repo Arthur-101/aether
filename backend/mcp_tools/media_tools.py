@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageSequence
 
@@ -26,13 +26,70 @@ except ImportError:
     pass
 
 
-def get_binary_path(binary_name: str) -> str:
-    """Resolves binary from bin/ directory or system PATH (Rule 1: Portability)."""
+def _version_key(name: str) -> tuple:
+    """Natural sort key so 0.10.0 sorts after 0.9.0."""
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part.lower())
+        for part in re.split(r"(\d+)", name)
+        if part
+    )
+
+
+def _component_binary(
+    binary_name: str, component_ids: Sequence[str], version: str
+) -> Optional[Path]:
+    """Returns a binary inside an installed pack, honouring id/version order."""
+    if not component_ids:
+        return None
+    try:
+        from ..config_manager import get_components_dir
+
+        root = get_components_dir()
+    except Exception:
+        return None
+    if not root.is_dir():
+        return None
+
+    for component_id in component_ids:
+        component = root / component_id
+        if not component.is_dir():
+            continue
+        if version:
+            candidate = component / version / "bin" / f"{binary_name}.exe"
+            if candidate.is_file():
+                return candidate
+            continue
+        versions = [
+            entry
+            for entry in component.iterdir()
+            if entry.is_dir() and (entry / "bin" / f"{binary_name}.exe").is_file()
+        ]
+        if versions:
+            versions.sort(key=lambda entry: _version_key(entry.name))
+            return versions[-1] / "bin" / f"{binary_name}.exe"
+    return None
+
+
+def get_binary_path(
+    binary_name: str,
+    component_ids: Sequence[str] = (),
+    component_version: str = "",
+) -> str:
+    """Resolves a binary from a bundle, an installed pack, bin/, or PATH.
+
+    Optional packs win over the developer checkout so a downloaded engine is
+    used without moving files around. Rule 1: no absolute paths.
+    """
     # Check if bundled in sys._MEIPASS (PyInstaller)
     if hasattr(sys, "_MEIPASS"):
         bundled = Path(sys._MEIPASS) / "bin" / f"{binary_name}.exe"
         if bundled.exists():
             return str(bundled)
+
+    # Optional packs installed under %LOCALAPPDATA%/Aether/components
+    packed = _component_binary(binary_name, component_ids, component_version)
+    if packed is not None:
+        return str(packed)
 
     # Check project bin/ directory relative to this file
     local_bin = Path(__file__).resolve().parent.parent.parent / "bin" / f"{binary_name}.exe"
@@ -146,7 +203,7 @@ def black_and_white(file_path: str) -> str:
 def compress_media(file_path: str, target_mb: float = 5.0) -> str:
     """
     Compresses an image, video, or PDF to reduce disk size.
-    Uses Pillow for images, FFmpeg for videos, and PyMuPDF for PDFs.
+    Uses Pillow for images, FFmpeg for videos, and pypdf for PDFs.
     """
     p = Path(file_path)
     if not p.exists():
@@ -184,10 +241,16 @@ def compress_media(file_path: str, target_mb: float = 5.0) -> str:
         return str(out_path)
 
     elif ext == ".pdf":
-        import fitz
-        doc = fitz.open(str(p))
-        doc.save(str(out_path), garbage=4, deflate=True, clean=True)
-        doc.close()
+        from pypdf import PdfReader, PdfWriter
+
+        reader = PdfReader(str(p))
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        for page in writer.pages:
+            page.compress_content_streams()
+        with open(out_path, "wb") as handle:
+            writer.write(handle)
         return str(out_path)
 
     return f"Unsupported format for compression: {ext}"

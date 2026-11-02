@@ -18,11 +18,14 @@ export interface ModelStatus {
   loaded: boolean;
   starting: boolean;
   local: boolean;
+  /** Ollama health probe result; null for the other backends. */
+  reachable?: boolean | null;
 }
 
 export type DashboardTabId =
   | 'controls'
   | 'chat'
+  | 'calc'
   | 'clock'
   | 'stats'
   | 'notes'
@@ -473,6 +476,10 @@ export interface AIProviderConfig {
   context_length: number;
   gpu_layers: number;
   kv_cache_type?: string;
+  /** Engine pack to prefer; falls back through vulkan → cpu → cuda. */
+  engine_backend?: 'vulkan' | 'cpu' | 'cuda';
+  /** Empty or omitted means the newest installed pack. */
+  engine_version?: string;
   thinking_mode: boolean;
   max_tool_rounds?: number;
   memory_local_recent_turns?: number;
@@ -566,6 +573,55 @@ export interface LocalVoiceState {
   voices: LocalVoiceMeta[];
   /** Voice used when the selection is left empty. */
   default_voice: string;
+}
+
+export type ComponentState =
+  | 'unavailable'
+  | 'requires_newer_app'
+  | 'not_installed'
+  | 'update_available'
+  | 'installed';
+
+export interface ComponentInfo {
+  id: string;
+  name: string;
+  kind: string;
+  backend: string;
+  version: string;
+  url: string;
+  sha256: string;
+  size: number;
+  installed_size: number;
+  min_app_version: string;
+  recommended: boolean;
+  description: string;
+  installed_version: string;
+  state: ComponentState;
+  downloadable: boolean;
+  compatible: boolean;
+}
+
+export type ComponentPhase =
+  | 'downloading'
+  | 'verifying'
+  | 'extracting'
+  | 'installed';
+
+export interface ComponentProgress {
+  id: string;
+  phase: ComponentPhase;
+  received: number;
+  total: number;
+  percent: number;
+  message: string;
+}
+
+export interface ComponentResult {
+  id: string;
+  ok: boolean;
+  state: 'installed' | 'cancelled' | 'error' | 'removed';
+  message: string;
+  component?: ComponentInfo;
 }
 
 export interface AppConfig {
@@ -686,6 +742,10 @@ export type OutgoingEvent =
       type: 'SPEAK_TEXT';
       payload: { text: string; request_id: string };
     }
+  | { type: 'GET_COMPONENTS'; payload: Record<string, never> }
+  | { type: 'INSTALL_COMPONENT'; payload: { id: string } }
+  | { type: 'CANCEL_COMPONENT'; payload: { id: string } }
+  | { type: 'REMOVE_COMPONENT'; payload: { id: string } }
   | { type: 'STOP_SPEAKING'; payload: Record<string, never> };
 
 export interface IncomingEnvelope<T = any> {

@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 from ..db.attachments import list_attachments, remove_attachment, upsert_attachment
 from ..db.database import get_db
 from ..ai.embedder import embed_text
+from .pdf_text import extract_pdf_text
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 TEXT_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".py", ".js", ".json", ".csv"}
@@ -27,9 +28,7 @@ def _extract_text(path: Path) -> str:
     """Reads PDF/DOCX/text files into plain text."""
     suffix = path.suffix.lower()
     if suffix == ".pdf":
-        import pymupdf4llm
-
-        return pymupdf4llm.to_markdown(str(path))
+        return extract_pdf_text(path)
     if suffix == ".docx":
         try:
             from docx import Document

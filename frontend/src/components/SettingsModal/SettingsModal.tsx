@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
+  Boxes,
   GripHorizontal,
   Settings,
   Settings2,
@@ -22,6 +23,9 @@ import {
 import type {
   AppearanceConfig,
   AppConfig,
+  ComponentInfo,
+  ComponentProgress,
+  ComponentResult,
   GeneralConfig,
   LocalVoiceState,
   SpotifyAuthState,
@@ -36,6 +40,7 @@ import type {
 import { resolveAppearance, resolveTaskbarApps } from '../Island/appearance';
 import { AiSettings } from './tabs/AiSettings';
 import { AppearanceSettings } from './tabs/AppearanceSettings';
+import { ComponentsSettings } from './tabs/ComponentsSettings';
 import { GeneralSettings } from './tabs/GeneralSettings';
 import { VoiceSettings } from './tabs/VoiceSettings';
 import { HotkeySettings } from './tabs/HotkeySettings';
@@ -55,6 +60,9 @@ interface SettingsModalProps {
   spotifyAuth: SpotifyAuthState;
   toolGroups: ToolGroupsState | null;
   localVoices: LocalVoiceState | null;
+  components: ComponentInfo[] | null;
+  componentProgress: ComponentProgress | null;
+  componentResult: ComponentResult | null;
   notesDirectory: string;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
@@ -65,6 +73,10 @@ interface SettingsModalProps {
   onSpotifyRefresh: () => void;
   onRefreshToolGroups: () => void;
   onRefreshLocalVoices: () => void;
+  onRefreshComponents: () => void;
+  onInstallComponent: (id: string) => void;
+  onCancelComponent: (id: string) => void;
+  onRemoveComponent: (id: string) => void;
   taskbarState: TaskbarAppsState | null;
   widgets: DesktopWidget[];
   onWidgetAppearanceChange: (id: string, patch: WidgetAppearanceOverrides) => void;
@@ -86,6 +98,7 @@ export type SettingsTab =
   | 'appearance'
   | 'widgets'
   | 'integrations'
+  | 'components'
   | 'guide';
 type Tab = SettingsTab;
 
@@ -99,6 +112,7 @@ const tabs = [
   { id: 'hotkeys' as const, label: 'Hotkeys', icon: Keyboard },
   { id: 'tools' as const, label: 'Tools', icon: Wrench },
   { id: 'integrations' as const, label: 'Integrations', icon: Plug },
+  { id: 'components' as const, label: 'Components', icon: Boxes },
   { id: 'guide' as const, label: 'Guide', icon: BookOpen },
 ];
 
@@ -110,6 +124,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   spotifyAuth,
   toolGroups,
   localVoices,
+  components,
+  componentProgress,
+  componentResult,
   notesDirectory,
   onToggleThinking,
   onSave,
@@ -120,6 +137,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSpotifyRefresh,
   onRefreshToolGroups,
   onRefreshLocalVoices,
+  onRefreshComponents,
+  onInstallComponent,
+  onCancelComponent,
+  onRemoveComponent,
   taskbarState,
   widgets,
   onWidgetAppearanceChange,
@@ -435,6 +456,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {activeTab === 'appearance' && 'Notch Appearance'}
                   {activeTab === 'widgets' && 'Desktop Widgets'}
                   {activeTab === 'integrations' && 'Integrations'}
+                  {activeTab === 'components' && 'Optional Components'}
                   {activeTab === 'guide' && 'Aether Guide'}
                 </h4>
                 <button
@@ -450,6 +472,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {activeTab === 'guide' ? (
                 <GuideSettings />
+              ) : activeTab === 'components' ? (
+                <ComponentsSettings
+                  components={components}
+                  progress={componentProgress}
+                  result={componentResult}
+                  onRefresh={onRefreshComponents}
+                  onInstall={onInstallComponent}
+                  onCancel={onCancelComponent}
+                  onRemove={onRemoveComponent}
+                />
               ) : !draft ? (
                 <div className="py-16 text-center text-xs text-[var(--aether-text-3)]">
                   Waiting for the Aether daemon…
@@ -556,7 +588,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div
               className={`mt-4 flex justify-end border-t border-[var(--aether-line)] pt-3 ${
-                activeTab === 'guide' ? 'hidden' : ''
+                activeTab === 'guide' || activeTab === 'components' ? 'hidden' : ''
               }`}
             >
               <button

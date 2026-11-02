@@ -42,6 +42,19 @@ def _ollama_messages(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 class OllamaEngine:
     """HTTP client for a locally running Ollama instance."""
 
+    def is_healthy(self) -> bool:
+        """Returns True when the configured Ollama server answers its API."""
+        base_url = str(
+            config_manager.get("ai_provider", "ollama_base_url", "")
+            or "http://127.0.0.1:11434"
+        ).rstrip("/")
+        try:
+            req = urllib.request.Request(f"{base_url}/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                return resp.status == 200
+        except Exception:
+            return False
+
     def complete(
         self,
         messages: List[Dict[str, Any]],

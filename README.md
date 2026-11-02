@@ -76,6 +76,11 @@ Existing configs are upgraded in place with any newly added defaults. An
 unreadable `config.json` is preserved as `config.corrupt-<timestamp>.json`
 before Aether restores safe defaults.
 
+Aether keeps rotating diagnostics under `%LOCALAPPDATA%\Aether\Logs`:
+`aether-backend.log` (written by `backend/logging_setup.py`) and
+`aether-overlay.log` (written by the Tauri overlay). Launching Aether twice
+focuses the running overlay instead of starting a second one.
+
 ---
 
 ## Licence

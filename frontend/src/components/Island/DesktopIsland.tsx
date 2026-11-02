@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   AIProviderConfig,
   AppearanceConfig,
@@ -33,6 +33,7 @@ import { pickNativePath } from '../../lib/system';
 import { IslandBody } from './IslandBody';
 import { NotchShell } from './NotchShell';
 import { visibleTabIds } from './appearance';
+import { inferenceReadiness } from './inferenceReadiness';
 import { TimeFormatContext } from '../../hooks/useTimeFormat';
 import {
   useAutoHidePill,
@@ -92,6 +93,7 @@ interface DesktopIslandProps {
   onToggleThinking: (enabled: boolean) => void;
   onCycleBackend: () => void;
   onOpenSettings: () => void;
+  onConfigureInference: (mode: AIProviderConfig['mode']) => void;
   onKillApp: () => void;
   onSendMessage: (msg: string) => void;
   onAskFile: (filePath: string) => void;
@@ -194,6 +196,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onToggleThinking,
   onCycleBackend,
   onOpenSettings,
+  onConfigureInference,
   onKillApp,
   onSendMessage,
   onAskFile,
@@ -249,6 +252,15 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   const clockTools = useClockTools();
   const tabs = visibleTabIds(appearance);
   const effectiveTab = tabs.includes(activeTab) ? activeTab : tabs[0] ?? 'controls';
+
+  // Land a new user on Quick Chat so the setup card is the first thing they
+  // see; a configured user stays on Controls. A manual tab choice always wins.
+  const readiness = inferenceReadiness(aiConfig, model.status);
+  const userPickedTabRef = useRef(false);
+  useEffect(() => {
+    if (!aiConfig || userPickedTabRef.current) return;
+    setActiveTab(readiness.ready ? 'controls' : 'chat');
+  }, [aiConfig, readiness.ready]);
   const [contentHeight, setContentHeight] = useState(0);
   const [tabsWidth, setTabsWidth] = useState(0);
   const [focusWithin, setFocusWithin] = useState(false);
@@ -324,6 +336,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   };
 
   const selectTab = (tab: DashboardTabId) => {
+    userPickedTabRef.current = true;
     setActiveTab(tab);
     if (tab === 'clock') {
       onRefreshTasks();
@@ -447,6 +460,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               thinkingMode,
               onToggleThinking,
               onCycleBackend,
+              onConfigureInference,
               sessions,
               activeSessionId,
               activeSessionTitle,

@@ -17,13 +17,14 @@ from .config_manager import config_manager
 from .config_api import router as config_router
 from .event_router import route_event
 from .guide_api import router as guide_router
+from .logging_setup import configure_logging
 from .media_api import router as media_router
 from .notes.note_api import router as notes_router
 from .system_api import router as system_router
 from .ws_manager import ws_manager
 
 logger = logging.getLogger("aether")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
+configure_logging()
 
 WS_PORT = 8765
 

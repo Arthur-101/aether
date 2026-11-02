@@ -239,6 +239,7 @@ def _register_builtin_handlers() -> None:
     handlers are still registered lazily by runtime_wiring.start_runtime().
     """
     from .app_events import register_app_events
+    from .components_events import register_components_events
     from .config_events import register_config_events
     from .model_events import register_model_events
     from .note_events import register_note_events
@@ -263,6 +264,7 @@ def _register_builtin_handlers() -> None:
     register_power_events()
     register_app_events()
     register_spotify_events()
+    register_components_events()
 
 
 _register_builtin_handlers()

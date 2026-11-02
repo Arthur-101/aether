@@ -16,19 +16,31 @@ logger = logging.getLogger("aether.model")
 _model_lock = asyncio.Lock()
 
 
+def _active_mode() -> str:
+    return str(config_manager.get("ai_provider", "mode", "local_gguf") or "local_gguf")
+
+
 def _is_local() -> bool:
-    mode = str(config_manager.get("ai_provider", "mode", "local_gguf") or "local_gguf")
-    return mode == "local_gguf"
+    return _active_mode() == "local_gguf"
 
 
 async def broadcast_model_status(starting: bool = False) -> None:
-    """Publishes whether the local model is loaded, plus load-in-progress state."""
-    local = _is_local()
+    """Publishes local model health and whether an Ollama server is reachable."""
+    mode = _active_mode()
+    local = mode == "local_gguf"
     loop = asyncio.get_running_loop()
     loaded = bool(await loop.run_in_executor(None, llm_router.is_healthy)) if local else False
+    reachable = None
+    if mode == "ollama":
+        reachable = bool(await loop.run_in_executor(None, llm_router.ollama.is_healthy))
     await ws_manager.broadcast(
         "MODEL_STATUS",
-        {"loaded": loaded, "starting": bool(starting), "local": local},
+        {
+            "loaded": loaded,
+            "starting": bool(starting),
+            "local": local,
+            "reachable": reachable,
+        },
     )
 
 

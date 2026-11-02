@@ -6,6 +6,7 @@ chat completions against the local Ternary-Bonsai model.
 
 import atexit
 import json
+import logging
 import subprocess
 import threading
 import time
@@ -21,8 +22,26 @@ from ..mcp_tools.media_tools import get_binary_path
 from .errors import ModelNotConfiguredError
 from .stream_accumulator import StreamAccumulator
 
+logger = logging.getLogger(__name__)
+
 SERVER_PORT = 8089
 SERVER_HOST = "127.0.0.1"
+
+# Engine packs, in the order tried when the configured one is unavailable.
+ENGINE_BACKENDS = ("vulkan", "cpu", "cuda")
+
+
+def engine_component_ids(backend: str = "") -> tuple:
+    """Orders engine pack IDs, preferring the configured backend.
+
+    A user who installed both Vulkan and CPU should keep Vulkan even though
+    "cpu" sorts first alphabetically, so the configured backend always leads
+    and the rest act as fallbacks.
+    """
+    preferred = backend.strip().lower()
+    ordered = [name for name in ENGINE_BACKENDS if name == preferred]
+    ordered.extend(name for name in ENGINE_BACKENDS if name != preferred)
+    return tuple(f"engine-{name}" for name in ordered)
 
 
 class LocalGGUFEngine:
@@ -68,12 +87,29 @@ class LocalGGUFEngine:
                 ".gguf file, or switch to Ollama / Cloud API."
             )
 
-        server_bin = get_binary_path("llama-server")
+        engine_backend = str(
+            config_manager.get("ai_provider", "engine_backend", "vulkan") or "vulkan"
+        )
+        engine_version = str(
+            config_manager.get("ai_provider", "engine_version", "") or ""
+        )
+        server_bin = get_binary_path(
+            "llama-server",
+            engine_component_ids(engine_backend),
+            engine_version,
+        )
         if not Path(server_bin).exists():
             raise ModelNotConfiguredError(
                 f"llama-server binary not found at {server_bin}. "
-                "Place llama-server.exe in Aether's bin/ directory."
+                "Install an engine pack in Settings → Components, or place "
+                "llama-server.exe in Aether's bin/ directory."
             )
+        logger.info(
+            "aether.local_engine using %s (backend=%s, version=%s)",
+            server_bin,
+            engine_backend,
+            engine_version or "latest",
+        )
 
         context_length = int(config_manager.get("ai_provider", "context_length", 8192))
         gpu_layers = int(config_manager.get("ai_provider", "gpu_layers", -1))

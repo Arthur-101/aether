@@ -33,6 +33,7 @@ import {
   resolveAppearance,
   resolveTheme,
 } from './components/Island/appearance';
+import { inferenceReadiness } from './components/Island/inferenceReadiness';
 import type {
   AIProviderConfig,
   AppearanceConfig,
@@ -91,6 +92,9 @@ export function App() {
     spotifyAuth,
     toolGroups,
     localVoices,
+    components,
+    componentProgress,
+    componentResult,
     errorMessage,
     radialWheel,
     wheelCursor,
@@ -137,6 +141,10 @@ export function App() {
     refreshSpotify,
     refreshToolGroups,
     refreshLocalVoices,
+    refreshComponents,
+    installComponent,
+    cancelComponent,
+    removeComponent,
     connectSpotify,
     disconnectSpotify,
     refreshNotes,
@@ -237,6 +245,10 @@ export function App() {
     () => ({ ...DEFAULT_CLOCK_CONFIG, ...(config?.clock || {}) }),
     [config?.clock]
   );
+  const inferenceStatus = useMemo(
+    () => inferenceReadiness(config?.ai_provider, modelStatus),
+    [config?.ai_provider, modelStatus]
+  );
   const taskbarApps = useMemo<TaskbarPinnedApp[]>(
     () => taskbarState?.apps ?? [],
     [taskbarState?.apps]
@@ -308,7 +320,25 @@ export function App() {
     setIsSettingsOpen(true);
   }, []);
 
-  const openSettings = useCallback(() => showSettings(null), [showSettings]);
+  // A new user lands on AI & Models until the active backend has a usable
+  // target; everyone else lands on General.
+  const openSettings = useCallback(
+    () => showSettings(inferenceStatus.ready ? 'general' : 'ai'),
+    [showSettings, inferenceStatus.ready]
+  );
+
+  const handleConfigureInference = useCallback(
+    (mode: AIProviderConfig['mode']) => {
+      if (config) {
+        saveConfig({
+          ...config,
+          ai_provider: { ...config.ai_provider, mode },
+        });
+      }
+      showSettings('ai');
+    },
+    [config, saveConfig, showSettings]
+  );
 
   // Native tray actions are emitted by the Rust shell.
   useEffect(() => {
@@ -316,7 +346,7 @@ export function App() {
     let disposed = false;
     let unlisten: (() => void) | undefined;
     void listen('aether:open-settings', () => {
-      if (!disposed) showSettings(null);
+      if (!disposed) openSettings();
     }).then((stop) => {
       if (disposed) stop();
       else unlisten = stop;
@@ -325,7 +355,7 @@ export function App() {
       disposed = true;
       unlisten?.();
     };
-  }, [showSettings]);
+  }, [openSettings]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -527,8 +557,8 @@ export function App() {
   useTauriFileDrop(handleAskFile, radialWheel?.file_path ?? null);
 
   useEffect(() => {
-    if (configError) openSettings();
-  }, [configError, openSettings]);
+    if (configError) showSettings('ai');
+  }, [configError, showSettings]);
 
   const notesApi: NotesApi = {
     items: notes,
@@ -648,6 +678,7 @@ export function App() {
         onToggleThinking={toggleThinking}
         onCycleBackend={handleCycleBackend}
         onOpenSettings={openSettings}
+        onConfigureInference={handleConfigureInference}
         onKillApp={killApp}
         onSendMessage={sendChatMessage}
         onAskFile={handleAskFile}
@@ -764,6 +795,13 @@ export function App() {
         onRefreshToolGroups={refreshToolGroups}
         localVoices={localVoices}
         onRefreshLocalVoices={refreshLocalVoices}
+        components={components}
+        componentProgress={componentProgress}
+        componentResult={componentResult}
+        onRefreshComponents={refreshComponents}
+        onInstallComponent={installComponent}
+        onCancelComponent={cancelComponent}
+        onRemoveComponent={removeComponent}
         taskbarState={taskbarState}
         widgets={desktopWidgets.widgets}
         onWidgetAppearanceChange={desktopWidgets.setWidgetAppearance}

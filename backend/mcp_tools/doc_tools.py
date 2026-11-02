@@ -1,15 +1,15 @@
 """
 Aether Document & RAG Tools
 Deterministic PDF/document conversion, chunking, and session-scoped semantic search.
-Uses PyMuPDF (fitz), pdf2docx, pymupdf4llm, MarkItDown, and sqlite-vec.
+Uses pypdfium2, MarkItDown, and sqlite-vec.
 """
 
 from pathlib import Path
 from typing import Any, Dict, List
-import fitz  # PyMuPDF
 from ..db.database import get_db
 from ..ai.embedder import embed_text
 from ..output_paths import exported_path
+from .pdf_text import extract_pdf_text
 from .attachment_tools import (  # re-exported for the ASK pipeline
     ASK_EXTENSIONS,
     is_ask_eligible,
@@ -19,10 +19,29 @@ from .attachment_tools import (  # re-exported for the ASK pipeline
 )
 
 
+def _render_first_page(source: Path, target: Path) -> None:
+    """Rasterizes page 1 at 200 dpi, matching the previous PyMuPDF output."""
+    import pypdfium2 as pdfium
+
+    document = pdfium.PdfDocument(str(source))
+    try:
+        page = document[0]
+        try:
+            bitmap = page.render(scale=200 / 72)
+            try:
+                bitmap.to_pil().save(str(target))
+            finally:
+                bitmap.close()
+        finally:
+            page.close()
+    finally:
+        document.close()
+
+
 def convert_document(file_path: str, target_format: str) -> str:
     """
-    Converts a PDF to DOCX, JPG, PNG, or TXT.
-    target_format: 'docx', 'jpg', 'png', 'txt'
+    Converts a PDF to JPG, PNG, or TXT.
+    target_format: 'jpg', 'png', 'txt'
     """
     p = Path(file_path)
     if not p.exists():
@@ -30,28 +49,14 @@ def convert_document(file_path: str, target_format: str) -> str:
 
     fmt = target_format.lower().strip(".")
     if p.suffix.lower() == ".pdf":
-        if fmt == "docx":
-            from pdf2docx import Converter
-            out_path = exported_path(p, f"{p.stem}.docx")
-            cv = Converter(str(p))
-            cv.convert(str(out_path))
-            cv.close()
-            return str(out_path)
-
-        elif fmt in ("jpg", "png"):
-            doc = fitz.open(str(p))
-            page = doc.load_page(0)
-            pix = page.get_pixmap(dpi=200)
+        if fmt in ("jpg", "png"):
             out_path = exported_path(p, f"{p.stem}.{fmt}")
-            pix.save(str(out_path))
-            doc.close()
+            _render_first_page(p, out_path)
             return str(out_path)
 
         elif fmt == "txt":
-            import pymupdf4llm
             out_path = exported_path(p, f"{p.stem}.txt")
-            md_text = pymupdf4llm.to_markdown(str(p))
-            out_path.write_text(md_text, encoding="utf-8")
+            out_path.write_text(extract_pdf_text(p), encoding="utf-8")
             return str(out_path)
 
     return f"Unsupported conversion from {p.suffix} to {fmt}"
@@ -68,8 +73,7 @@ def ingest_file_for_rag(session_id: str, file_path: str) -> Dict[str, Any]:
         raise FileNotFoundError(f"Document not found: {file_path}")
 
     if p.suffix.lower() == ".pdf":
-        import pymupdf4llm
-        text = pymupdf4llm.to_markdown(str(p))
+        text = extract_pdf_text(p)
     else:
         from markitdown import MarkItDown
         md = MarkItDown()

@@ -39,6 +39,7 @@ import { AetherMark } from './AetherMark';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ChatSessionMenu } from './ChatSessionMenu';
 import { ToolRunList } from './ToolRunList';
+import { inferenceReadiness } from './inferenceReadiness';
 import { parseBackendTimestamp } from './backendTime';
 import { formatClockTime } from './timeFormat';
 import { toolMeta } from './toolMeta';
@@ -71,6 +72,7 @@ interface QuickChatProps {
   onDeleteSession: (id: string) => void;
   onRefreshSessions: () => void;
   onCycleBackend: () => void;
+  onConfigureInference?: (mode: AIProviderConfig['mode']) => void;
   onBrowseFiles: () => void;
   onSend: (message: string) => void;
   onDetach?: (filePath: string) => void;
@@ -200,6 +202,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onDeleteSession,
   onRefreshSessions,
   onCycleBackend,
+  onConfigureInference,
   onBrowseFiles,
   onSend,
   onDetach,
@@ -222,6 +225,19 @@ export const QuickChat: React.FC<QuickChatProps> = ({
 
   const engine = useMemo(() => engineInfo(ai), [ai]);
   const EngineIcon = engine.icon;
+  const readiness = useMemo(
+    () => inferenceReadiness(ai, model.status),
+    [ai, model.status]
+  );
+  const [setupSkipped, setSetupSkipped] = useState(false);
+  // Skip only collapses the card for this visit; opening Quick Chat brings it
+  // back while the backend still has no usable target.
+  useEffect(() => {
+    setSetupSkipped(false);
+  }, [openFocusToken]);
+  const showSetup = Boolean(ai) && !readiness.ready && !setupSkipped;
+  const showSetupHint = Boolean(ai) && !readiness.ready && setupSkipped;
+  const openSetup = (mode: AIProviderConfig['mode']) => onConfigureInference?.(mode);
   const nextBackend = ai ? BACKEND_CYCLE[ai.mode] : null;
   const attachedFiles = attachments.filter(
     (item) => item.mode === 'inline' || item.mode === 'rag_vector'
@@ -404,37 +420,136 @@ export const QuickChat: React.FC<QuickChatProps> = ({
           aria-live="polite"
           aria-relevant="additions"
           aria-busy={Boolean(pending)}
-          className="flex-1 overflow-y-auto px-4 py-3.5"
+          className="flex-1 select-text overflow-y-auto px-4 py-3.5"
         >
           {history.length === 0 && !pending ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--aether-accent)]/25 bg-[var(--aether-accent)]/10 text-[var(--aether-accent-text)]">
-                <AetherMark size={30} />
-              </span>
-              <div>
-                <p className="text-[12px] font-semibold text-[var(--aether-text-1)]">
-                  Ask Aether anything.
-                </p>
-                <p className="mt-0.5 text-[10px] text-[var(--aether-text-3)]">
-                  Replies stay in this session. Tools run automatically when needed.
-                </p>
-              </div>
-              <div className="flex max-w-[640px] flex-wrap justify-center gap-1.5">
-                {PROMPTS.map((prompt) => (
+              {showSetup ? (
+                <>
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--aether-accent)]/25 bg-[var(--aether-accent)]/10 text-[var(--aether-accent-text)]">
+                    <AetherMark size={30} />
+                  </span>
+                  <div className="max-w-[520px]">
+                    <p className="text-[12px] font-semibold text-[var(--aether-text-1)]">
+                      Connect a model to get started.
+                    </p>
+                    <p className="mt-1 text-[10px] leading-relaxed text-[var(--aether-text-3)]">
+                      Aether ships without a built-in model. Choose how you want
+                      to run one; you can change this later in Settings.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openSetup('cloud')}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--aether-accent)]/45 bg-[var(--aether-accent)]/15 px-3 py-1.5 text-[10px] font-medium text-[var(--aether-accent-text)] transition hover:bg-[var(--aether-accent)]/25"
+                    >
+                      <Cloud size={11} />
+                      Use a cloud key
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openSetup('local_gguf')}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] px-3 py-1.5 text-[10px] font-medium text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
+                    >
+                      <Cpu size={11} />
+                      Run it locally
+                    </button>
+                  </div>
                   <button
-                    key={prompt}
                     type="button"
-                    onClick={() => pickPrompt(prompt)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2.5 py-1 text-[9.5px] text-[var(--aether-text-2)] transition hover:border-[var(--aether-line-strong)] hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
+                    onClick={() => setSetupSkipped(true)}
+                    className="text-[9.5px] text-[var(--aether-text-3)] underline-offset-2 transition hover:text-[var(--aether-text-2)] hover:underline"
                   >
-                    <Sparkles size={9} className="text-[var(--aether-accent-text)]" />
-                    {prompt}
+                    Skip for now
                   </button>
-                ))}
-              </div>
+                </>
+              ) : (
+                <>
+                  {showSetupHint ? (
+                    <div className="flex items-center justify-center gap-1.5 text-[9.5px] text-[var(--aether-text-3)]">
+                      <span>No model connected.</span>
+                      <button
+                        type="button"
+                        onClick={() => openSetup(ai?.mode ?? 'local_gguf')}
+                        className="font-medium text-[var(--aether-accent-text)] hover:underline"
+                      >
+                        Open setup
+                      </button>
+                    </div>
+                  ) : null}
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[var(--aether-accent)]/25 bg-[var(--aether-accent)]/10 text-[var(--aether-accent-text)]">
+                    <AetherMark size={30} />
+                  </span>
+                  <div>
+                    <p className="text-[12px] font-semibold text-[var(--aether-text-1)]">
+                      Ask Aether anything.
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-[var(--aether-text-3)]">
+                      Replies stay in this session. Tools run automatically when needed.
+                    </p>
+                  </div>
+                  <div className="flex max-w-[640px] flex-wrap justify-center gap-1.5">
+                    {PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        onClick={() => pickPrompt(prompt)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2.5 py-1 text-[9.5px] text-[var(--aether-text-2)] transition hover:border-[var(--aether-line-strong)] hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
+                      >
+                        <Sparkles size={9} className="text-[var(--aether-accent-text)]" />
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
+              {!readiness.ready && ai ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--aether-accent)]/30 bg-[var(--aether-accent)]/10 px-3 py-2 text-[10px] text-[var(--aether-text-2)]">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles size={10} className="text-[var(--aether-accent-text)]" />
+                    {showSetup
+                      ? 'Connect a model before sending a message.'
+                      : 'No model connected.'}
+                  </span>
+                  {showSetup ? (
+                    <span className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openSetup('cloud')}
+                        className="rounded-md border border-[var(--aether-accent)]/45 px-2 py-0.5 font-medium text-[var(--aether-accent-text)] transition hover:bg-[var(--aether-accent)]/20"
+                      >
+                        Cloud
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openSetup('local_gguf')}
+                        className="rounded-md border border-[var(--aether-line-strong)] px-2 py-0.5 transition hover:bg-[var(--aether-fill-2)]"
+                      >
+                        Local
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSetupSkipped(true)}
+                        className="px-1 text-[var(--aether-text-3)] hover:text-[var(--aether-text-2)]"
+                      >
+                        Skip
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSetupSkipped(false)}
+                      className="font-medium text-[var(--aether-accent-text)] hover:underline"
+                    >
+                      Set up
+                    </button>
+                  )}
+                </div>
+              ) : null}
               {history.map((turn, index) => (
                 <div key={index} className="flex flex-col gap-2">
                   <div className="flex justify-end">

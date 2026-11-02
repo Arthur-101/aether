@@ -30,6 +30,28 @@ def test_dashboard_tabs_never_empty():
     assert normalize_dashboard_tabs(["nope"]) == DEFAULT_DASHBOARD_TABS
 
 
+def test_legacy_default_layout_gains_the_calculator_tab():
+    """An untouched pre-Calculator config adopts the new default layout."""
+    legacy = ["controls", "chat", "clock", "stats", "notes", "wallpaper", "power"]
+    assert normalize_dashboard_tabs(legacy) == DEFAULT_DASHBOARD_TABS
+    assert "calc" in DEFAULT_DASHBOARD_TABS
+    assert DEFAULT_DASHBOARD_TABS.index("calc") == DEFAULT_DASHBOARD_TABS.index("chat") + 1
+
+
+def test_calculator_tab_is_kept_and_a_trimmed_layout_is_respected():
+    assert normalize_dashboard_tabs(["controls", "chat", "calc"]) == [
+        "controls",
+        "chat",
+        "calc",
+    ]
+    # Hiding Calculator must not resurrect it through the legacy migration.
+    assert normalize_dashboard_tabs(["controls", "chat", "clock"]) == [
+        "controls",
+        "chat",
+        "clock",
+    ]
+
+
 def test_appearance_is_clamped_and_sanitized():
     appearance = normalize_appearance(
         {
@@ -45,7 +67,7 @@ def test_appearance_is_clamped_and_sanitized():
     assert appearance["pill_opacity"] == 0.05
     assert appearance["island_opacity"] == 1.0
     assert appearance["button_primary"] == "#aabbcc"
-    assert appearance["button_secondary"] == "#f4df9a"
+    assert appearance["button_secondary"] == "#f4bccb"
     assert appearance["button_gradient"] is True
     assert appearance["close_on_outside_click"] is True
     assert appearance["auto_hide_pill"] is True

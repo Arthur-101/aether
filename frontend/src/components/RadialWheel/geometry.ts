@@ -60,7 +60,7 @@ export function buildSlices(ext: string, askEligible: boolean): string[] {
   const isPdf = ext === 'pdf';
   const isVideo = ['mp4', 'mov', 'mkv', 'avi'].includes(ext);
   const format = isPdf
-    ? ['DOCX', 'JPG', 'PNG', 'TXT']
+    ? ['JPG', 'PNG', 'TXT']
     : isVideo
       ? ['MP3', 'GIF', 'COMPRESS', 'WEBM']
       : ['WEBP', 'PNG', 'JPG', 'PDF', 'HEIC', 'AVIF'];

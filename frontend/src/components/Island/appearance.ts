@@ -15,6 +15,8 @@ import { normalizeDashboardTabs } from './tabRegistry';
 
 export const GOLD_PRIMARY = '#E8C56B';
 export const GOLD_SECONDARY = '#F4DF9A';
+export const DEFAULT_ACCENT_PRIMARY = '#E792A8';
+export const DEFAULT_ACCENT_SECONDARY = '#F4BCCB';
 
 export const DEFAULT_CLOCK_CONFIG: ClockConfig = {
   weather_mode: 'auto',
@@ -29,6 +31,7 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   dashboard_tabs: [
     'controls',
     'chat',
+    'calc',
     'clock',
     'stats',
     'notes',
@@ -36,7 +39,7 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
     'power',
   ],
   theme_mode: 'system',
-  glow_style: 'glass',
+  glow_style: 'soft',
   glow_color: 'source',
   pill_opacity: 0.88,
   island_opacity: 0.92,
@@ -52,8 +55,8 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   widget_clock_daydate: true,
   widget_theme: 'default',
   widget_text_color: '',
-  button_primary: GOLD_PRIMARY,
-  button_secondary: GOLD_SECONDARY,
+  button_primary: DEFAULT_ACCENT_PRIMARY,
+  button_secondary: DEFAULT_ACCENT_SECONDARY,
   button_gradient: true,
   close_on_outside_click: false,
   auto_hide_pill: false,
@@ -205,11 +208,11 @@ export function resolveAppearance(
     widget_text_color: normalizeWidgetTextColor(raw.widget_text_color),
     button_primary: normalizeHex(
       String(raw.button_primary ?? ''),
-      GOLD_PRIMARY
+      DEFAULT_ACCENT_PRIMARY
     ),
     button_secondary: normalizeHex(
       String(raw.button_secondary ?? ''),
-      GOLD_SECONDARY
+      DEFAULT_ACCENT_SECONDARY
     ),
     button_gradient:
       typeof raw.button_gradient === 'boolean'

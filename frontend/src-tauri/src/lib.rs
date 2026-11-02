@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 mod autostart;
@@ -6,9 +8,28 @@ mod overlay;
 mod tray;
 mod widgets;
 
+/// Rotating overlay logs live beside the daemon's, under `%LOCALAPPDATA%\Aether\Logs`.
+/// A windowed release build discards stderr, so this is the only place quit-time and
+/// crash-adjacent messages survive.
+fn overlay_log_dir() -> PathBuf {
+  std::env::var_os("LOCALAPPDATA")
+    .map(PathBuf::from)
+    .unwrap_or_else(std::env::temp_dir)
+    .join("Aether")
+    .join("Logs")
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    // Must be the first plugin: a second launch should hand its argv to the
+    // running overlay and exit instead of stacking another always-on-top window.
+    .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+      if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+      }
+    }))
     .invoke_handler(tauri::generate_handler![
       autostart::get_autostart,
       autostart::set_autostart,
@@ -19,13 +40,20 @@ pub fn run() {
       widgets::ensure_on_top
     ])
     .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
+      app.handle().plugin(
+        tauri_plugin_log::Builder::default()
+          .level(log::LevelFilter::Info)
+          .max_file_size(2 * 1024 * 1024)
+          .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(3))
+          .targets([
+            tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+            tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
+              path: overlay_log_dir(),
+              file_name: Some("aether-overlay".into()),
+            }),
+          ])
+          .build(),
+      )?;
 
       if let Some(window) = app.get_webview_window("main") {
         // Windows 11 draws a 1px DWM frame along the top of transparent,

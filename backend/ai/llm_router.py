@@ -33,6 +33,11 @@ from .errors import ModelNotConfiguredError
 from .local_engine import LocalGGUFEngine
 from .ollama_engine import OllamaEngine
 from .prompts import DICTATION_SYSTEM_PROMPT
+from .tool_call_parser import (
+    extract_text_tool_calls,
+    has_complete_tool_call,
+    strip_tool_markup,
+)
 
 __all__ = ["llm_router", "ModelNotConfiguredError", "LocalGGUFEngine"]
 
@@ -63,6 +68,17 @@ def _tool_round_limit() -> int:
     return normalize_max_tool_rounds(
         config_manager.get("ai_provider", "max_tool_rounds", DEFAULT_MAX_TOOL_ROUNDS)
     )
+
+
+def _offered_tool_names(tools: Optional[List[Dict[str, Any]]]) -> set:
+    """Names of the tools offered this turn, used to vet recovered text calls."""
+    names = set()
+    for schema in tools or []:
+        function = schema.get("function") if isinstance(schema, dict) else None
+        name = function.get("name") if isinstance(function, dict) else None
+        if isinstance(name, str) and name.strip():
+            names.add(name.strip())
+    return names
 
 
 class LLMRouter:
@@ -149,6 +165,10 @@ class LLMRouter:
         """Returns usable final text, retrying once if the provider leaks reasoning."""
         content = (result.get("content") or "").strip()
         reasoning = (result.get("reasoning") or "").strip()
+        # A call we could not recover (tool unavailable, or none offered) must
+        # never reach the user as XML.
+        if content and has_complete_tool_call(content):
+            content = strip_tool_markup(content)
         if content and not looks_like_reasoning(content):
             return {
                 "content": content,
@@ -179,6 +199,8 @@ class LLMRouter:
             on_token=on_stream,
         )
         retry_content = (retry.get("content") or "").strip()
+        if retry_content and has_complete_tool_call(retry_content):
+            retry_content = strip_tool_markup(retry_content)
         retry_reasoning = (retry.get("reasoning") or "").strip()
         if retry_content and not looks_like_reasoning(retry_content):
             return {
@@ -234,6 +256,17 @@ class LLMRouter:
                 on_token=on_stream,
             )
             tool_calls = result.get("tool_calls") or []
+            if not tool_calls:
+                # Some models print the call as markup instead of returning it.
+                # Recover it so the tool runs, limited to the tools we offered.
+                tool_calls = extract_text_tool_calls(
+                    result.get("content") or "", _offered_tool_names(tools)
+                )
+                if tool_calls:
+                    result = {
+                        **result,
+                        "content": strip_tool_markup(result.get("content") or ""),
+                    }
             if not tool_calls:
                 return self._final_result(
                     engine,

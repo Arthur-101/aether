@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from .database import get_db
 from ..ai.embedder import embed_text
+from ..ai.tool_call_parser import contains_tool_markup
 from ..config_manager import config_manager
 
 
@@ -225,6 +226,10 @@ def _is_bad_memory_turn(
         return True
     reply = str(ai_reply or "").strip()
     if is_fallback_reply(reply) or looks_like_reasoning(reply):
+        return True
+    # A model that printed its tool call never produced an answer; the markup
+    # must not become a memory match or a recent turn the next prompt replays.
+    if contains_tool_markup(reply):
         return True
     return _failed_only_tools(tools_used)
 

@@ -10,7 +10,7 @@ import os
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from platformdirs import user_data_dir
+from platformdirs import user_data_dir, user_log_dir
 
 from .config_schema import (
     DEFAULT_MAX_TOOL_ROUNDS,
@@ -49,9 +49,38 @@ def get_data_dir() -> Path:
     return data_dir
 
 
+def get_logs_dir() -> Path:
+    """Returns %LOCALAPPDATA%/Aether/Logs for rotating diagnostics.
+
+    A packaged, windowed build has no console, so stderr is discarded; the log
+    file is the only durable record of startup and shutdown behaviour.
+    """
+    log_dir = Path(user_log_dir(APP_NAME, appauthor=False))
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir
+
+
 def get_db_path() -> Path:
     """Returns the single-file database path."""
     return get_data_dir() / "assistant_data.db"
+
+
+def get_components_dir() -> Path:
+    """Returns %LOCALAPPDATA%/Aether/components for optional runtime packs.
+
+    Optional packs (engine backends, voice data, speech models) live outside the
+    installer so the base app stays small. ``AETHER_COMPONENTS_DIR`` overrides
+    the root for tests and portable installs.
+    """
+    override = os.getenv("AETHER_COMPONENTS_DIR", "").strip()
+    root = (
+        Path(override)
+        if override
+        else Path(user_data_dir(APP_NAME, appauthor=False, roaming=False))
+    )
+    components = root / "components"
+    components.mkdir(parents=True, exist_ok=True)
+    return components
 
 
 def get_models_dir() -> Path:
@@ -106,6 +135,8 @@ def get_default_config() -> Dict[str, Any]:
             "context_length": 8192,
             "gpu_layers": -1,
             "kv_cache_type": "q8_0",
+            "engine_backend": "vulkan",  # vulkan | cpu | cuda engine pack
+            "engine_version": "",  # empty = newest installed pack
             "thinking_mode": False,  # Default: Normal mode (Direct, low-latency)
             "max_tool_rounds": DEFAULT_MAX_TOOL_ROUNDS,
             "memory_local_recent_turns": DEFAULT_MEMORY_LOCAL_RECENT_TURNS,
