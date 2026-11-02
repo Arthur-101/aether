@@ -9,9 +9,14 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
 ## Architecture Highlights
 
 * **Frontend:** Tauri v2 (Rust backend + React 18 + TypeScript + Tailwind CSS + Framer Motion) always-on-top transparent overlay (< 40MB RAM).
-* **Backend:** Python 3.11+ async daemon (FastAPI + WebSockets + FastMCP).
-* **Local LLM:** Exclusively powered by `Ternary-Bonsai-2-9B` GGUF via `llama-cpp-python` with `q8_0` KV cache (total VRAM < 4.5 GB).
-* **Memory & Context Pipeline:** 1-Turn raw buffer (`last_turn_prompt` + `last_turn_reply`) + session-scoped episodic vector search via `sqlite-vec` & CPU `fastembed` (`bge-small-en-v1.5`, 384 dims, 0 VRAM).
+* **Backend:** Python 3.12 async daemon (FastAPI + WebSockets + FastMCP).
+* **Local LLM:** Optional engine packs drive the bundled `llama-server.exe` from the PrismML
+  `llama.cpp` fork — Vulkan by default, and never the CPU. The suggested
+  `Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf` needs that fork's ternary `PQ2_0` (ggml type 142)
+  support. Nothing is bundled: install an engine pack, then point Settings at a `.gguf`.
+* **Memory & Context Pipeline:** Provider-aware memory depth (local default 2 recent turns + 3
+  semantic matches; cloud 8 + 8) plus session-scoped vector search via `sqlite-vec` & CPU
+  `fastembed` (`bge-small-en-v1.5`, 384 dims, 0 VRAM).
 * **Voice Stack:** Local `Phonon-2` STT + 24kHz ONNX TTS (Kokoro/Paradee families) with voices discovered from the model's sidecar.
 * **Deterministic Tooling:** Typed FastMCP tools for image/document conversions, metadata stripping (`piexif`), and APScheduler reverse-trigger loops.
 * **Zero Hardcoded Paths:** Dynamically resolves `%APPDATA%/Aether` and user-configurable paths via `config_manager.py`.
@@ -22,17 +27,17 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
 
 ```text
 aether/
-├── bin/                          # Portable binaries (ffmpeg.exe, llama-server.exe)
+├── bin/                          # Portable binaries (ffmpeg.exe; engine packs add llama-server.exe)
 ├── backend/
 │   ├── config_manager.py         # Portable config manager (%APPDATA%/Aether/config.json)
 │   ├── requirements.txt          # Python dependencies
 │   ├── test_phase1.py            # Phase 1 verification test
 │   ├── db/
 │   │   ├── database.py           # SQLite + sqlite-vec setup & tables
-│   │   └── sessions.py           # 1-turn buffer & session-scoped vector memory
+│   │   └── sessions.py           # Provider-aware recent window & session-scoped vector memory
 │   ├── ai/
 │   │   ├── embedder.py           # CPU fastembed (bge-small-en-v1.5)
-│   │   ├── llm_router.py         # Ternary-Bonsai-2-9B local runner
+│   │   ├── llm_router.py         # Local llama-server / Ollama / cloud router
 │   │   ├── stt_engine.py         # Phonon-2 STT engine
 │   │   ├── tts_engine.py         # Family-detected local ONNX TTS engine
 │   │   └── local_voices.py       # Voice-sidecar discovery + phoneme tokenization
@@ -67,10 +72,11 @@ The build writes `Aether_0.1.0_x64_en-US.msi` and
 The installers package the overlay; the Python daemon and isolated STT runtime
 remain external (see `PACKAGING_AND_CONFIG.md`).
 
-Phonon-2 runs in `bin/stt-runtime` so Torch and Transformers never load in the
-backend process. Without that runtime, dictation stays disabled and logs one
-actionable warning; the rest of Aether is unaffected. Point Settings → Voice →
-STT Model at a directory containing `model.fermion` and `config.json`.
+Phonon-2 runs in an isolated Python runtime — the optional `stt-phonon2` pack, or a dev
+checkout's `bin/stt-runtime` — so Torch and Transformers never load in the backend process.
+Without it, dictation stays disabled and logs one actionable warning; the rest of Aether is
+unaffected. Install it from Settings → **Components**, or point Settings → Voice → STT Model at
+a directory containing `model.fermion` and `config.json`.
 
 Existing configs are upgraded in place with any newly added defaults. An
 unreadable `config.json` is preserved as `config.corrupt-<timestamp>.json`
