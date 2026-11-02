@@ -24,12 +24,12 @@
       "backend": "cpu",
       "version": "0.2.0",
       "url": "https://github.com/Arthur-101/aether-packs/releases/download/engine-cpu-v0.2.0/engine-cpu-0.2.0.zip",
-      "sha256": "60c749c07a73c50156374fab67c821548e7a869f5e325184b2688941aa1747d3",
+      "sha256": "",
       "size": 15549911,
       "installed_size": 44651859,
       "min_app_version": "0.1.0",
       "recommended": false,
-      "description": "CPU-only inference. A fallback for machines with no usable GPU, and the smallest engine pack."
+      "description": "CPU-only inference, retired: the local model never runs on the host CPU, so this engine is no longer offered. Published archives remain for older installs."
     },
     {
       "id": "engine-cuda",
