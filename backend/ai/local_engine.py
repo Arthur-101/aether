@@ -28,15 +28,17 @@ SERVER_PORT = 8089
 SERVER_HOST = "127.0.0.1"
 
 # Engine packs, in the order tried when the configured one is unavailable.
-ENGINE_BACKENDS = ("vulkan", "cpu", "cuda")
+# CPU is deliberately absent: a 9B model on the host CPU starves the desktop,
+# so when no GPU backend is installed the local model is simply left off.
+ENGINE_BACKENDS = ("vulkan", "cuda")
 
 
 def engine_component_ids(backend: str = "") -> tuple:
     """Orders engine pack IDs, preferring the configured backend.
 
-    A user who installed both Vulkan and CPU should keep Vulkan even though
-    "cpu" sorts first alphabetically, so the configured backend always leads
-    and the rest act as fallbacks.
+    The configured backend always leads and the other acts as a fallback. There
+    is no CPU engine: an unusable GPU leaves local inference off rather than
+    putting the model on the host CPU.
     """
     preferred = backend.strip().lower()
     ordered = [name for name in ENGINE_BACKENDS if name == preferred]

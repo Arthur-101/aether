@@ -135,7 +135,7 @@ def get_default_config() -> Dict[str, Any]:
             "context_length": 8192,
             "gpu_layers": -1,
             "kv_cache_type": "q8_0",
-            "engine_backend": "vulkan",  # vulkan | cpu | cuda engine pack
+            "engine_backend": "vulkan",  # vulkan | cuda engine pack
             "engine_version": "",  # empty = newest installed pack
             "thinking_mode": False,  # Default: Normal mode (Direct, low-latency)
             "max_tool_rounds": DEFAULT_MAX_TOOL_ROUNDS,

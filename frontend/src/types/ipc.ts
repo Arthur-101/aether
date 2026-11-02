@@ -476,8 +476,8 @@ export interface AIProviderConfig {
   context_length: number;
   gpu_layers: number;
   kv_cache_type?: string;
-  /** Engine pack to prefer; falls back through vulkan → cpu → cuda. */
-  engine_backend?: 'vulkan' | 'cpu' | 'cuda';
+  /** Engine pack to prefer; falls back vulkan → cuda. Never CPU. */
+  engine_backend?: 'vulkan' | 'cuda';
   /** Empty or omitted means the newest installed pack. */
   engine_version?: string;
   thinking_mode: boolean;

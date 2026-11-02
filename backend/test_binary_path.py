@@ -43,24 +43,24 @@ def test_newest_version_wins_with_natural_sort(components_env):
 
 def test_backend_order_decides_between_installed_packs(components_env):
     vulkan = _install(components_env, "engine-vulkan", "0.1.0")
-    cpu = _install(components_env, "engine-cpu", "0.1.0")
+    cuda = _install(components_env, "engine-cuda", "0.1.0")
 
     assert Path(
-        media_tools.get_binary_path("llama-server", engine_component_ids("cpu"))
-    ) == cpu
+        media_tools.get_binary_path("llama-server", engine_component_ids("cuda"))
+    ) == cuda
     assert Path(
         media_tools.get_binary_path("llama-server", engine_component_ids("vulkan"))
     ) == vulkan
 
 
 def test_missing_preferred_pack_falls_back(components_env):
-    cpu = _install(components_env, "engine-cpu", "0.1.0")
+    cuda = _install(components_env, "engine-cuda", "0.1.0")
 
     resolved = media_tools.get_binary_path(
         "llama-server", engine_component_ids("vulkan")
     )
 
-    assert Path(resolved) == cpu
+    assert Path(resolved) == cuda
 
 
 def test_version_pin_ignores_newer_packs(components_env):
@@ -94,11 +94,18 @@ def test_no_components_falls_back_to_path(components_env, monkeypatch):
 
 
 def test_engine_component_ids_puts_configured_backend_first():
-    assert engine_component_ids("cpu")[0] == "engine-cpu"
     assert engine_component_ids("cuda")[0] == "engine-cuda"
     assert engine_component_ids("vulkan")[0] == "engine-vulkan"
     assert engine_component_ids("bogus")[0] == "engine-vulkan"
-    assert len(engine_component_ids("cpu")) == len(ENGINE_BACKENDS)
+    assert len(engine_component_ids("cuda")) == len(ENGINE_BACKENDS)
+
+
+def test_cpu_is_never_an_llm_backend():
+    # A 9B model on the host CPU starves the desktop, so when no GPU engine is
+    # installed local inference stays off instead of falling back to CPU.
+    assert "cpu" not in ENGINE_BACKENDS
+    assert "engine-cpu" not in engine_component_ids("vulkan")
+    assert engine_component_ids("cpu")[0] == "engine-vulkan"
 
 
 def test_normalize_ai_provider_sanitizes_engine_fields():
@@ -111,6 +118,10 @@ def test_normalize_ai_provider_sanitizes_engine_fields():
     fallback = normalize_ai_provider({"engine_backend": "metal"})
     assert fallback["engine_backend"] == "vulkan"
     assert fallback["engine_version"] == ""
+
+    # A stored "cpu" (older builds offered it) normalizes away, not through.
+    no_cpu = normalize_ai_provider({"engine_backend": "cpu"})
+    assert no_cpu["engine_backend"] == "vulkan"
 
 
 def test_normalize_ai_provider_rejects_unsafe_version_segments():

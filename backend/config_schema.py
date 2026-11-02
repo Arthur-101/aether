@@ -618,7 +618,8 @@ def normalize_ai_provider(value: Any) -> Dict[str, Any]:
     raw["cloud_model"] = providers[selected]["model"]
     raw["tavily_api_key"] = _optional_text(raw.get("tavily_api_key"), 400)
     engine_backend = _optional_text(raw.get("engine_backend"), 20).lower()
-    if engine_backend not in ("vulkan", "cpu", "cuda"):
+    # No "cpu": the LLM never runs on the host CPU (see local_engine).
+    if engine_backend not in ("vulkan", "cuda"):
         engine_backend = "vulkan"
     raw["engine_backend"] = engine_backend
     # Empty means "newest installed version" rather than a hard pin. Keep it a
