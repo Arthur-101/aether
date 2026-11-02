@@ -3,8 +3,9 @@ Aether STT Engine & Microphone Recorder
 Microphone audio capture via sounddevice and local transcription pipeline.
 Records audio at 16,000 Hz mono while hotkey is held.
 
-Phonon-2 runs in an isolated Python runtime under ``bin/stt-runtime`` so the
-backend never imports Torch. The runtime loads the model once in a resident
+Phonon-2 runs in an isolated Python runtime so the backend never imports Torch.
+The runtime can come from the optional ``stt-phonon2`` component pack or from a
+developer checkout's ``bin/stt-runtime``. It loads the model once in a resident
 worker and answers newline-delimited JSON requests over stdin/stdout.
 """
 
@@ -14,6 +15,7 @@ import json
 import logging
 import os
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -36,7 +38,12 @@ from .voice_providers import (
 logger = logging.getLogger("aether.stt")
 SAMPLE_RATE = 16000
 PROTOCOL_PREFIX = "@@AETHER_STT@@ "
+STT_COMPONENT_ID = "stt-phonon2"
+# Legacy developer checkout layout (venv).
 RUNTIME_RELATIVE = Path("bin") / "stt-runtime" / "Scripts" / "python.exe"
+# Portable layout used by the component pack.
+PACK_RUNTIME_RELATIVE = Path("bin") / "stt-runtime" / "python.exe"
+PACK_MODEL_RELATIVE = Path("models") / "phonon2"
 MODEL_FILE = "model.fermion"
 START_TIMEOUT_S = 120.0
 FAILURE_COOLDOWN_S = 30.0
@@ -109,11 +116,59 @@ class STTEngine:
         self._retry_after = 0.0
         self._missing_runtime_logged = False
 
+    @staticmethod
+    def _version_key(name: str) -> tuple:
+        """Natural sort key so 0.10.0 sorts after 0.9.0."""
+        return tuple(
+            (0, int(part)) if part.isdigit() else (1, part.lower())
+            for part in re.split(r"(\d+)", name)
+            if part
+        )
+
+    def _pack_roots(self) -> List[Path]:
+        """Installed ``stt-phonon2`` versions, newest first."""
+        try:
+            from ..config_manager import get_components_dir
+
+            root = get_components_dir() / STT_COMPONENT_ID
+        except Exception:
+            return []
+        if not root.is_dir():
+            return []
+        packs = [entry for entry in root.iterdir() if entry.is_dir()]
+        packs.sort(key=lambda entry: self._version_key(entry.name), reverse=True)
+        return packs
+
+    def _active_pack(self) -> Optional[Path]:
+        """Newest complete ``stt-phonon2`` install, runtime and model together.
+
+        Both halves come from one version so a half-installed or manually
+        damaged newer pack cannot pair its runtime with an older model.
+        """
+        for pack in self._pack_roots():
+            has_runtime = (pack / PACK_RUNTIME_RELATIVE).is_file() or (
+                pack / RUNTIME_RELATIVE
+            ).is_file()
+            model = pack / PACK_MODEL_RELATIVE
+            has_model = (model / MODEL_FILE).is_file() and (
+                model / "config.json"
+            ).is_file()
+            if has_runtime and has_model:
+                return pack
+        return None
+
     def _resolve_model_dir(self) -> Path:
-        """Resolves the Phonon-2 model directory dynamically."""
+        """Resolves the Phonon-2 model directory dynamically.
+
+        An explicit ``stt_model_dir`` wins, then the newest complete
+        ``stt-phonon2`` pack, then a Phonon directory under the models root.
+        """
         configured = config_manager.get("voice", "stt_model_dir", "")
         if configured and Path(configured).exists():
             return Path(configured)
+        pack = self._active_pack()
+        if pack is not None:
+            return pack / PACK_MODEL_RELATIVE
         discovered = find_model_dir(
             ["*phonon2*", "*phonon*"], get_models_dir()
         )
@@ -130,6 +185,12 @@ class STTEngine:
                 candidates.append(override_path / "Scripts" / "python.exe")
                 candidates.append(override_path / "python.exe")
 
+        # Optional component packs win over a developer checkout, newest first.
+        pack = self._active_pack()
+        if pack is not None:
+            candidates.append(pack / PACK_RUNTIME_RELATIVE)
+            candidates.append(pack / RUNTIME_RELATIVE)
+
         bundle = getattr(sys, "_MEIPASS", "")
         if bundle:
             candidates.append(Path(bundle) / RUNTIME_RELATIVE)
@@ -138,6 +199,10 @@ class STTEngine:
         # Development checkout: backend/ai/stt_engine.py -> aether/bin/...
         candidates.append(Path(__file__).resolve().parents[2] / RUNTIME_RELATIVE)
         candidates.append(Path(sys.executable).resolve().parent / RUNTIME_RELATIVE)
+        # A portable runtime placed in a developer checkout by hand.
+        candidates.append(
+            Path(__file__).resolve().parents[2] / PACK_RUNTIME_RELATIVE
+        )
 
         unique: List[Path] = []
         seen = set()
@@ -268,9 +333,9 @@ class STTEngine:
         if python is None or script is None:
             if not self._missing_runtime_logged:
                 logger.warning(
-                    "Phonon-2 runtime not found; dictation is disabled until the "
-                    "isolated STT runtime is installed under %s.",
-                    RUNTIME_RELATIVE,
+                    "Phonon-2 runtime not found; install the Speech · Phonon-2 "
+                    "pack in Settings → Components (or place a runtime under %s).",
+                    PACK_RUNTIME_RELATIVE,
                 )
                 self._missing_runtime_logged = True
             self._retry_after = time.monotonic() + 300.0

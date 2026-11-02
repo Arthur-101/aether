@@ -66,12 +66,12 @@
       "backend": "",
       "version": "0.1.0",
       "url": "https://github.com/Arthur-101/aether-packs/releases/download/stt-phonon2-v0.1.0/stt-phonon2-0.1.0.zip",
-      "sha256": "",
-      "size": 177209344,
-      "installed_size": 1177843712,
+      "sha256": "477ecc57135c552b0e9455cc6fbb29f41cc37a413aaa67d67cfec762f6881469",
+      "size": 363312653,
+      "installed_size": 861768093,
       "min_app_version": "0.1.0",
       "recommended": false,
-      "description": "Local speech-to-text runtime and Phonon-2 model. Optional; the base app can use cloud speech or none at all."
+      "description": "Offline dictation: a self-contained Python runtime plus the Phonon-2 English model. Large and optional; cloud speech or no speech works without it."
     }
   ]
 }
