@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Any, Callable, Dict
 
-from .ai.errors import ModelNotConfiguredError
+from .ai.errors import EngineNotInstalledError, ModelNotConfiguredError
 from .chat_execution import execute_chat_turn, resolve_tool_approval
 from .db.attachments import list_attachments
 from .db.sessions import session_manager
@@ -51,10 +51,12 @@ async def route_event(event: Dict[str, Any]) -> None:
         await ws_manager.broadcast("ERROR", {"event": event_type, "message": str(e)})
 
 
-async def _chat_error(session_id: str, prompt: str, message: str) -> None:
+async def _chat_error(
+    session_id: str, prompt: str, message: str, target: str = "llm"
+) -> None:
     """Shows an actionable error inside Quick Chat and opens Settings."""
     await ws_manager.broadcast("ERROR_CONFIG_MISSING", {
-        "target": "llm",
+        "target": target,
         "message": message,
     })
     await ws_manager.broadcast("SESSION_UPDATED", {
@@ -84,6 +86,9 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
 
     try:
         result = await execute_chat_turn(sid, prompt, stream=True)
+    except EngineNotInstalledError as exc:
+        await _chat_error(sid, prompt, str(exc), target="components")
+        return
     except ModelNotConfiguredError as exc:
         await _chat_error(sid, prompt, str(exc))
         return

@@ -19,7 +19,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager, find_model_file, get_models_dir
 from ..mcp_tools.media_tools import get_binary_path
-from .errors import ModelNotConfiguredError
+from .errors import EngineNotInstalledError, ModelNotConfiguredError
 from .stream_accumulator import StreamAccumulator
 
 logger = logging.getLogger(__name__)
@@ -99,8 +99,8 @@ class LocalGGUFEngine:
             engine_version,
         )
         if not Path(server_bin).exists():
-            raise ModelNotConfiguredError(
-                f"llama-server binary not found at {server_bin}. "
+            raise EngineNotInstalledError(
+                f"No local engine is installed for the {engine_backend} backend. "
                 "Install an engine pack in Settings → Components, or place "
                 "llama-server.exe in Aether's bin/ directory."
             )

@@ -76,6 +76,8 @@ export function useBackendSocket() {
   const [thinkingMode, setThinkingMode] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  // Which Settings tab fixes the error: model/credentials or a missing pack.
+  const [configErrorTab, setConfigErrorTab] = useState<'ai' | 'components'>('ai');
   const [spotifyAuth, setSpotifyAuth] = useState<SpotifyAuthState>({
     connected: false,
     pending: false,
@@ -426,6 +428,7 @@ export function useBackendSocket() {
         case 'CONFIG_STATE':
           setConfig(payload as AppConfig);
           setConfigError(null);
+          setConfigErrorTab('ai');
           break;
         case 'CONFIG_UPDATED':
           setConfig((prev) => {
@@ -448,6 +451,7 @@ export function useBackendSocket() {
           setLocalVoices(payload as LocalVoiceState);
           break;
         case 'ERROR_CONFIG_MISSING':
+          setConfigErrorTab(payload.target === 'components' ? 'components' : 'ai');
           setConfigError(payload.message || 'AI engine is not configured.');
           break;
         case 'ERROR':
@@ -541,7 +545,10 @@ export function useBackendSocket() {
   const closeRegion = useCallback(() => setIsRegionOpen(false), []);
   const clearClockEvent = useCallback(() => setClockAlert(null), []);
   const clearError = useCallback(() => setErrorMessage(null), []);
-  const clearConfigError = useCallback(() => setConfigError(null), []);
+  const clearConfigError = useCallback(() => {
+    setConfigError(null);
+    setConfigErrorTab('ai');
+  }, []);
   const clearWheelResult = useCallback(() => setLastWheelResult(null), []);
   const refreshWeather = useCallback(
     () => sendEvent({ type: 'GET_WEATHER', payload: {} }),
@@ -573,6 +580,7 @@ export function useBackendSocket() {
     thinkingMode,
     config,
     configError,
+    configErrorTab,
     spotifyAuth,
     toolGroups,
     localVoices,

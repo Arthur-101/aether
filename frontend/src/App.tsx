@@ -89,6 +89,7 @@ export function App() {
     thinkingMode,
     config,
     configError,
+    configErrorTab,
     spotifyAuth,
     toolGroups,
     localVoices,
@@ -557,8 +558,10 @@ export function App() {
   useTauriFileDrop(handleAskFile, radialWheel?.file_path ?? null);
 
   useEffect(() => {
-    if (configError) showSettings('ai');
-  }, [configError, showSettings]);
+    if (configError) {
+      showSettings(configErrorTab === 'components' ? 'components' : 'ai');
+    }
+  }, [configError, configErrorTab, showSettings]);
 
   const notesApi: NotesApi = {
     items: notes,

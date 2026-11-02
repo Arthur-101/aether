@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.ai.errors import EngineNotInstalledError, ModelNotConfiguredError
 from backend.ai.local_engine import ENGINE_BACKENDS, engine_component_ids
 from backend.config_schema import normalize_ai_provider
 from backend.mcp_tools import media_tools
@@ -115,3 +116,45 @@ def test_normalize_ai_provider_sanitizes_engine_fields():
 def test_normalize_ai_provider_rejects_unsafe_version_segments():
     normalized = normalize_ai_provider({"engine_version": "../../escape"})
     assert normalized["engine_version"] == ""
+
+
+def test_missing_engine_raises_distinct_error(monkeypatch, tmp_path):
+    from backend.ai import local_engine
+
+    model = tmp_path / "dummy.gguf"
+    model.write_bytes(b"GGUF")
+    monkeypatch.setattr(
+        local_engine,
+        "get_binary_path",
+        lambda *args, **kwargs: str(tmp_path / "missing.exe"),
+    )
+    engine = local_engine.LocalGGUFEngine()
+    monkeypatch.setattr(engine, "is_healthy", lambda: False)
+
+    with pytest.raises(EngineNotInstalledError) as excinfo:
+        engine.start_server(str(model))
+
+    assert "Components" in str(excinfo.value)
+    assert issubclass(EngineNotInstalledError, ModelNotConfiguredError)
+
+
+def test_engine_error_event_targets_components(monkeypatch):
+    import asyncio
+
+    from backend import event_router
+
+    sent = []
+
+    async def fake_broadcast(event_type, payload):
+        sent.append((event_type, payload))
+
+    monkeypatch.setattr(event_router.ws_manager, "broadcast", fake_broadcast)
+    monkeypatch.setattr(event_router, "_get_session_title", lambda session_id: "Title")
+
+    asyncio.run(
+        event_router._chat_error("session-1", "hello", "install an engine", target="components")
+    )
+
+    assert sent[0][0] == "ERROR_CONFIG_MISSING"
+    assert sent[0][1]["target"] == "components"
+    assert sent[1][0] == "SESSION_UPDATED"
