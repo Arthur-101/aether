@@ -16,6 +16,7 @@ import type {
   ComponentInfo,
   ComponentProgress,
   ComponentResult,
+  ComponentDirResult,
   DisplayInfo,
   IncomingEnvelope,
   LocalVoiceState,
@@ -88,10 +89,14 @@ export function useBackendSocket() {
   const [toolGroups, setToolGroups] = useState<ToolGroupsState | null>(null);
   const [localVoices, setLocalVoices] = useState<LocalVoiceState | null>(null);
   const [components, setComponents] = useState<ComponentInfo[]>([]);
+  const [componentsDirectory, setComponentsDirectory] = useState('');
+  const [componentsDefaultDirectory, setComponentsDefaultDirectory] = useState('');
   const [componentProgress, setComponentProgress] =
     useState<ComponentProgress | null>(null);
   const [componentResult, setComponentResult] =
     useState<ComponentResult | null>(null);
+  const [componentDirResult, setComponentDirResult] =
+    useState<ComponentDirResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [radialWheel, setRadialWheel] = useState<RadialWheelPayload | null>(null);
   const [wheelCursor, setWheelCursor] = useState<RadialWheelCursor | null>(null);
@@ -409,6 +414,10 @@ export function useBackendSocket() {
           break;
         case 'COMPONENTS_STATE':
           setComponents((payload.components as ComponentInfo[] | undefined) || []);
+          setComponentsDirectory((payload.directory as string | undefined) || '');
+          setComponentsDefaultDirectory(
+            (payload.default_directory as string | undefined) || ''
+          );
           break;
         case 'COMPONENT_PROGRESS':
           setComponentProgress(payload as ComponentProgress);
@@ -416,6 +425,9 @@ export function useBackendSocket() {
         case 'COMPONENT_RESULT':
           setComponentProgress(null);
           setComponentResult(payload as ComponentResult);
+          break;
+        case 'COMPONENT_DIR_RESULT':
+          setComponentDirResult(payload as ComponentDirResult);
           break;
         case 'THINKING_MODE_CHANGED':
           setThinkingMode(Boolean(payload.enabled));
@@ -585,8 +597,11 @@ export function useBackendSocket() {
     toolGroups,
     localVoices,
     components,
+    componentsDirectory,
+    componentsDefaultDirectory,
     componentProgress,
     componentResult,
+    componentDirResult,
     errorMessage,
     radialWheel,
     wheelCursor,

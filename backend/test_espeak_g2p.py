@@ -73,6 +73,31 @@ def test_missing_component_raises(monkeypatch, tmp_path):
         espeak_g2p.phonemize("hello")
 
 
+def test_missing_result_is_reprobed_after_the_window(monkeypatch, tmp_path):
+    """A pack installed while the daemon runs must be picked up without a restart."""
+    component_dir = tmp_path / "espeak-ng"
+    component_dir.mkdir()
+    (component_dir / espeak_g2p.EXECUTABLE_NAME).write_bytes(b"MZ")
+    data = component_dir / espeak_g2p.DATA_DIR_NAME
+    data.mkdir()
+    (data / espeak_g2p.DATA_MARKER).write_bytes(b"x")
+
+    visible = {"on": False}
+    monkeypatch.setattr(
+        espeak_g2p,
+        "_candidate_directories",
+        lambda: [component_dir] if visible["on"] else [tmp_path / "absent"],
+    )
+    espeak_g2p.reset_cache()
+    assert espeak_g2p.available() is False
+
+    visible["on"] = True
+    # Still negative until the retry window elapses.
+    assert espeak_g2p.available() is False
+    espeak_g2p._probed_at -= espeak_g2p.MISSING_RETRY_S + 1
+    assert espeak_g2p.available() is True
+
+
 def test_executable_without_data_is_rejected(monkeypatch, tmp_path):
     """espeak segfaults on a missing data path, so it must be checked first."""
     broken = tmp_path / "broken"

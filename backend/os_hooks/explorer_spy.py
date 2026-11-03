@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple
 
+import win32gui
 from pynput import keyboard, mouse
 
 from .explorer_selection import get_selected_explorer_file
@@ -32,6 +33,7 @@ class DragShiftDetector:
         self.modifier = "shift"
         self.modifiers: set[str] = set()
         self.drag_start_pos: Optional[Tuple[int, int]] = None
+        self.drag_source_hwnd: Optional[int] = None
         self.current_pos: Tuple[int, int] = (0, 0)
         self.is_dragging = False
         self.wheel_active = False
@@ -50,8 +52,10 @@ class DragShiftDetector:
     def _maybe_open_wheel(self) -> None:
         if not (self.is_dragging and self._modifier_held() and not self.wheel_active):
             return
-        file_path = get_selected_explorer_file()
-        if file_path and Path(file_path).exists():
+        # Target the window the drag started in, not whichever Explorer window
+        # happens to be focused, and never open the wheel for a folder.
+        file_path = get_selected_explorer_file(self.drag_source_hwnd)
+        if file_path and Path(file_path).is_file():
             self.wheel_active = True
             self._last_move_emit = 0.0
             ext = Path(file_path).suffix.lstrip(".").lower()
@@ -86,6 +90,10 @@ class DragShiftDetector:
             self.left_down = True
             self.drag_start_pos = (x, y)
             self.current_pos = (x, y)
+            try:
+                self.drag_source_hwnd = win32gui.WindowFromPoint((x, y))
+            except Exception:
+                self.drag_source_hwnd = None
             return
 
         # Release: let the UI activate the hovered slice, then reset.
@@ -93,6 +101,7 @@ class DragShiftDetector:
         self.left_down = False
         self.is_dragging = False
         self.wheel_active = False
+        self.drag_source_hwnd = None
         self.current_pos = (x, y)
         if was_active:
             self.on_drop(x, y)

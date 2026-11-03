@@ -18,6 +18,8 @@ from .config_schema import (
     DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES,
     DEFAULT_MEMORY_LOCAL_RECENT_TURNS,
     DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES,
+    DEFAULT_LLM_IDLE_UNLOAD_MINUTES,
+    DEFAULT_EMBEDDING_IDLE_UNLOAD_MINUTES,
     default_appearance,
     default_clock,
     default_filesystem,
@@ -65,22 +67,75 @@ def get_db_path() -> Path:
     return get_data_dir() / "assistant_data.db"
 
 
-def get_components_dir() -> Path:
-    """Returns %LOCALAPPDATA%/Aether/components for optional runtime packs.
+def default_components_dir() -> Path:
+    """Returns %LOCALAPPDATA%/Aether/components, the built-in pack folder."""
+    return Path(user_data_dir(APP_NAME, appauthor=False, roaming=False)) / "components"
 
+
+def get_components_dir() -> Path:
+    """Returns the folder for optional runtime packs.
+
+    Resolution order: the ``AETHER_COMPONENTS_DIR`` override (tests and portable
+    installs), which names a *base* that gets a ``components`` subfolder, then
+    ``storage.components_directory`` from the user's config, which is the folder
+    itself, then :func:`default_components_dir`. A configured folder that cannot
+    be created falls back to the default so a bad path never kills the daemon.
     Optional packs (engine backends, voice data, speech models) live outside the
-    installer so the base app stays small. ``AETHER_COMPONENTS_DIR`` overrides
-    the root for tests and portable installs.
+    installer so the base app stays small.
     """
     override = os.getenv("AETHER_COMPONENTS_DIR", "").strip()
-    root = (
-        Path(override)
-        if override
-        else Path(user_data_dir(APP_NAME, appauthor=False, roaming=False))
+    if override:
+        root = Path(override) / "components"
+    else:
+        configured = str(
+            config_manager.get("storage", "components_directory", "") or ""
+        ).strip()
+        root = (
+            Path(os.path.expandvars(os.path.expanduser(configured)))
+            if configured
+            else default_components_dir()
+        )
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        root = default_components_dir()
+        root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+COMPONENTS_MARKER_NAME = "components-path.txt"
+
+
+def components_marker_path() -> Path:
+    """Marker the NSIS uninstaller reads to find a relocated pack folder."""
+    return (
+        Path(user_data_dir(APP_NAME, appauthor=False, roaming=False))
+        / COMPONENTS_MARKER_NAME
     )
-    components = root / "components"
-    components.mkdir(parents=True, exist_ok=True)
-    return components
+
+
+def sync_components_marker() -> None:
+    """Keeps the uninstaller marker in step with the configured pack folder.
+
+    The default folder is known to the NSIS hook, so it needs no marker. A
+    relocated folder is recorded so an interactive uninstall can still offer to
+    delete the downloaded packs, and the marker is removed once the configured
+    folder is the default again. ``AETHER_COMPONENTS_DIR`` is a test/portable
+    override and is deliberately not written: the uninstaller must not delete a
+    folder the user pointed at manually.
+    """
+    marker = components_marker_path()
+    override = os.getenv("AETHER_COMPONENTS_DIR", "").strip()
+    configured = str(
+        config_manager.get("storage", "components_directory", "") or ""
+    ).strip()
+    try:
+        if configured and not override:
+            marker.write_text(str(get_components_dir()), encoding="utf-8")
+        else:
+            marker.unlink(missing_ok=True)
+    except OSError as exc:
+        logger.debug("Could not update the components marker: %s", exc)
 
 
 def get_models_dir() -> Path:
@@ -143,6 +198,8 @@ def get_default_config() -> Dict[str, Any]:
             "memory_local_semantic_matches": DEFAULT_MEMORY_LOCAL_SEMANTIC_MATCHES,
             "memory_cloud_recent_turns": DEFAULT_MEMORY_CLOUD_RECENT_TURNS,
             "memory_cloud_semantic_matches": DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES,
+            "llm_idle_unload_minutes": DEFAULT_LLM_IDLE_UNLOAD_MINUTES,
+            "embedding_idle_unload_minutes": DEFAULT_EMBEDDING_IDLE_UNLOAD_MINUTES,
         },
         "voice": {
             "stt_engine": "local_phonon2",
@@ -170,6 +227,7 @@ def get_default_config() -> Dict[str, Any]:
             "auto_session_timeout_minutes": 15,
             "notes_directory": "",
             "notes_theme": "default",
+            "components_directory": "",
         },
         "appearance": default_appearance(),
         "clock": default_clock(),

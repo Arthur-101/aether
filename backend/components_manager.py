@@ -31,7 +31,12 @@ import zipfile
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from .config_manager import get_components_dir
+from .config_manager import (
+    config_manager,
+    default_components_dir,
+    get_components_dir,
+    sync_components_marker,
+)
 
 logger = logging.getLogger("aether.components")
 
@@ -209,6 +214,14 @@ def describe(entry: Dict[str, Any]) -> Dict[str, Any]:
         "state": state,
         "downloadable": downloadable,
         "compatible": compatible,
+    }
+
+
+def components_directories() -> Dict[str, str]:
+    """Resolved pack folder plus the built-in default, for the Settings tab."""
+    return {
+        "directory": str(get_components_dir()),
+        "default_directory": str(default_components_dir()),
     }
 
 
@@ -408,3 +421,85 @@ def remove_component(component_id: str) -> Dict[str, Any]:
         shutil.rmtree(root, ignore_errors=True)
         logger.info("Removed component %s", component_id)
     return {"id": component_id, "state": "removed"}
+
+
+# ── relocating the pack root ──────────────────────────────────────────────
+
+
+def _installed_pack_dirs(root: Path) -> List[Path]:
+    if not root.is_dir():
+        return []
+    return [entry for entry in sorted(root.iterdir()) if entry.is_dir()]
+
+
+def change_components_dir(target: str, move: bool) -> Dict[str, Any]:
+    """Repoints the pack folder, optionally relocating installed packs.
+
+    Returns a small report the Settings tab can show: the absolute folder now in
+    effect, the packs that were moved, and any that stayed behind.
+
+    A locked file (a running ``llama-server`` holds its engine DLLs) aborts the
+    move and rolls back whatever was already moved, so packs never end up split
+    across two folders.
+    """
+    raw = str(target or "").strip()
+    if not raw:
+        raise ComponentError("Choose a folder for the component packs.")
+
+    destination = Path(os.path.expandvars(os.path.expanduser(raw)))
+    source = get_components_dir()
+
+    if destination.exists() and not destination.is_dir():
+        raise ComponentError(f"{destination} is a file, not a folder.")
+    if source in destination.parents:
+        raise ComponentError("Choose a folder outside the current component folder.")
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ComponentError(f"Could not create {destination}: {exc}") from exc
+
+    # Unpacking needs to create files, so prove writability before moving packs.
+    probe = destination / ".aether-write-test"
+    try:
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+    except OSError as exc:
+        raise ComponentError(f"{destination} is not writable: {exc}") from exc
+
+    moved: List[str] = []
+    remaining: List[str] = []
+    same = source.resolve() == destination.resolve()
+    if not same:
+        entries = _installed_pack_dirs(source)
+        if move:
+            for entry in entries:
+                try:
+                    shutil.move(str(entry), str(destination / entry.name))
+                except OSError as exc:
+                    for name in moved:
+                        try:
+                            shutil.move(str(destination / name), str(source / name))
+                        except OSError:
+                            logger.warning("Could not roll back %s", name)
+                    raise ComponentError(
+                        f"Could not move {entry.name} because a file is in use "
+                        f"({exc}). Close the local model and any dictation, then "
+                        "try again."
+                    ) from exc
+                moved.append(entry.name)
+        else:
+            remaining = [entry.name for entry in entries]
+
+    configured = (
+        ""
+        if destination.resolve() == default_components_dir().resolve()
+        else str(destination)
+    )
+    config_manager.set("storage", "components_directory", configured)
+    sync_components_marker()
+
+    return {
+        "directory": str(get_components_dir()),
+        "moved": moved,
+        "remaining": remaining,
+    }

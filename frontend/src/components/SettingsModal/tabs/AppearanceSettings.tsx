@@ -5,7 +5,6 @@ import {
   MonitorCog,
   Moon,
   Palette,
-  PanelTop,
   SlidersHorizontal,
   Sparkles,
   Sun,
@@ -232,22 +231,6 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
           checked={appearance.glow_color === 'source'}
           onChange={(checked) =>
             update({ glow_color: checked ? 'source' : 'theme' })
-          }
-        />
-      </SettingsGroup>
-
-      <SettingsGroup icon={<PanelTop size={13} />} title="Behaviour">
-        <SettingsToggleRow
-          label="Auto-hide the pill"
-          hint="Tuck it into the top bezel; touch the centre band to reveal it."
-          checked={appearance.auto_hide_pill}
-          onChange={(auto_hide_pill) => update({ auto_hide_pill })}
-        />
-        <SettingsToggleRow
-          label="Close when clicking outside"
-          checked={appearance.close_on_outside_click}
-          onChange={(close_on_outside_click) =>
-            update({ close_on_outside_click })
           }
         />
       </SettingsGroup>

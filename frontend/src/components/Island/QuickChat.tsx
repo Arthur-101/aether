@@ -79,7 +79,7 @@ interface QuickChatProps {
 }
 
 const PROMPTS = [
-  'Summarize what I am working on',
+  'List all your tools',
   'What is using the most memory?',
   'Plan the rest of my afternoon',
 ];

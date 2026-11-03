@@ -456,6 +456,12 @@ export function useBackendActions(
     [sendEvent]
   );
 
+  const changeComponentsDirectory = useCallback(
+    (path: string, move: boolean) =>
+      sendEvent({ type: 'CHANGE_COMPONENTS_DIR', payload: { path, move } }),
+    [sendEvent]
+  );
+
   return {
     sendChatMessage,
     speakText,
@@ -524,6 +530,7 @@ export function useBackendActions(
     installComponent,
     cancelComponent,
     removeComponent,
+    changeComponentsDirectory,
   };
 }
 

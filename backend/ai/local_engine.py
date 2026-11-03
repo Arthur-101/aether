@@ -19,13 +19,31 @@ from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager, find_model_file, get_models_dir
 from ..mcp_tools.media_tools import get_binary_path
-from .errors import EngineNotInstalledError, ModelNotConfiguredError
+from .errors import EngineNotInstalledError, ModelNotConfiguredError, ToolCallParseError
 from .stream_accumulator import StreamAccumulator
 
 logger = logging.getLogger(__name__)
 
 SERVER_PORT = 8089
 SERVER_HOST = "127.0.0.1"
+
+
+def _server_error(code: int, detail: str) -> ModelNotConfiguredError:
+    """Builds an actionable error for a llama-server HTTP failure.
+
+    A malformed tool call is a common, recoverable failure: the model's JSON
+    arguments were truncated (usually by the output budget), so it gets its own
+    type and a message that does not send the user to Settings.
+    """
+    if "Failed to parse tool call" in detail:
+        return ToolCallParseError(
+            "The local model produced an incomplete tool call, so that action "
+            "could not run. Try again, or use a cloud model for long edits."
+        )
+    return ModelNotConfiguredError(
+        f"Local llama-server error (HTTP {code}): {detail}. "
+        "Open Settings to verify the model."
+    )
 
 # Engine packs, in the order tried when the configured one is unavailable.
 # CPU is deliberately absent: a 9B model on the host CPU starves the desktop,
@@ -222,10 +240,7 @@ class LocalGGUFEngine:
                 data = json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:800]
-            raise ModelNotConfiguredError(
-                f"Local llama-server error (HTTP {exc.code}): {detail}. "
-                "Open Settings to verify the model."
-            ) from exc
+            raise _server_error(exc.code, detail) from exc
         except Exception as exc:
             raise ModelNotConfiguredError(
                 f"Local llama-server error: {exc}. Open Settings to verify the model."
@@ -291,10 +306,7 @@ class LocalGGUFEngine:
                         on_token(text)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")[:800]
-            raise ModelNotConfiguredError(
-                f"Local llama-server error (HTTP {exc.code}): {detail}. "
-                "Open Settings to verify the model."
-            ) from exc
+            raise _server_error(exc.code, detail) from exc
         except Exception as exc:
             raise ModelNotConfiguredError(
                 f"Local llama-server stream error: {exc}. "

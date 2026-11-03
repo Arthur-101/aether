@@ -11,20 +11,18 @@ export function useTauriFileDrop(
   wheelFile: string | null
 ): void {
   const wheelOpen = useRef(false);
-  const wheelPath = useRef('');
-  const wheelDropGuard = useRef<{ path: string; until: number } | null>(null);
+  const suppressUntil = useRef(0);
 
   if (wheelFile) {
     wheelOpen.current = true;
-    wheelPath.current = wheelFile;
   } else if (wheelOpen.current) {
     // WebSocket and native drop events can arrive in either order, so keep
-    // suppressing the matching Explorer drop briefly after the wheel closes.
+    // suppressing Explorer drops briefly after the wheel closes. Matching the
+    // exact path is unreliable (the wheel may hold a different path than the
+    // one Windows reports), so any drop landing in this window is treated as
+    // belonging to the wheel rather than leaking into Quick Chat.
     wheelOpen.current = false;
-    wheelDropGuard.current = {
-      path: wheelPath.current,
-      until: Date.now() + 1500,
-    };
+    suppressUntil.current = Date.now() + 1500;
   }
 
   useEffect(() => {
@@ -34,15 +32,7 @@ export function useTauriFileDrop(
       .onDragDropEvent((event) => {
         if (event.payload.type !== 'drop') return;
 
-        const guard = wheelDropGuard.current;
-        const wheelOwnsDrop =
-          wheelOpen.current ||
-          Boolean(
-            guard &&
-              Date.now() < guard.until &&
-              event.payload.paths.includes(guard.path)
-          );
-        if (wheelOwnsDrop) return;
+        if (wheelOpen.current || Date.now() < suppressUntil.current) return;
 
         event.payload.paths.forEach((filePath) => onFileDrop(filePath));
       })

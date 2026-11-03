@@ -251,6 +251,18 @@ class STTEngine:
         """True when either the selected cloud provider or local STT can run."""
         return self._cloud_configured() or self._local_available()
 
+    def reset_component_state(self) -> None:
+        """Clears the startup cooldown so a newly installed pack is used at once.
+
+        The Speech · Phonon-2 pack can be installed while the daemon keeps
+        running. A start that failed before the pack existed arms a 30 s (or
+        5 min) retry backoff, so without this the fresh pack would stay locked
+        out until the next window elapsed.
+        """
+        with self._lock:
+            self._retry_after = 0.0
+            self._missing_runtime_logged = False
+
     @staticmethod
     def _format_tail(tail: Deque[str]) -> str:
         lines = [line for line in list(tail)[-3:] if line]

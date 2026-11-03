@@ -10,6 +10,18 @@ import win32gui
 import winreg
 
 
+def _is_file_path(path: Any) -> bool:
+    """True only for an existing file.
+
+    Folders are not valid Radial Wheel payloads, so they are rejected here
+    rather than being passed to image/document tools.
+    """
+    try:
+        return bool(path) and Path(str(path)).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def _desktop_dirs() -> list[Path]:
     """Resolves the user and public desktop folders, including redirection."""
     candidates: list[Path] = []
@@ -90,39 +102,132 @@ def _desktop_selected_path() -> Optional[str]:
     return None
 
 
+def _item_file_path(item: Any) -> Optional[str]:
+    """Returns the path of a Shell item only when it is a real file.
+
+    Folders are deliberately rejected: the Radial Wheel only ever acts on
+    files, and handing a directory to the image/document tools fails.
+    """
+    if item is None:
+        return None
+    try:
+        if item.IsFolder:
+            return None
+        path = item.Path
+    except Exception:
+        return None
+    return str(path) if _is_file_path(path) else None
+
+
 def _window_selected_path(window: Any) -> Optional[str]:
-    """Reads the selected (or focused) item from a Shell browser window."""
+    """Reads the selected (or focused) file from a Shell browser window."""
     try:
         selected = window.Document.SelectedItems()
-        if selected.Count > 0:
-            return selected.Item(0).Path
     except Exception:
-        pass
+        selected = None
+    if selected is not None:
+        try:
+            count = selected.Count
+        except Exception:
+            count = 0
+        for index in range(count):
+            try:
+                item = selected.Item(index)
+            except Exception:
+                continue
+            path = _item_file_path(item)
+            if path:
+                return path
     try:
         # Explorer can report zero selected items while a drag operation is
         # active even though the dragged item is still focused.
         focused = window.Document.FocusedItem
-        if focused is not None:
-            return focused.Path
     except Exception:
-        pass
+        focused = None
+    return _item_file_path(focused)
+
+
+def _clipboard_selected_path() -> Optional[str]:
+    """Best-effort read of files an in-flight drag exposed on the clipboard."""
+    try:
+        import win32clipboard
+        import win32con
+    except Exception:
+        return None
+    data: Any = None
+    try:
+        win32clipboard.OpenClipboard()
+    except Exception:
+        return None
+    try:
+        if win32clipboard.IsClipboardFormatAvailable(win32con.CF_HDROP):
+            data = win32clipboard.GetClipboardData(win32con.CF_HDROP)
+    except Exception:
+        data = None
+    finally:
+        try:
+            win32clipboard.CloseClipboard()
+        except Exception:
+            pass
+    entries = data if isinstance(data, (list, tuple)) else [data]
+    for entry in entries:
+        if _is_file_path(entry):
+            return str(entry)
     return None
 
 
-def get_selected_explorer_file() -> Optional[str]:
-    """Queries Shell.Application COM for the currently selected/dragged item."""
+def _window_for_hwnd(shell: Any, target: int) -> Optional[Any]:
+    """Finds the Shell browser window whose HWND equals ``target``."""
+    for window in shell.Windows():
+        try:
+            if int(window.HWND) == target:
+                return window
+        except Exception:
+            continue
+    return None
+
+
+def get_selected_explorer_file(hwnd: Optional[int] = None) -> Optional[str]:
+    """Queries Shell.Application COM for the currently selected/dragged file.
+
+    ``hwnd`` should be the window under the drag's initial mouse-down. When
+    given, it takes priority over the foreground window so a drag started in
+    one Explorer window is not misattributed to whichever window is focused.
+    Only real files are returned; folders are never valid wheel payloads.
+    """
     pythoncom.CoInitialize()
     try:
         shell = win32com.client.Dispatch("Shell.Application")
+
+        # Prefer the recorded drag source.
+        if hwnd:
+            root = win32gui.GetAncestor(int(hwnd), 2)  # GA_ROOT
+            for target in (int(hwnd), int(root)):
+                try:
+                    cls = win32gui.GetClassName(target)
+                except Exception:
+                    cls = ""
+                if cls in ("Progman", "WorkerW"):
+                    path = _desktop_selected_path()
+                    if path:
+                        return path
+                window = _window_for_hwnd(shell, target)
+                if window is not None:
+                    path = _window_selected_path(window)
+                    if path:
+                        return path
+
+        # Fall back to the foreground window (or its top-level ancestor).
         fg_hwnd = win32gui.GetForegroundWindow()
         fg_root = win32gui.GetAncestor(fg_hwnd, 2)  # GA_ROOT
         fg_class = win32gui.GetClassName(fg_hwnd)
 
         # Desktop icons are not exposed by Shell.Application.Windows().
         if fg_class in ("Progman", "WorkerW"):
-            return _desktop_selected_path()
+            path = _desktop_selected_path()
+            if path:
+                return path
 
-        # Check the foreground Explorer window (or its top-level ancestor).
         for window in shell.Windows():
             try:
                 if int(window.HWND) in (int(fg_hwnd), int(fg_root)):
@@ -131,8 +236,11 @@ def get_selected_explorer_file() -> Optional[str]:
                         return path
             except Exception:
                 continue
+
+        # Last resort: an in-flight drag may have published the files on the
+        # clipboard even though no window reports a usable selection.
+        return _clipboard_selected_path()
     except Exception:
-        pass
+        return None
     finally:
         pythoncom.CoUninitialize()
-    return None

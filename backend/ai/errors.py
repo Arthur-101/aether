@@ -15,3 +15,12 @@ class EngineNotInstalledError(ModelNotConfiguredError):
     Distinct from a missing model: the fix is Settings → Components, so the
     event carries ``target: components`` and the frontend opens that tab.
     """
+
+
+class ToolCallParseError(ModelNotConfiguredError):
+    """Raised when llama-server rejected a malformed tool call.
+
+    The local model usually produced the call but its JSON arguments were cut
+    short, so the router retries once with a larger output budget before this
+    reaches the user.
+    """

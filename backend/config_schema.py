@@ -138,6 +138,12 @@ MAX_MEMORY_RECENT_TURNS = 12
 MIN_MEMORY_SEMANTIC_MATCHES = 0
 MAX_MEMORY_SEMANTIC_MATCHES = 12
 
+# Idle auto-unload: minutes without use before reclaimed memory is freed.
+# 0 disables automatic unloading so the model stays resident.
+DEFAULT_LLM_IDLE_UNLOAD_MINUTES = 15
+DEFAULT_EMBEDDING_IDLE_UNLOAD_MINUTES = 10
+MAX_IDLE_UNLOAD_MINUTES = 24 * 60
+
 DEFAULT_VOICE_STT_PROVIDER = "local"
 DEFAULT_VOICE_TTS_PROVIDER = "local"
 VALID_VOICE_PROVIDERS = frozenset({"local", *VOICE_PROVIDER_IDS})
@@ -289,6 +295,17 @@ def normalize_memory_count(
     except (TypeError, ValueError):
         return fallback
     return max(minimum, min(maximum, count))
+
+
+def normalize_idle_minutes(value: Any, fallback: int) -> int:
+    """Clamps an idle-unload timeout. Zero means "never unload automatically"."""
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    if minutes <= 0:
+        return 0
+    return min(minutes, MAX_IDLE_UNLOAD_MINUTES)
 
 
 def normalize_appearance(value: Any) -> Dict[str, Any]:
@@ -654,6 +671,13 @@ def normalize_ai_provider(value: Any) -> Dict[str, Any]:
         DEFAULT_MEMORY_CLOUD_SEMANTIC_MATCHES,
         MIN_MEMORY_SEMANTIC_MATCHES,
         MAX_MEMORY_SEMANTIC_MATCHES,
+    )
+    raw["llm_idle_unload_minutes"] = normalize_idle_minutes(
+        raw.get("llm_idle_unload_minutes"), DEFAULT_LLM_IDLE_UNLOAD_MINUTES
+    )
+    raw["embedding_idle_unload_minutes"] = normalize_idle_minutes(
+        raw.get("embedding_idle_unload_minutes"),
+        DEFAULT_EMBEDDING_IDLE_UNLOAD_MINUTES,
     )
     return raw
 

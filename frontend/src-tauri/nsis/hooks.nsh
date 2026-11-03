@@ -32,12 +32,33 @@
     Goto aether_keep_user_data
   ${EndIf}
 
-  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Also delete downloaded models and component packs?$\r$\n$\r$\n$APPDATA\Aether\models$\r$\n$LOCALAPPDATA\Aether\components$\r$\n$\r$\nYour settings, notes, and database are kept either way. A model can be several gigabytes to download again." IDNO aether_keep_user_data
+  ; Packs normally live under %LOCALAPPDATA%\Aether\components, but the user can
+  ; point them elsewhere from Settings. The app records a relocated folder in a
+  ; marker file, so read it back here and offer to remove those packs too.
+  StrCpy $R0 "$LOCALAPPDATA\Aether\components"
+  IfFileExists "$LOCALAPPDATA\Aether\components-path.txt" 0 aether_components_dir_known
+    FileOpen $R1 "$LOCALAPPDATA\Aether\components-path.txt" r
+    FileRead $R1 $R0
+    FileClose $R1
+    aether_trim_components_dir:
+      StrCpy $R2 $R0 1 -1
+      ${If} $R2 == "$\r"
+      ${OrIf} $R2 == "$\n"
+        StrCpy $R0 $R0 -1
+        Goto aether_trim_components_dir
+      ${EndIf}
+  aether_components_dir_known:
+
+  MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 "Also delete downloaded models and component packs?$\r$\n$\r$\n$APPDATA\Aether\models$\r$\n$R0$\r$\n$\r$\nYour settings, notes, and database are kept either way. A model can be several gigabytes to download again." IDNO aether_keep_user_data
 
   ; /r keeps going when a file is still locked; a partial cleanup is better
   ; than aborting the uninstall.
   RMDir /r "$APPDATA\Aether\models"
   RMDir /r "$LOCALAPPDATA\Aether\components"
+  ${If} $R0 != ""
+  ${AndIf} $R0 != "$LOCALAPPDATA\Aether\components"
+    RMDir /r "$R0"
+  ${EndIf}
 
   aether_keep_user_data:
 !macroend

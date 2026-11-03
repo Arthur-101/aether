@@ -23,6 +23,8 @@ from typing import Any, Dict, Optional
 from .components_manager import (
     ComponentCancelled,
     ComponentError,
+    change_components_dir,
+    components_directories,
     install_component,
     list_components,
     remove_component,
@@ -59,7 +61,26 @@ async def broadcast_components() -> None:
     # A handful of directory reads; safe on the shared executor even while a
     # download owns the components pool.
     components = await loop.run_in_executor(None, list_components)
-    await ws_manager.broadcast("COMPONENTS_STATE", {"components": components})
+    directories = await loop.run_in_executor(None, components_directories)
+    await ws_manager.broadcast(
+        "COMPONENTS_STATE", {"components": components, **directories}
+    )
+
+
+def _invalidate_component_caches() -> None:
+    """Lets engines that cached a "component missing" answer re-probe.
+
+    A pack can be installed or removed while the daemon keeps running, so any
+    negative result that was cached before the change must be dropped:
+    espeak-ng remembers a failed probe, and Phonon-2 arms a retry backoff after
+    a failed start. Without this the new pack would not take effect until the
+    next restart (espeak-ng) or the next retry window (up to 5 minutes).
+    """
+    from .ai import espeak_g2p
+    from .ai.stt_engine import stt_engine
+
+    espeak_g2p.reset_cache()
+    stt_engine.reset_component_state()
 
 
 async def _run_install(component_id: str, cancel: threading.Event) -> None:
@@ -107,6 +128,8 @@ async def _run_install(component_id: str, cancel: threading.Event) -> None:
             _running_id = None
             _cancel = None
 
+    if outcome.get("ok"):
+        _invalidate_component_caches()
     await ws_manager.broadcast("COMPONENT_RESULT", outcome)
     await broadcast_components()
 
@@ -173,6 +196,7 @@ async def _handle_remove(payload: Dict[str, Any]) -> None:
         await ws_manager.broadcast("ERROR", {"message": str(exc)})
         return
 
+    _invalidate_component_caches()
     await ws_manager.broadcast(
         "COMPONENT_RESULT",
         {
@@ -185,9 +209,43 @@ async def _handle_remove(payload: Dict[str, Any]) -> None:
     await broadcast_components()
 
 
+async def _handle_change_dir(payload: Dict[str, Any]) -> None:
+    target = str(payload.get("path") or "").strip()
+    move = bool(payload.get("move"))
+
+    with _lock:
+        busy = _running_id
+
+    if busy is not None:
+        await ws_manager.broadcast(
+            "ERROR", {"message": f"Wait for the {busy} install to finish first."}
+        )
+        return
+
+    loop = asyncio.get_running_loop()
+    try:
+        report = await loop.run_in_executor(
+            _pool, change_components_dir, target, move
+        )
+    except ComponentError as exc:
+        await ws_manager.broadcast(
+            "COMPONENT_DIR_RESULT", {"ok": False, "message": str(exc)}
+        )
+        return
+
+    # Every engine resolves packs through the shared folder, so a negative
+    # "component missing" answer cached against the old path must be dropped.
+    _invalidate_component_caches()
+    await ws_manager.broadcast(
+        "COMPONENT_DIR_RESULT", {"ok": True, "message": "", **report}
+    )
+    await broadcast_components()
+
+
 def register_components_events() -> None:
     """Registers the optional-pack handlers."""
     register_handler("GET_COMPONENTS", _handle_list)
     register_handler("INSTALL_COMPONENT", _handle_install)
     register_handler("CANCEL_COMPONENT", _handle_cancel)
     register_handler("REMOVE_COMPONENT", _handle_remove)
+    register_handler("CHANGE_COMPONENTS_DIR", _handle_change_dir)

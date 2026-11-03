@@ -486,6 +486,10 @@ export interface AIProviderConfig {
   memory_local_semantic_matches?: number;
   memory_cloud_recent_turns?: number;
   memory_cloud_semantic_matches?: number;
+  /** Minutes of inactivity before the local model unloads. 0 disables it. */
+  llm_idle_unload_minutes?: number;
+  /** Minutes of inactivity before the embedding model unloads. 0 disables it. */
+  embedding_idle_unload_minutes?: number;
 }
 
 export interface VoiceConfig {
@@ -624,6 +628,18 @@ export interface ComponentResult {
   component?: ComponentInfo;
 }
 
+/** Outcome of repointing the component-pack folder. */
+export interface ComponentDirResult {
+  ok: boolean;
+  message: string;
+  /** Absolute folder in effect after the change. */
+  directory?: string;
+  /** Pack ids that were moved to the new folder. */
+  moved?: string[];
+  /** Pack ids left in the old folder (not moved, or locked). */
+  remaining?: string[];
+}
+
 export interface AppConfig {
   first_run_completed?: boolean;
   brand_name?: string;
@@ -636,6 +652,8 @@ export interface AppConfig {
     auto_session_timeout_minutes?: number;
     notes_directory?: string;
     notes_theme?: string;
+    /** Root folder for optional component packs; empty means the default. */
+    components_directory?: string;
   };
   appearance?: AppearanceConfig;
   clock?: ClockConfig;
@@ -746,6 +764,10 @@ export type OutgoingEvent =
   | { type: 'INSTALL_COMPONENT'; payload: { id: string } }
   | { type: 'CANCEL_COMPONENT'; payload: { id: string } }
   | { type: 'REMOVE_COMPONENT'; payload: { id: string } }
+  | {
+      type: 'CHANGE_COMPONENTS_DIR';
+      payload: { path: string; move: boolean };
+    }
   | { type: 'STOP_SPEAKING'; payload: Record<string, never> };
 
 export interface IncomingEnvelope<T = any> {

@@ -207,6 +207,15 @@ def start_runtime() -> None:
         except Exception as exc:
             logger.warning("%s skipped: %s", name, exc)
 
+    # Keep the NSIS uninstaller's record of a relocated pack folder fresh, so an
+    # interactive uninstall can still offer to delete the downloaded packs.
+    try:
+        from .config_manager import sync_components_marker
+
+        sync_components_marker()
+    except Exception as exc:
+        logger.debug("Components marker sync skipped: %s", exc)
+
 
 def _wire_media_poller() -> None:
     from .media_events import wire_media_poller

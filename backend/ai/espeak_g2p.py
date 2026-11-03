@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
@@ -31,6 +32,11 @@ logger = logging.getLogger("aether.g2p")
 
 VOICE = "en-us"
 TIMEOUT_S = 60.0
+# A found install is cached for the whole process, but a *missing* one is
+# re-probed after this many seconds: the user may install the voice component
+# from Settings while the daemon keeps running, and it must start working
+# without a restart.
+MISSING_RETRY_S = 5.0
 # A line shorter than this counts as a complete clause. It is larger than any
 # reply chunk, so the output stays one line per input clause.
 LINE_LENGTH = 1_000_000
@@ -55,6 +61,7 @@ class G2PUnavailable(RuntimeError):
 _lock = threading.Lock()
 _cached_location: Optional[Tuple[Path, Path]] = None
 _probed = False
+_probed_at = 0.0
 
 
 def resolve() -> Tuple[Path, Path]:
@@ -63,11 +70,18 @@ def resolve() -> Tuple[Path, Path]:
     The directory always contains ``espeak-ng-data``; espeak segfaults instead
     of reporting a missing data path, so the check happens before the call.
     """
-    global _cached_location, _probed
+    global _cached_location, _probed, _probed_at
     with _lock:
-        if not _probed:
+        now = time.monotonic()
+        # Re-probe when we have never looked, or when the last look found
+        # nothing and the retry window has passed (e.g. the pack was installed
+        # after startup).
+        if not _probed or (
+            _cached_location is None and now - _probed_at >= MISSING_RETRY_S
+        ):
             _cached_location = _locate()
             _probed = True
+            _probed_at = now
         if _cached_location is None:
             raise G2PUnavailable(
                 "Local text-to-speech needs the espeak-ng voice component, "
@@ -78,10 +92,11 @@ def resolve() -> Tuple[Path, Path]:
 
 def reset_cache() -> None:
     """Forgets a previous lookup so the next call re-probes the filesystem."""
-    global _cached_location, _probed
+    global _cached_location, _probed, _probed_at
     with _lock:
         _cached_location = None
         _probed = False
+        _probed_at = 0.0
 
 
 def available() -> bool:

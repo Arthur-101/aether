@@ -26,6 +26,18 @@ datas = [
     (str(root / "components_manifest.json"), "."),
 ]
 datas += collect_data_files("sqlite_vec")
+# LiteLLM reads its bundled model cost map through
+# importlib.resources.files("litellm").joinpath(
+#     "model_prices_and_context_window_backup.json") and its tokenizer assets
+# the same way. PyInstaller freezes the modules into the PYZ, so those files
+# never ship unless collected here; without them the first cloud request dies
+# with FileNotFoundError and the daemon has no cost map.
+datas += collect_data_files("litellm", includes=["*.json"])
+# default_encoding.py points TIKTOKEN_CACHE_DIR at
+# litellm/litellm_core_utils/tokenizers, so tiktoken appears to have a warm
+# cache. Collect the BPE blobs and the Anthropic tokenizer JSON or tiktoken
+# tries to download its encodings on first use (slow, and fails offline).
+datas += collect_data_files("litellm", subdir="litellm_core_utils/tokenizers")
 # FastMCP (and the MCP SDK) call importlib.metadata.version() at import time;
 # without the dist-info directory the frozen daemon dies before it starts.
 datas += copy_metadata("fastmcp")

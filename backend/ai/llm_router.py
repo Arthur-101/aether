@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from ..config_manager import config_manager
 from ..config_schema import DEFAULT_MAX_TOOL_ROUNDS, normalize_max_tool_rounds
+from ..resource_lifecycle import llm_activity, note_llm_started
 from ..db.sessions import (
     EMPTY_REPLY,
     REASONING_ONLY_REPLY,
@@ -29,7 +30,7 @@ from ..mcp_tools.tool_permissions import (
     tool_permission,
 )
 from .cloud_engine import CloudEngine
-from .errors import ModelNotConfiguredError
+from .errors import ModelNotConfiguredError, ToolCallParseError
 from .local_engine import LocalGGUFEngine
 from .ollama_engine import OllamaEngine
 from .prompts import DICTATION_SYSTEM_PROMPT
@@ -105,7 +106,10 @@ class LLMRouter:
         """Compatibility helper used by the Settings UI / tests."""
         if self.active_mode() != "local_gguf":
             return True
-        return self.local.start_server(model_path)
+        started = self.local.start_server(model_path)
+        if started:
+            note_llm_started()
+        return started
 
     def is_healthy(self) -> bool:
         if self.active_mode() != "local_gguf":
@@ -223,6 +227,53 @@ class LLMRouter:
             "failed": True,
         }
 
+    def _engine_complete(
+        self,
+        engine: Any,
+        conversation: List[Dict[str, Any]],
+        *,
+        tools: Optional[List[Dict[str, Any]]],
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        presence_penalty: float,
+        thinking_mode: Optional[bool],
+        on_stream: Optional[Callable[[str], None]] = None,
+        on_stream_reset: Optional[Callable[[], None]] = None,
+    ) -> Dict[str, Any]:
+        """Calls the engine, retrying once if a tool call came back malformed.
+
+        A truncated tool-call argument makes llama-server reject the whole
+        response with an HTTP 500. Retrying with a larger output budget lets the
+        call finish instead of failing the turn.
+        """
+        try:
+            return engine.complete(
+                conversation,
+                tools=tools,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                presence_penalty=presence_penalty,
+                thinking_mode=thinking_mode,
+                on_token=on_stream,
+            )
+        except ToolCallParseError:
+            if not tools:
+                raise
+            if on_stream_reset is not None:
+                on_stream_reset()
+            return engine.complete(
+                conversation,
+                tools=tools,
+                max_tokens=min(max(max_tokens * 2, 4096), 16384),
+                temperature=temperature,
+                top_p=top_p,
+                presence_penalty=presence_penalty,
+                thinking_mode=thinking_mode,
+                on_token=on_stream,
+            )
+
     def _complete(
         self,
         engine: Any,
@@ -245,7 +296,8 @@ class LLMRouter:
         last_output = ""
         duplicates = 0
         for _ in range(max_tool_rounds + 1):
-            result = engine.complete(
+            result = self._engine_complete(
+                engine,
                 conversation,
                 tools=tools,
                 max_tokens=max_tokens,
@@ -253,7 +305,8 @@ class LLMRouter:
                 top_p=top_p,
                 presence_penalty=presence_penalty,
                 thinking_mode=thinking_mode,
-                on_token=on_stream,
+                on_stream=on_stream,
+                on_stream_reset=on_stream_reset,
             )
             tool_calls = result.get("tool_calls") or []
             if not tool_calls:
@@ -425,7 +478,7 @@ class LLMRouter:
         self,
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None,
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
         temperature: Optional[float] = None,
         thinking_mode: Optional[bool] = None,
         session_id: Optional[str] = None,
@@ -465,11 +518,12 @@ class LLMRouter:
                 loadout.get("disabled_tools"),
             )
         convo = [dict(m) for m in messages]
-        return self._complete(
-            engine, convo, tools, max_tokens, temperature, thinking_mode,
-            session_id, max_tool_rounds, loadout, [], on_tool_call,
-            on_stream=on_stream, on_stream_reset=on_stream_reset,
-        )
+        with llm_activity():
+            return self._complete(
+                engine, convo, tools, max_tokens, temperature, thinking_mode,
+                session_id, max_tool_rounds, loadout, [], on_tool_call,
+                on_stream=on_stream, on_stream_reset=on_stream_reset,
+            )
 
     def resolve_approval(
         self,
@@ -511,12 +565,13 @@ class LLMRouter:
             "content": output,
         })
         executed = [{"name": pending.name, "args": pending.args, "output": output}]
-        return self._complete(
-            self._engine(), pending.conversation, pending.tools,
-            pending.max_tokens, pending.temperature, pending.thinking_mode,
-            session_id, _tool_round_limit(), pending.loadout, executed, on_tool_call,
-            on_stream=on_stream, on_stream_reset=on_stream_reset,
-        )
+        with llm_activity():
+            return self._complete(
+                self._engine(), pending.conversation, pending.tools,
+                pending.max_tokens, pending.temperature, pending.thinking_mode,
+                session_id, _tool_round_limit(), pending.loadout, executed, on_tool_call,
+                on_stream=on_stream, on_stream_reset=on_stream_reset,
+            )
 
     def clean_dictation(self, raw_text: str) -> str:
         """Cleans stutters and filler words using the configured backend."""

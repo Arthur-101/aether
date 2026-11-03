@@ -6,9 +6,17 @@ Boots with CORS, lifespan management, telemetry, OS hooks, and system control.
 import asyncio
 import json
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from typing import Any, Dict
+
+# LiteLLM otherwise fetches its model cost map from GitHub on first use, which
+# stalls the first cloud turn (~13 s of retries) and fails outright with no
+# network. The copy shipped in the wheel is authoritative for this build, so
+# pin to it; setdefault keeps an explicit override working. Must run before any
+# module imports litellm.
+os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "true")
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,6 +51,11 @@ async def lifespan(app: FastAPI):
 
     start_executor_watchdog()
     telemetry_task = asyncio.create_task(telemetry_loop())
+
+    # Reclaims idle model memory when the user enabled auto-unload in Settings.
+    from .resource_lifecycle import idle_loop
+
+    idle_task = asyncio.create_task(idle_loop())
     try:
         start_runtime()
     except Exception as exc:
@@ -63,6 +76,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         telemetry_task.cancel()
+        idle_task.cancel()
         stop_executor_watchdog()
         stop_runtime()
         logger.info("Aether daemon stopped.")

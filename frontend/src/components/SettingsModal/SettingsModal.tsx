@@ -26,6 +26,7 @@ import type {
   ComponentInfo,
   ComponentProgress,
   ComponentResult,
+  ComponentDirResult,
   GeneralConfig,
   LocalVoiceState,
   SpotifyAuthState,
@@ -63,6 +64,9 @@ interface SettingsModalProps {
   components: ComponentInfo[] | null;
   componentProgress: ComponentProgress | null;
   componentResult: ComponentResult | null;
+  componentDirResult: ComponentDirResult | null;
+  componentsDirectory: string;
+  componentsDefaultDirectory: string;
   notesDirectory: string;
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
@@ -77,6 +81,7 @@ interface SettingsModalProps {
   onInstallComponent: (id: string) => void;
   onCancelComponent: (id: string) => void;
   onRemoveComponent: (id: string) => void;
+  onChangeComponentsDirectory: (path: string, move: boolean) => void;
   taskbarState: TaskbarAppsState | null;
   widgets: DesktopWidget[];
   onWidgetAppearanceChange: (id: string, patch: WidgetAppearanceOverrides) => void;
@@ -127,6 +132,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   components,
   componentProgress,
   componentResult,
+  componentDirResult,
+  componentsDirectory,
+  componentsDefaultDirectory,
   notesDirectory,
   onToggleThinking,
   onSave,
@@ -141,6 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onInstallComponent,
   onCancelComponent,
   onRemoveComponent,
+  onChangeComponentsDirectory,
   taskbarState,
   widgets,
   onWidgetAppearanceChange,
@@ -215,6 +224,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (isOpen && activeTab === 'voice') onRefreshLocalVoices();
   }, [isOpen, activeTab, onRefreshLocalVoices]);
+
+  // The Storage tab shows the resolved pack folder, which arrives with the
+  // component state, so fetch it when the tab opens.
+  useEffect(() => {
+    if (isOpen && activeTab === 'storage') onRefreshComponents();
+  }, [isOpen, activeTab, onRefreshComponents]);
 
   const updateGeneral = (patch: Partial<GeneralConfig>) => {
     setDraft((prev) =>
@@ -496,7 +511,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           show_tray_icon: true,
                         }
                       }
+                      appearance={resolveAppearance(draft.appearance)}
+                      ai={draft.ai_provider}
                       onChange={updateGeneral}
+                      onAppearanceChange={(patch) =>
+                        updateAppearance({
+                          ...resolveAppearance(draft.appearance),
+                          ...patch,
+                        })
+                      }
+                      onAiChange={updateAi}
                     />
                   )}
                   {activeTab === 'ai' && (
@@ -542,7 +566,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <StorageSettings
                       storage={draft.storage ?? {}}
                       resolvedNotesDirectory={notesDirectory}
+                      componentsDirectory={componentsDirectory}
+                      componentsDefaultDirectory={componentsDefaultDirectory}
+                      componentDirResult={componentDirResult}
+                      hasInstalledComponents={(components ?? []).some((item) =>
+                        Boolean(item.installed_version)
+                      )}
                       onChange={updateStorage}
+                      onChangeComponentsDirectory={onChangeComponentsDirectory}
                       onOpenNotesFolder={onOpenNotesFolder}
                     />
                   )}

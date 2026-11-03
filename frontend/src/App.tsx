@@ -95,8 +95,11 @@ export function App() {
     toolGroups,
     localVoices,
     components,
+    componentsDirectory,
+    componentsDefaultDirectory,
     componentProgress,
     componentResult,
+    componentDirResult,
     errorMessage,
     radialWheel,
     wheelCursor,
@@ -147,6 +150,7 @@ export function App() {
     installComponent,
     cancelComponent,
     removeComponent,
+    changeComponentsDirectory,
     connectSpotify,
     disconnectSpotify,
     refreshNotes,
@@ -807,10 +811,14 @@ export function App() {
         components={components}
         componentProgress={componentProgress}
         componentResult={componentResult}
+        componentDirResult={componentDirResult}
+        componentsDirectory={componentsDirectory}
+        componentsDefaultDirectory={componentsDefaultDirectory}
         onRefreshComponents={refreshComponents}
         onInstallComponent={installComponent}
         onCancelComponent={cancelComponent}
         onRemoveComponent={removeComponent}
+        onChangeComponentsDirectory={changeComponentsDirectory}
         taskbarState={taskbarState}
         widgets={desktopWidgets.widgets}
         onWidgetAppearanceChange={desktopWidgets.setWidgetAppearance}
