@@ -4,6 +4,7 @@ import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useBackendSocket } from './hooks/useBackendSocket';
 import { useClickThrough } from './hooks/useClickThrough';
+import { useUpdater } from './hooks/useUpdater';
 import { useTauriFileDrop } from './hooks/useTauriFileDrop';
 import { DesktopIsland } from './components/Island/DesktopIsland';
 import { RadialWheel } from './components/RadialWheel/RadialWheel';
@@ -192,6 +193,10 @@ export function App() {
   } = useBackendSocket();
 
   useClickThrough(subscribeMouse, connected);
+
+  // One silent check per launch; the notice and install flow live in the
+  // notification column so the window grows with them.
+  const update = useUpdater();
 
   const showMainWindow = useCallback(async () => {
     if (!isTauri()) return;
@@ -611,7 +616,8 @@ export function App() {
     voiceState !== 'idle' ||
     Boolean(clockAlert) ||
     Boolean(lastWheelResult) ||
-    Boolean(errorMessage);
+    Boolean(errorMessage) ||
+    update.phase !== 'idle';
 
   const overlayFullScreen =
     isIslandExpanded ||
@@ -853,6 +859,7 @@ export function App() {
         onSnoozeAlarm={snoozeAlarm}
         onClearWheelResult={clearWheelResult}
         onClearError={clearError}
+        update={update}
         compact={!overlayFullScreen}
         onHeightChange={handleNotificationHeight}
       />

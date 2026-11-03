@@ -35,6 +35,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "publisher": "Aether",
     "copyright": "Copyright © 2026 Aether Contributors",
     "licenseFile": "../../LICENSE",
@@ -65,6 +66,17 @@
     },
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Arthur-101/aether/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBFRUIyQkU0OTI2QTg4QzgKUldUSWlHcVM1Q3ZyRGlSd2hpZnZ5cXA5dXozL05PL0ppVDV1SnkxWTA4RnpULzVYQ3ZoeUdEYkkK",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

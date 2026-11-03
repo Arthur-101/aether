@@ -31,6 +31,10 @@ pub fn run() {
         let _ = window.set_focus();
       }
     }))
+    // The update check is driven by the webview (it owns the prompt and the
+    // progress UI); process is only used to relaunch after an install.
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![
       autostart::get_autostart,
       autostart::set_autostart,

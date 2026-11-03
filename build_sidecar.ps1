@@ -24,7 +24,14 @@ try {
         "aether-backend.spec"
     )
 
-    & py -3.12 @arguments
+    # CI exports AETHER_PYTHON so the build runs on the same interpreter that
+    # `pip install` populated; the `py -3.12` launcher is the dev default.
+    $python = $env:AETHER_PYTHON
+    if ($python) {
+        & $python @arguments
+    } else {
+        & py -3.12 @arguments
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "PyInstaller failed with exit code $LASTEXITCODE"
     }

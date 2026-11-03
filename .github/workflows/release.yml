@@ -1,0 +1,81 @@
+name: Release
+
+# Bump `version` in frontend/package.json, frontend/src-tauri/Cargo.toml, and
+# frontend/src-tauri/tauri.conf.json first, then push the matching `v*` tag (or
+# dispatch this workflow). tauri-action creates the tag/release from the app
+# version and uploads the installer, its updater signature, and latest.json.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.lock.txt
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+
+      # llama-cpp-python is not imported by the daemon (the local engine runs
+      # bin/llama-server.exe) and the PyInstaller spec excludes it, so skip its
+      # long source build. Everything else is installed at the pinned versions.
+      - name: Install backend dependencies
+        shell: pwsh
+        run: |
+          $lock = Get-Content backend/requirements.lock.txt |
+            Where-Object { $_ -notmatch '^\s*llama-cpp-python' }
+          $lock | Set-Content "$env:RUNNER_TEMP/aether-ci-requirements.txt"
+          python -m pip install --upgrade pip
+          python -m pip install -r "$env:RUNNER_TEMP/aether-ci-requirements.txt" pyinstaller==6.22.3
+
+      - name: Build the frozen daemon
+        shell: pwsh
+        env:
+          AETHER_PYTHON: python
+        run: ./build_sidecar.ps1
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        with:
+          projectPath: frontend
+          tagName: v__VERSION__
+          releaseName: "Aether v__VERSION__"
+          releaseBody: |
+            Aether v__VERSION__ for Windows 10/11 (x64).
+
+            Download `Aether___VERSION___x64-setup.exe` and run it. The build is
+            unsigned, so Windows SmartScreen shows "Unknown publisher" until a
+            code-signing certificate is available.
+
+            Existing installs update automatically: the app checks GitHub
+            Releases on launch and offers this version when it is newer.
+          releaseDraft: true
+          prerelease: false
+          args: --bundles nsis

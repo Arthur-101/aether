@@ -4,12 +4,14 @@ import {
   AlarmClock,
   Bell,
   CheckCircle2,
+  Download,
   Mic,
   WifiOff,
   AlertTriangle,
   X,
 } from 'lucide-react';
 import type { ClockAlert, VoiceState } from '../types/ipc';
+import type { UpdaterApi } from '../hooks/useUpdater';
 
 interface NotificationsProps {
   connected: boolean;
@@ -22,6 +24,8 @@ interface NotificationsProps {
   onSnoozeAlarm: () => void;
   onClearWheelResult: () => void;
   onClearError: () => void;
+  /** Silent update check state; renders a card only when something is pending. */
+  update: UpdaterApi;
   /**
    * True while the overlay window is the small strip under the pill. The
    * notifications dock directly below the pill so they fit that strip; while a
@@ -43,6 +47,7 @@ export const Notifications: React.FC<NotificationsProps> = ({
   onSnoozeAlarm,
   onClearWheelResult,
   onClearError,
+  update,
   compact,
   onHeightChange,
 }) => {
@@ -122,8 +127,71 @@ export const Notifications: React.FC<NotificationsProps> = ({
       </motion.div>
     ) : null;
 
+  const updateNotice =
+    update.phase === 'idle' ? null : (
+      <motion.div
+        data-aether-interactive
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 16 }}
+        role="status"
+        aria-live="polite"
+        className="glass-panel pointer-events-auto flex w-full items-start gap-3 rounded-lg border border-[var(--aether-accent)]/40 px-4 py-3 text-xs text-[var(--aether-text-1)]"
+      >
+        <Download size={18} className="mt-0.5 shrink-0 accent-text" />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="font-semibold accent-text">
+            {update.phase === 'error'
+              ? 'Update failed'
+              : `Aether ${update.version} is available`}
+          </span>
+          {update.phase === 'available' && update.notes ? (
+            <span className="line-clamp-2 text-[9px] leading-relaxed text-[var(--aether-text-3)]">
+              {update.notes}
+            </span>
+          ) : null}
+          {update.phase === 'downloading' ? (
+            <span className="mt-0.5 block h-1 w-full overflow-hidden rounded-full bg-[var(--aether-fill-2)]">
+              <span
+                className="block h-full rounded-full bg-[var(--aether-accent)] transition-[width] duration-200"
+                style={{ width: `${Math.round((update.progress ?? 0) * 100)}%` }}
+              />
+            </span>
+          ) : null}
+          {update.phase === 'installing' ? (
+            <span className="text-[9px] text-[var(--aether-text-3)]">
+              Installing — Aether will close and reopen.
+            </span>
+          ) : null}
+          {update.phase === 'error' ? (
+            <span className="line-clamp-2 break-words text-[9px] text-[#ffd7d9]">
+              {update.error}
+            </span>
+          ) : null}
+        </div>
+        {update.phase === 'available' || update.phase === 'error' ? (
+          <div className="flex shrink-0 flex-col gap-1">
+            <button
+              onClick={update.install}
+              className="rounded-md bg-[var(--aether-fill-2)] px-2 py-1 text-[9px] font-medium text-[var(--aether-text-1)] transition hover:bg-white/20"
+            >
+              {update.phase === 'error' ? 'Retry' : 'Install'}
+            </button>
+            <button
+              onClick={update.dismiss}
+              className="rounded-md px-2 py-1 text-[9px] text-[var(--aether-text-2)] transition hover:bg-[var(--aether-fill-2)] hover:text-[var(--aether-text-1)]"
+            >
+              Later
+            </button>
+          </div>
+        ) : null}
+      </motion.div>
+    );
+
   const alerts = (
     <AnimatePresence>
+      {updateNotice}
+
       {clockAlert && (
         <motion.div
           data-aether-interactive
