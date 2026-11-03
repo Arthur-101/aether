@@ -26,13 +26,15 @@ datas = [
     (str(root / "components_manifest.json"), "."),
 ]
 datas += collect_data_files("sqlite_vec")
-# LiteLLM reads its bundled model cost map through
-# importlib.resources.files("litellm").joinpath(
-#     "model_prices_and_context_window_backup.json") and its tokenizer assets
-# the same way. PyInstaller freezes the modules into the PYZ, so those files
-# never ship unless collected here; without them the first cloud request dies
-# with FileNotFoundError and the daemon has no cost map.
-datas += collect_data_files("litellm", includes=["*.json"])
+# LiteLLM reads its bundled data through importlib.resources.files("litellm")
+# and __file__-relative joins: the model cost map
+# (model_prices_and_context_window_backup.json) at the package root, but also
+# nested files such as containers/endpoints.json, llms/openai_like/providers.json
+# and the complexity-router presets. PyInstaller freezes the modules into the
+# PYZ, so those files never ship unless collected here. The include patterns are
+# matched against the path relative to the package, so a bare "*.json" only ever
+# matched the top-level files; "**/*.json" covers the nested ones too.
+datas += collect_data_files("litellm", includes=["**/*.json"])
 # default_encoding.py points TIKTOKEN_CACHE_DIR at
 # litellm/litellm_core_utils/tokenizers, so tiktoken appears to have a warm
 # cache. Collect the BPE blobs and the Anthropic tokenizer JSON or tiktoken
@@ -55,6 +57,14 @@ a = Analysis(
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan.on",
         "websockets",
+        # tiktoken discovers its encodings (cl100k_base, o200k_base, ...) at
+        # runtime by iterating the tiktoken_ext namespace package; the plugin
+        # module is only ever imported dynamically, so PyInstaller never sees
+        # it. Without it every cloud request that tokenizes dies with
+        # "Unknown encoding cl100k_base. Plugins found: []". LiteLLM points
+        # TIKTOKEN_CACHE_DIR at the tokenizer blobs collected below, so the
+        # encodings load from disk instead of the network.
+        "tiktoken_ext.openai_public",
     ],
     hookspath=[],
     hooksconfig={},

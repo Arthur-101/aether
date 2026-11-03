@@ -40,7 +40,40 @@ try {
     if (-not (Test-Path $exe)) {
         throw "The sidecar executable was not produced: $exe"
     }
+
+    # LiteLLM loads these by path at runtime; PyInstaller only ships a data file
+    # if the spec's pattern matches its package-relative path. A too-narrow
+    # pattern builds cleanly and then dies with FileNotFoundError on a request,
+    # so fail the build here instead. Keep this list in step with
+    # aether-backend.spec.
+    $litellmData = @(
+        "litellm\model_prices_and_context_window_backup.json",
+        "litellm\containers\endpoints.json",
+        "litellm\llms\openai_like\providers.json",
+        "litellm\router_strategy\complexity_router\fuse_presets.json",
+        "litellm\litellm_core_utils\tokenizers\anthropic_tokenizer.json"
+    )
+    $internal = Join-Path $root "dist\aether-backend\_internal"
+    $missing = $litellmData | Where-Object { -not (Test-Path (Join-Path $internal $_)) }
+    if ($missing) {
+        throw "The sidecar is missing LiteLLM data files: $($missing -join ', ')"
+    }
+
     Write-Host "Built $exe"
+    Write-Host "Verified $($litellmData.Count) LiteLLM data files under _internal\"
+
+    # tiktoken finds its encodings by pkgutil.iter_modules() over the frozen
+    # tiktoken_ext namespace package, so its only plugin has to be embedded in
+    # the PYZ (see hiddenimports in aether-backend.spec). It is imported
+    # dynamically, so a missing entry builds cleanly and then fails every cloud
+    # request with "Unknown encoding cl100k_base".
+    $pyzToc = Join-Path $root "build\aether-backend\PYZ-00.toc"
+    if (Test-Path $pyzToc) {
+        if (-not (Select-String -Path $pyzToc -Pattern "tiktoken_ext\.openai_public" -Quiet)) {
+            throw "tiktoken_ext.openai_public is missing from the PYZ; cloud requests will fail to tokenize."
+        }
+        Write-Host "Verified tiktoken_ext.openai_public in the PYZ"
+    }
 }
 finally {
     Pop-Location
