@@ -40,7 +40,14 @@ def _run_chat(monkeypatch, changed):
     monkeypatch.setattr(task_events, "broadcast_tasks", noop)
     monkeypatch.setattr(model_events, "broadcast_model_status", noop)
 
-    asyncio.run(event_router._handle_chat({"text": "hello"}))
+    async def drive():
+        # Turns now run as a task so the socket stays responsive; the test must
+        # wait for it explicitly.
+        task = await event_router._handle_chat({"text": "hello"})
+        if task is not None:
+            await task
+
+    asyncio.run(drive())
     return events
 
 

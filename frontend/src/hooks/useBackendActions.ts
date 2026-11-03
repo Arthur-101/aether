@@ -53,12 +53,15 @@ export function useBackendActions(
   } = setters;
 
   const sendChatMessage = useCallback(
-    (text: string) => {
+    (text: string, requestId?: string) => {
       if (!text.trim()) return;
       setActiveToolCalls([]);
       setChatDraft('');
       setChatPending(text);
-      sendEvent({ type: 'CHAT_MESSAGE', payload: { text } });
+      sendEvent({
+        type: 'CHAT_MESSAGE',
+        payload: requestId ? { text, request_id: requestId } : { text },
+      });
     },
     [sendEvent, setChatDraft, setChatPending, setActiveToolCalls]
   );

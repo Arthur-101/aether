@@ -51,13 +51,34 @@ async def route_event(event: Dict[str, Any]) -> None:
         await ws_manager.broadcast("ERROR", {"event": event_type, "message": str(e)})
 
 
+# A turn can legitimately take a while (cloud latency plus tool rounds), but it
+# must never be unbounded: a wedged provider used to leave the Island spinning
+# on "Thinking..." forever with nothing in the log to explain it.
+CHAT_TURN_TIMEOUT_SECONDS = 300.0
+BUSY_MESSAGE = (
+    "Aether is still answering your previous message. "
+    "Wait for it to finish or start a new chat."
+)
+
+# Session id -> in-flight turn task. Turns run as tasks instead of being awaited
+# in the WebSocket receive loop, so a slow model cannot freeze every other event
+# on the socket. The map also stops a second prompt from interleaving into the
+# same history.
+_ACTIVE_TURNS: Dict[str, "asyncio.Task[Any]"] = {}
+
+
 async def _chat_error(
-    session_id: str, prompt: str, message: str, target: str = "llm"
+    session_id: str,
+    prompt: str,
+    message: str,
+    target: str = "llm",
+    request_id: str = "",
 ) -> None:
     """Shows an actionable error inside Quick Chat and opens Settings."""
     await ws_manager.broadcast("ERROR_CONFIG_MISSING", {
         "target": target,
         "message": message,
+        "request_id": request_id,
     })
     await ws_manager.broadcast("SESSION_UPDATED", {
         "session_id": session_id,
@@ -66,15 +87,45 @@ async def _chat_error(
         "reasoning": "",
         "tools_used": [],
         "error": True,
+        "request_id": request_id,
+    })
+
+
+async def _chat_failure(
+    session_id: str, prompt: str, message: str, request_id: str = ""
+) -> None:
+    """Surfaces a runtime failure without sending the user to Settings.
+
+    Emits a ``SESSION_UPDATED`` error turn as well as the toast so the pending
+    spinner is released even if the client missed the error envelope.
+    """
+    await ws_manager.broadcast("ERROR", {
+        "message": message,
+        "session_id": session_id,
+        "request_id": request_id,
+    })
+    await ws_manager.broadcast("SESSION_UPDATED", {
+        "session_id": session_id,
+        "title": _get_session_title(session_id),
+        "turn": {"user": prompt, "ai": f"⚠️ {message}"},
+        "reasoning": "",
+        "tools_used": [],
+        "error": True,
+        "request_id": request_id,
     })
 
 
 @_handler("CHAT_MESSAGE")
-async def _handle_chat(payload: Dict[str, Any]) -> None:
-    """Processes a text message from the Island chat input."""
+async def _handle_chat(payload: Dict[str, Any]) -> Any:
+    """Starts one foreground turn and returns its task.
+
+    ``request_id`` is echoed on every reply so the frontend can tell which
+    prompt a turn belongs to and ignore unrelated (background task) updates.
+    """
     prompt = payload.get("text", "").strip()
     if not prompt:
-        return
+        return None
+    request_id = str(payload.get("request_id") or "")
 
     sid = session_manager.get_or_create_session(prompt)
     if session_manager.session_changed:
@@ -84,31 +135,75 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
             "session": {"id": sid, "title": _get_session_title(sid)},
         })
 
+    running = _ACTIVE_TURNS.get(sid)
+    if running is not None and not running.done():
+        await ws_manager.broadcast("ERROR", {
+            "message": BUSY_MESSAGE,
+            "session_id": sid,
+            "request_id": request_id,
+        })
+        return None
+
+    task: "asyncio.Task[Any]" = asyncio.create_task(
+        _run_chat_turn(sid, prompt, request_id)
+    )
+    _ACTIVE_TURNS[sid] = task
+
+    def _forget(finished: "asyncio.Task[Any]", session_id: str = sid) -> None:
+        if _ACTIVE_TURNS.get(session_id) is finished:
+            _ACTIVE_TURNS.pop(session_id, None)
+
+    task.add_done_callback(_forget)
+    return task
+
+
+async def _run_chat_turn(session_id: str, prompt: str, request_id: str = "") -> None:
+    """Runs one turn under a hard ceiling and always releases the UI."""
     try:
-        result = await execute_chat_turn(sid, prompt, stream=True)
+        result = await asyncio.wait_for(
+            execute_chat_turn(session_id, prompt, stream=True),
+            timeout=CHAT_TURN_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        logger.error(
+            "Chat turn timed out after %.0fs", CHAT_TURN_TIMEOUT_SECONDS
+        )
+        await _chat_failure(
+            session_id,
+            prompt,
+            "The model did not reply within "
+            f"{int(CHAT_TURN_TIMEOUT_SECONDS)} seconds. Please try again.",
+            request_id,
+        )
+        return
     except EngineNotInstalledError as exc:
-        await _chat_error(sid, prompt, str(exc), target="components")
+        await _chat_error(
+            session_id, prompt, str(exc), target="components", request_id=request_id
+        )
         return
     except ModelNotConfiguredError as exc:
-        await _chat_error(sid, prompt, str(exc))
+        await _chat_error(session_id, prompt, str(exc), request_id=request_id)
         return
     except Exception as exc:
         logger.exception("Chat completion failed")
-        await _chat_error(sid, prompt, f"Model request failed: {exc}")
+        await _chat_failure(
+            session_id, prompt, f"Model request failed: {exc}", request_id
+        )
         return
 
     approval = result.get("approval_required")
     if approval:
         await ws_manager.broadcast("TOOL_APPROVAL_REQUIRED", {
-            "session_id": sid,
+            "session_id": session_id,
             "prompt": prompt,
+            "request_id": request_id,
             **approval,
         })
         return
 
     await ws_manager.broadcast("SESSION_UPDATED", {
-        "session_id": sid,
-        "title": _get_session_title(sid),
+        "session_id": session_id,
+        "title": _get_session_title(session_id),
         "turn": {
             "user": prompt,
             "ai": result["reply"],
@@ -117,6 +212,7 @@ async def _handle_chat(payload: Dict[str, Any]) -> None:
         },
         "reasoning": result.get("reasoning", ""),
         "tools_used": result.get("tool_calls_executed", []),
+        "request_id": request_id,
     })
     from .task_events import broadcast_tasks
 

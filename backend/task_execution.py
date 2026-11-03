@@ -90,6 +90,10 @@ async def _finish(
                 "turn": {"user": prompt, "ai": message},
                 "reasoning": (result or {}).get("reasoning", ""),
                 "tools_used": (result or {}).get("tool_calls_executed", []),
+                # Marks a turn the user is not waiting on. The Island uses this
+                # to keep a foreground "Thinking..." state intact when a
+                # scheduled task happens to land in the active session.
+                "background": True,
             },
         )
 

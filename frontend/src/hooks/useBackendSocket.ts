@@ -51,6 +51,10 @@ import { useSocketConnection } from './useSocketConnection';
 
 type MouseSubscriber = (x: number, y: number) => void;
 const EMPTY_STATS: SystemStats = { cpu_percent: 0, ram_percent: 0, disk_percent: 0 };
+
+// The backend bounds a turn at 300 s, so this only fires when the reply itself
+// is lost on the wire (backend restart mid-turn, socket drop).
+const CHAT_REPLY_TIMEOUT_MS = 330_000;
 export function useBackendSocket() {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -124,6 +128,8 @@ export function useBackendSocket() {
   const [openIslandRequest, setOpenIslandRequest] = useState(0);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
   const wasConnectedRef = useRef(false);
+  // Id of the prompt whose reply may clear the foreground "Thinking..." state.
+  const pendingRequestRef = useRef<string | null>(null);
 
   const subscribeMouse = useCallback((cb: MouseSubscriber) => {
     mouseListenersRef.current.add(cb);
@@ -214,17 +220,30 @@ export function useBackendSocket() {
           setToolApproval(null);
           setChatDraft('');
           break;
-        case 'SESSION_UPDATED':
+        case 'SESSION_UPDATED': {
           setActiveSessionId(payload.session_id);
           setActiveSessionTitle(payload.title);
           if (payload.turn) {
             setChatHistory((prev) => [...prev, payload.turn as ChatTurn]);
           }
-          setChatPending(null);
-          setActiveToolCalls([]);
-          setToolApproval(null);
-          setChatDraft('');
+          // Only the reply to the prompt the user is waiting on may release the
+          // spinner and wipe the streamed draft. A scheduled task finishing in
+          // this session, or a late reply to an older prompt, must not.
+          const expectedRequest = pendingRequestRef.current;
+          const belongsToPendingTurn =
+            !payload.background &&
+            (!expectedRequest ||
+              !payload.request_id ||
+              payload.request_id === expectedRequest);
+          if (belongsToPendingTurn) {
+            pendingRequestRef.current = null;
+            setChatPending(null);
+            setActiveToolCalls([]);
+            setToolApproval(null);
+            setChatDraft('');
+          }
           break;
+        }
         case 'TOOL_CALL_STARTED': {
           // Only the active foreground turn renders live steps; background
           // (scheduled) tool runs are ignored.
@@ -527,6 +546,21 @@ export function useBackendSocket() {
     wasConnectedRef.current = connected;
   }, [connected]);
 
+  useEffect(() => {
+    // Backstop: if the reply never makes it back, release the spinner instead
+    // of leaving the Island "Thinking..." until the app is restarted.
+    if (chatPending === null) return undefined;
+    const timer = window.setTimeout(() => {
+      pendingRequestRef.current = null;
+      setChatPending(null);
+      setChatDraft('');
+      setErrorMessage(
+        'Aether did not receive a reply. Check that the backend is running, then try again.'
+      );
+    }, CHAT_REPLY_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [chatPending]);
+
   const actions = useBackendActions(sendEvent, {
     setChatHistory,
     setChatPending,
@@ -538,6 +572,19 @@ export function useBackendSocket() {
     setAttachments,
     setSessions,
   });
+
+  const { sendChatMessage } = actions;
+
+  const sendChatMessageWithId = useCallback(
+    (text: string) => {
+      const requestId = `req-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+      pendingRequestRef.current = requestId;
+      sendChatMessage(text, requestId);
+    },
+    [sendChatMessage]
+  );
 
   const requestScreenSample = useCallback(
     (requestId: string, radius = 10) =>
@@ -626,6 +673,8 @@ export function useBackendSocket() {
     openIslandRequest,
     subscribeMouse,
     ...actions,
+    // Wrapped so every prompt carries a request id the reply can be matched to.
+    sendChatMessage: sendChatMessageWithId,
     requestScreenSample,
     refreshWeather,
     closeRadialWheel,

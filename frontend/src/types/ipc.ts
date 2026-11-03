@@ -667,7 +667,10 @@ export interface AppConfig {
 }
 
 export type OutgoingEvent =
-  | { type: 'CHAT_MESSAGE'; payload: { text: string } }
+  | {
+      type: 'CHAT_MESSAGE';
+      payload: { text: string; request_id?: string };
+    }
   | {
       type: 'RESOLVE_TOOL_APPROVAL';
       payload: {

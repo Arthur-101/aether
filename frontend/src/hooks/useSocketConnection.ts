@@ -8,6 +8,25 @@ import type { OutgoingEvent } from '../types/ipc';
 
 const WS_URL = 'ws://127.0.0.1:8765/ws';
 
+// A send that lands while the socket is down must not disappear. The Island
+// paints its optimistic state first (a "Thinking..." bubble), and only a reply
+// clears it, so a dropped envelope used to strand the UI forever. Queue it and
+// flush the moment the socket reopens.
+const MAX_QUEUED_EVENTS = 200;
+
+function flushQueue(ws: WebSocket, queue: OutgoingEvent[]) {
+  if (!queue.length) return;
+  const pending = queue.splice(0, queue.length);
+  for (const event of pending) {
+    try {
+      ws.send(JSON.stringify(event));
+    } catch {
+      // Socket died mid-flush; keep the rest for the next connection.
+      queue.push(event);
+    }
+  }
+}
+
 export function useSocketConnection(onMessage: (raw: string) => void) {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -15,12 +34,24 @@ export function useSocketConnection(onMessage: (raw: string) => void) {
   const disposedRef = useRef(false);
   const onMessageRef = useRef(onMessage);
   const connectRef = useRef<() => void>(() => undefined);
+  const queueRef = useRef<OutgoingEvent[]>([]);
 
   onMessageRef.current = onMessage;
 
   const sendEvent = useCallback((event: OutgoingEvent) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(event));
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(event));
+        return;
+      } catch {
+        // The socket died between the check and the send; queue it instead.
+      }
+    }
+    const queue = queueRef.current;
+    queue.push(event);
+    if (queue.length > MAX_QUEUED_EVENTS) {
+      queue.splice(0, queue.length - MAX_QUEUED_EVENTS);
     }
   }, []);
 
@@ -30,7 +61,10 @@ export function useSocketConnection(onMessage: (raw: string) => void) {
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
-      ws.onopen = () => setConnected(true);
+      ws.onopen = () => {
+        setConnected(true);
+        flushQueue(ws, queueRef.current);
+      };
 
       ws.onclose = () => {
         if (wsRef.current !== ws || disposedRef.current) return;
