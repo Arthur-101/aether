@@ -34,7 +34,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "publisher": "Aether",
     "copyright": "Copyright © 2026 Aether Contributors",
     "licenseFile": "../../LICENSE",

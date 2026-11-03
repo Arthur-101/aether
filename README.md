@@ -70,11 +70,12 @@ cd frontend
 npm run tauri build
 ```
 
-The build writes `Aether_0.1.0_x64_en-US.msi` and
-`Aether_0.1.0_x64-setup.exe` under `frontend/src-tauri/target/release/bundle/`.
-The installers carry the overlay plus the frozen daemon at `aether-backend\`; the isolated
-STT runtime remains an optional `stt-phonon2` pack (see `PACKAGING_AND_CONFIG.md`). Building
-the sidecar needs **PyInstaller >= 6.22** — 6.12 cannot freeze numpy 2.5.
+The build writes `Aether_0.1.0_x64-setup.exe` under
+`frontend/src-tauri/target/release/bundle/nsis/`. v1.0 ships NSIS only; the WiX MSI was
+built and verified during 0.9 but is not part of the release target. The installer carries
+the overlay plus the frozen daemon at `aether-backend\`; the isolated STT runtime remains
+an optional `stt-phonon2` pack (see `PACKAGING_AND_CONFIG.md`). Building the sidecar needs
+**PyInstaller >= 6.22** — 6.12 cannot freeze numpy 2.5.
 
 Phonon-2 runs in an isolated Python runtime — the optional `stt-phonon2` pack, or a dev
 checkout's `bin/stt-runtime` — so Torch and Transformers never load in the backend process.
@@ -99,11 +100,11 @@ Aether is free and open source under the [Apache License, Version 2.0](LICENSE).
 You may use, modify, and redistribute it, including commercially, provided you
 keep the copyright and licence notices.
 
-Bundled third-party components keep their own licences — `pynput` and FFmpeg are
-LGPL-3.0, `certifi` and `tqdm` are MPL-2.0 — and every one of them is listed with
-its licence text in [`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt). See
-[`NOTICE`](NOTICE) for the attribution summary.
+Third-party components keep their own licences — `pynput` is LGPL-3.0, `certifi` and
+`tqdm` are MPL-2.0 — and every one of them is listed with its licence text in
+[`THIRD_PARTY_LICENSES.txt`](THIRD_PARTY_LICENSES.txt). See [`NOTICE`](NOTICE) for the
+attribution summary.
 
-Optional downloads are separate works with their own terms: the espeak-ng voice
-pack is GPL-3.0-or-later, and model files (LLM, STT, TTS voices) carry the licence
-of the model you choose.
+Optional downloads are separate works with their own terms: the espeak-ng voice pack is
+GPL-3.0-or-later, the ffmpeg media pack is LGPL-3.0-or-later, and model files (LLM, STT,
+TTS voices) carry the licence of the model you choose.

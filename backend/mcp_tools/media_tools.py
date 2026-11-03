@@ -26,6 +26,12 @@ except ImportError:
     pass
 
 
+# The optional pack that carries ffmpeg.exe/ffprobe.exe. Media tools work
+# without it when a system FFmpeg is on PATH, but a clean install should point
+# the user at Settings -> Components instead of failing with a raw OSError.
+MEDIA_COMPONENT_ID = "ffmpeg"
+
+
 def _version_key(name: str) -> tuple:
     """Natural sort key so 0.10.0 sorts after 0.9.0."""
     return tuple(
@@ -102,6 +108,22 @@ def get_binary_path(
         return sys_path
 
     return binary_name
+
+
+def _resolve_media_binary(binary_name: str) -> str:
+    """Resolves ffmpeg/ffprobe from the media pack, dev bin/, or PATH.
+
+    Raises a message that names the component pack when nothing is found, so a
+    clean install tells the user what to do instead of surfacing a raw
+    ``FileNotFoundError`` from ``subprocess``.
+    """
+    resolved = get_binary_path(binary_name, (MEDIA_COMPONENT_ID,))
+    if Path(resolved).is_file():
+        return resolved
+    raise FileNotFoundError(
+        f"{binary_name} was not found. Install the 'Media · FFmpeg' component in "
+        "Settings -> Components, or put ffmpeg.exe on PATH."
+    )
 
 
 def convert_image_format(file_path: str, target_format: str) -> str:
@@ -220,8 +242,8 @@ def compress_media(file_path: str, target_mb: float = 5.0) -> str:
         return str(out_path)
 
     elif ext in (".mp4", ".mov", ".mkv", ".avi", ".webm"):
-        ffprobe = get_binary_path("ffprobe")
-        ffmpeg = get_binary_path("ffmpeg")
+        ffprobe = _resolve_media_binary("ffprobe")
+        ffmpeg = _resolve_media_binary("ffmpeg")
 
         # Get video duration
         probe = subprocess.run(

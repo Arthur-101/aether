@@ -36,6 +36,7 @@ const KIND_LABEL: Record<string, string> = {
   engine: 'Inference engine',
   voice: 'Voice',
   stt: 'Speech to text',
+  media: 'Media tools',
   component: 'Components',
 };
 

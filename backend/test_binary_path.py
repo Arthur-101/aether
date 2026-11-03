@@ -93,6 +93,22 @@ def test_no_components_falls_back_to_path(components_env, monkeypatch):
     assert resolved == "/usr/bin/aether-absent-binary"
 
 
+def test_media_binary_prefers_the_ffmpeg_pack(components_env):
+    packed = _install(components_env, "ffmpeg", "7.1.3", name="ffmpeg")
+
+    assert Path(media_tools._resolve_media_binary("ffmpeg")) == packed
+
+
+def test_media_binary_missing_points_at_components(monkeypatch):
+    monkeypatch.setattr(media_tools, "get_binary_path", lambda *args, **kwargs: "ffmpeg")
+
+    with pytest.raises(FileNotFoundError) as excinfo:
+        media_tools._resolve_media_binary("ffmpeg")
+
+    assert "Components" in str(excinfo.value)
+    assert "Media" in str(excinfo.value)
+
+
 def test_engine_component_ids_puts_configured_backend_first():
     assert engine_component_ids("cuda")[0] == "engine-cuda"
     assert engine_component_ids("vulkan")[0] == "engine-vulkan"

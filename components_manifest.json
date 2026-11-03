@@ -72,6 +72,20 @@
       "min_app_version": "0.1.0",
       "recommended": false,
       "description": "Offline dictation: a self-contained Python runtime plus the Phonon-2 English model. Large and optional; cloud speech or no speech works without it."
+    },
+    {
+      "id": "ffmpeg",
+      "name": "Media · FFmpeg",
+      "kind": "media",
+      "backend": "",
+      "version": "7.1.3",
+      "url": "https://github.com/Arthur-101/aether-packs/releases/download/ffmpeg-v7.1.3/ffmpeg-7.1.3.zip",
+      "sha256": "6b60553ee91a356b441d74dbb9899592a04d41c384210e65b9be2bf93f620d01",
+      "size": 52395827,
+      "installed_size": 123734616,
+      "min_app_version": "0.1.0",
+      "recommended": false,
+      "description": "Video and audio compression, probing, and format conversion. Optional: media tools fall back to a system FFmpeg when this pack is not installed."
     }
   ]
 }
