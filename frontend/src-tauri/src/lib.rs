@@ -40,6 +40,8 @@ pub fn run() {
       autostart::set_autostart,
       external_window::open_external,
       overlay::set_overlay_bounds,
+      backend::reap_backend_for_update,
+      backend::resume_backend_after_failed_update,
       tray::set_tray_visible,
       widgets::sync_widgets,
       widgets::ensure_on_top

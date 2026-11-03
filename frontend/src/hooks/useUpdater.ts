@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isTauri } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
@@ -29,9 +29,10 @@ export interface UpdaterApi {
  *
  * One check runs shortly after launch and paints nothing while the app is
  * current. When a newer version exists the notice docks under the island;
- * installing downloads in the background, then hands off to the NSIS updater,
- * which exits the app and relaunches it on Windows. "Later" hides the notice
- * for this session only — the next launch checks again.
+ * installing downloads in the background, stops the bundled daemon so the
+ * installer can overwrite `aether-backend\`, then hands off to the NSIS
+ * updater, which exits the app and relaunches it on Windows. "Later" hides
+ * the notice for this session only — the next launch checks again.
  *
  * A browser preview and a dev build never check: they run from source, so
  * there is no installed release to replace.
@@ -76,24 +77,36 @@ export function useUpdater(): UpdaterApi {
     setPhase('downloading');
     let total = 0;
     let downloaded = 0;
+    let reaped = false;
     void update
-      .downloadAndInstall(
-        (event) => {
-          if (event.event === 'Started') {
-            total = event.data.contentLength ?? 0;
-            setProgress(0);
-          } else if (event.event === 'Progress') {
-            downloaded += event.data.chunkLength;
-            setProgress(total > 0 ? Math.min(1, downloaded / total) : null);
-          } else {
-            setProgress(null);
-            setPhase('installing');
-          }
-        },
-        { restartAfterInstall: true }
-      )
+      .download((event) => {
+        if (event.event === 'Started') {
+          total = event.data.contentLength ?? 0;
+          setProgress(0);
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          setProgress(total > 0 ? Math.min(1, downloaded / total) : null);
+        } else {
+          setProgress(null);
+          setPhase('installing');
+        }
+      })
+      .then(async () => {
+        // The updater plugin exits the process as soon as it launches the NSIS
+        // installer, so the daemon has to stop here — between the download and
+        // the install — or it keeps aether-backend\_internal mapped and the
+        // installer aborts with "Error opening file for writing".
+        await invoke('reap_backend_for_update');
+        reaped = true;
+        await update.install({ restartAfterInstall: true });
+      })
       .then(() => relaunch())
       .catch((reason) => {
+        // Installation failed before it took over the process; bring the daemon
+        // back so the running app stays usable.
+        if (reaped) {
+          void invoke('resume_backend_after_failed_update').catch(() => undefined);
+        }
         setError(String(reason));
         setPhase('error');
       });

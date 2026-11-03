@@ -203,3 +203,23 @@ pub fn stop(app: &AppHandle) {
         let _ = child.wait();
     }
 }
+
+/// Reaps the bundled daemon before an in-place update overwrites its files.
+///
+/// The updater plugin calls `std::process::exit` immediately after it launches
+/// the NSIS installer, so `RunEvent::Exit` never fires and the safety net in
+/// `lib.rs` does not run. A live daemon keeps `aether-backend\_internal` DLLs
+/// mapped, which makes the installer fail with "Error opening file for
+/// writing"; the webview awaits this command between downloading and
+/// installing so the tree is free before extraction starts.
+#[tauri::command]
+pub fn reap_backend_for_update(app: AppHandle) {
+    stop(&app);
+}
+
+/// Starts the daemon again after a failed update hand-off. A successful
+/// hand-off never reaches this: the installer exits the process first.
+#[tauri::command]
+pub fn resume_backend_after_failed_update(app: AppHandle) {
+    start(&app);
+}

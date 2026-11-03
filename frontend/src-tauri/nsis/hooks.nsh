@@ -1,5 +1,17 @@
-; Aether uninstall hooks.
-;
+; Aether installer hooks.
+
+!macro NSIS_HOOK_PREINSTALL
+  ; Tauri waits for Aether.exe before touching files, but the bundled Python
+  ; daemon is a separate process that keeps DLLs inside aether-backend\_internal
+  ; mapped. Leaving it running aborts an in-place update with "Error opening
+  ; file for writing". The app reaps the daemon it spawned before handing off
+  ; to the updater; this also covers a manual install over a running Aether and
+  ; a stale daemon the app found already listening. /T closes the llama-server
+  ; and STT runtime the daemon spawned too.
+  nsExec::ExecToLog 'taskkill /F /T /IM aether-backend.exe'
+  Pop $0
+!macroend
+
 ; The base uninstaller deliberately keeps %APPDATA%\Aether (config, notes
 ; index, SQLite DB). The bulky, re-downloadable parts are the models and the
 ; component packs (engine, voice, STT, media), so ask once at the end of an
