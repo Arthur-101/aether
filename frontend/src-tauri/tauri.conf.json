@@ -1,6 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Aether",
+  "mainBinaryName": "Aether",
   "version": "0.1.0",
   "identifier": "com.aether.assistant",
   "build": {
@@ -40,7 +41,8 @@
     "resources": {
       "../../LICENSE": "LICENSE",
       "../../NOTICE": "NOTICE",
-      "../../THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt"
+      "../../THIRD_PARTY_LICENSES.txt": "THIRD_PARTY_LICENSES.txt",
+      "../../dist/aether-backend": "aether-backend"
     },
     "category": "Utility",
     "shortDescription": "Local-first Windows AI desktop assistant.",

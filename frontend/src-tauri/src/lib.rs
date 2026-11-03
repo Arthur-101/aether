@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 mod autostart;
+mod backend;
 mod external_window;
 mod overlay;
 mod tray;
@@ -40,6 +41,8 @@ pub fn run() {
       widgets::ensure_on_top
     ])
     .setup(|app| {
+      app.manage(backend::BackendProcess::new());
+
       app.handle().plugin(
         tauri_plugin_log::Builder::default()
           .level(log::LevelFilter::Info)
@@ -84,8 +87,20 @@ pub fn run() {
         log::warn!("Could not create the Aether tray icon: {error}");
       }
 
+      // Release installers carry the daemon, so start it before the webview
+      // connects. Debug builds expect start_aether.bat to have done it.
+      backend::start(app.handle());
+
       Ok(())
     })
-    .run(tauri::generate_context!())
-    .expect("error while building tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+      // Safety net for a quit that did not go through the tray's KILL_APP
+      // flow (for example, the webview crashed): never leave the daemon
+      // listening after the overlay is gone.
+      if matches!(event, tauri::RunEvent::Exit) {
+        backend::stop(app);
+      }
+    });
 }

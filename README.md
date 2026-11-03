@@ -62,15 +62,19 @@ powershell -ExecutionPolicy Bypass -File setup_stt.ps1
 # 3. Run the full backend suite
 py -3.12 -m pytest backend -q
 
-# 4. Build the production overlay and installers
+# 4. Build the frozen daemon (PyInstaller onedir, Python 3.12)
+powershell -ExecutionPolicy Bypass -File build_sidecar.ps1
+
+# 5. Build the production overlay and installers
 cd frontend
 npm run tauri build
 ```
 
 The build writes `Aether_0.1.0_x64_en-US.msi` and
 `Aether_0.1.0_x64-setup.exe` under `frontend/src-tauri/target/release/bundle/`.
-The installers package the overlay; the Python daemon and isolated STT runtime
-remain external (see `PACKAGING_AND_CONFIG.md`).
+The installers carry the overlay plus the frozen daemon at `aether-backend\`; the isolated
+STT runtime remains an optional `stt-phonon2` pack (see `PACKAGING_AND_CONFIG.md`). Building
+the sidecar needs **PyInstaller >= 6.22** — 6.12 cannot freeze numpy 2.5.
 
 Phonon-2 runs in an isolated Python runtime — the optional `stt-phonon2` pack, or a dev
 checkout's `bin/stt-runtime` — so Torch and Transformers never load in the backend process.

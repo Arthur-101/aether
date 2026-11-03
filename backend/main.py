@@ -125,8 +125,11 @@ def run_daemon() -> None:
     """Launches the Aether backend daemon via uvicorn."""
     import uvicorn
 
+    # Pass the app object rather than "backend.main:app": the frozen sidecar
+    # resolves modules through PyInstaller's importer, and an object avoids a
+    # second import-string lookup at runtime. Reload/workers are not used.
     uvicorn.run(
-        "backend.main:app",
+        app,
         host="127.0.0.1",
         port=WS_PORT,
         log_level="info",
