@@ -4,6 +4,12 @@
 
 Aether combines a voice-driven Windows desktop assistant with a zero-friction `Drag + Shift` radial file converter and a top-anchored "Desktop Island" overlay.
 
+<p align="center">
+  <video src="https://github.com/Arthur-101/aether/raw/main/docs/media/brag-full.mp4" controls muted loop width="880"></video>
+  <br />
+  <img src="https://raw.githubusercontent.com/Arthur-101/aether/main/docs/media/brag-full.jpg" width="880" alt="Aether in action: the Desktop Island, Quick Chat, and the Drag + Shift radial file wheel." />
+</p>
+
 ---
 
 ## Architecture Highlights
