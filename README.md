@@ -5,10 +5,34 @@
 Aether combines a voice-driven Windows desktop assistant with a zero-friction `Drag + Shift` radial file converter and a top-anchored "Desktop Island" overlay.
 
 <p align="center">
-  <video src="https://github.com/Arthur-101/aether/raw/main/docs/media/brag-full.mp4" controls muted loop width="880"></video>
-  <br />
-  <img src="https://raw.githubusercontent.com/Arthur-101/aether/main/docs/media/brag-full.jpg" width="880" alt="Aether in action: the Desktop Island, Quick Chat, and the Drag + Shift radial file wheel." />
+  <a href="docs/media/brag-full.mp4" title="Watch the 40-second Aether tour">
+    <img src="docs/media/brag-full.jpg" width="880" alt="Aether in action: the Desktop Island, Quick Chat, and the Drag + Shift radial file wheel." />
+  </a>
 </p>
+
+<p align="center">
+  <sub>▶ <a href="docs/media/brag-full.mp4">Watch the 40-second tour</a> — the Island, Quick Chat and the Drag + Shift file wheel, rendered from the app's own React components rather than a mock-up.<br />
+  Music: “Happy Beats Business Moves Vol. 11” by <a href="https://ende.app">Sascha Ende</a> (ende.app), CC BY 4.0.</sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Arthur-101/aether/releases/latest"><img src="https://img.shields.io/github/v/release/Arthur-101/aether?style=flat-square&amp;label=release" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square" alt="Apache-2.0" /></a>
+  <a href="https://buymeacoffee.com/Arthur101"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=flat-square&amp;logo=buymeacoffee&amp;logoColor=black" alt="Buy Me a Coffee" /></a>
+</p>
+
+<!--
+  Optional inline player.
+  GitHub strips <video> tags from repository pages, so a committed MP4 cannot play
+  in place — the poster above links to GitHub's own player instead. For true inline
+  playback: open README.md in the github.com editor, drag docs/media/brag-full.mp4
+  into it, and GitHub inserts a user-attachments URL. Then replace the poster block
+  with:
+
+  <p align="center">
+    <video src="https://github.com/user-attachments/assets/PASTE-ID-HERE.mp4" controls muted loop width="880"></video>
+  </p>
+-->
 
 ---
 
@@ -76,7 +100,7 @@ cd frontend
 npm run tauri build
 ```
 
-The build writes `Aether_0.1.0_x64-setup.exe` under
+The build writes `Aether_<version>_x64-setup.exe` (currently `0.1.5`) under
 `frontend/src-tauri/target/release/bundle/nsis/`. v1.0 ships NSIS only; the WiX MSI was
 built and verified during 0.9 but is not part of the release target. The installer carries
 the overlay plus the frozen daemon at `aether-backend\`; the isolated STT runtime remains
@@ -97,6 +121,19 @@ Aether keeps rotating diagnostics under `%LOCALAPPDATA%\Aether\Logs`:
 `aether-backend.log` (written by `backend/logging_setup.py`) and
 `aether-overlay.log` (written by the Tauri overlay). Launching Aether twice
 focuses the running overlay instead of starting a second one.
+
+---
+
+## Support
+
+Aether is free and open source, with no paid tier, no ads and no telemetry. If it
+earns a place on your machine, you can buy me a coffee:
+
+<p align="center">
+  <a href="https://buymeacoffee.com/Arthur101">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="217" height="60" />
+  </a>
+</p>
 
 ---
 
