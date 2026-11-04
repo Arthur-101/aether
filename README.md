@@ -14,6 +14,7 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
   </a>
 </p>
 
+https://github.com/user-attachments/assets/94866339-9265-4268-a054-bb0e3135b9b5
 <p align="center">
   <sub>▶ <a href="docs/media/brag-full.mp4">Watch the 40-second tour</a> — the Island, Quick Chat and the Drag + Shift file wheel, rendered from the app's own React components rather than a mock-up.<br />
   Music: “Happy Beats Business Moves Vol. 11” by <a href="https://ende.app">Sascha Ende</a> (ende.app), CC BY 4.0.</sub>
@@ -26,7 +27,6 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
 </p>
 
 
-https://github.com/user-attachments/assets/94866339-9265-4268-a054-bb0e3135b9b5
 <!--
   Optional inline player.
   GitHub strips <video> tags from repository pages, so a committed MP4 cannot play
