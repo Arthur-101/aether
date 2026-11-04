@@ -1,3 +1,7 @@
+
+
+
+
 # Aether
 
 > Ultra-low-latency, local-first Windows AI Desktop Assistant & File Utility Overlay.
@@ -18,9 +22,11 @@ Aether combines a voice-driven Windows desktop assistant with a zero-friction `D
 <p align="center">
   <a href="https://github.com/Arthur-101/aether/releases/latest"><img src="https://img.shields.io/github/v/release/Arthur-101/aether?style=flat-square&amp;label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square" alt="Apache-2.0" /></a>
-  <a href="https://buymeacoffee.com/Arthur101"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=flat-square&amp;logo=buymeacoffee&amp;logoColor=black" alt="Buy Me a Coffee" /></a>
+  <!-- <a href="https://buymeacoffee.com/Arthur101"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=flat-square&amp;logo=buymeacoffee&amp;logoColor=black" alt="Buy Me a Coffee" /></a> -->
 </p>
 
+
+https://github.com/user-attachments/assets/94866339-9265-4268-a054-bb0e3135b9b5
 <!--
   Optional inline player.
   GitHub strips <video> tags from repository pages, so a committed MP4 cannot play
@@ -123,7 +129,7 @@ Aether keeps rotating diagnostics under `%LOCALAPPDATA%\Aether\Logs`:
 focuses the running overlay instead of starting a second one.
 
 ---
-
+<!--
 ## Support
 
 Aether is free and open source, with no paid tier, no ads and no telemetry. If it
@@ -136,6 +142,7 @@ earns a place on your machine, you can buy me a coffee:
 </p>
 
 ---
+-->
 
 ## Licence
 
