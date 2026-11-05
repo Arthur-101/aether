@@ -1,10 +1,19 @@
+<p align="center">
+  <a href="https://github.com/Arthur-101/aether/releases/latest">
+    <img src="docs/media/banner.png" width="880" alt="Aether — local-first AI for Windows: pill, peek, island." />
+  </a>
+</p>
 
+<p align="center">
+  <b>Ask anything. Drop a file. Point at the screen.</b><br />
+  <sub>Windows 10/11 · x64 · Tauri + Python · Apache-2.0 · no account required</sub>
+</p>
 
-
-
-# Aether
-
-> Ultra-low-latency, local-first Windows AI Desktop Assistant & File Utility Overlay.
+<p align="center">
+  <a href="https://github.com/Arthur-101/aether/releases/latest"><img src="https://img.shields.io/github/v/release/Arthur-101/aether?style=flat-square&amp;label=release" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square" alt="Apache-2.0" /></a>
+  <!-- <a href="https://buymeacoffee.com/Arthur101"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=flat-square&amp;logo=buymeacoffee&amp;logoColor=black" alt="Buy Me a Coffee" /></a> -->
+</p>
 
 Aether combines a voice-driven Windows desktop assistant with a zero-friction `Drag + Shift` radial file converter and a top-anchored "Desktop Island" overlay.
 
@@ -20,12 +29,6 @@ https://github.com/user-attachments/assets/94866339-9265-4268-a054-bb0e3135b9b5
   Music: “Happy Beats Business Moves Vol. 11” by <a href="https://ende.app">Sascha Ende</a> (ende.app), CC BY 4.0.</sub>
 </p>
 
-<p align="center">
-  <a href="https://github.com/Arthur-101/aether/releases/latest"><img src="https://img.shields.io/github/v/release/Arthur-101/aether?style=flat-square&amp;label=release" alt="Latest release" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square" alt="Apache-2.0" /></a>
-  <!-- <a href="https://buymeacoffee.com/Arthur101"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?style=flat-square&amp;logo=buymeacoffee&amp;logoColor=black" alt="Buy Me a Coffee" /></a> -->
-</p>
-
 
 <!--
   Optional inline player.
@@ -39,6 +42,21 @@ https://github.com/user-attachments/assets/94866339-9265-4268-a054-bb0e3135b9b5
     <video src="https://github.com/user-attachments/assets/PASTE-ID-HERE.mp4" controls muted loop width="880"></video>
   </p>
 -->
+
+---
+
+## A closer look
+
+<p align="center">
+  <img src="docs/media/shot-island.png" width="860" alt="The Desktop Island: controls, audio, display, connectivity, widgets and a colour picker in one panel." />
+  <br />
+  <sub><b>The Desktop Island</b> — controls, audio, display, connectivity, widgets and a colour picker, one hover away.</sub>
+</p>
+
+| **Quick Chat** | **Drag + Shift** |
+|:--:|:--:|
+| <img src="docs/media/shot-quick-chat.png" width="320" alt="Quick Chat reading a document and answering in place." /> | <img src="docs/media/shot-radial-wheel.png" width="470" alt="The radial wheel offering crop, compress, convert and Ask AI for a PDF." /> |
+| Ask about the file in front of you: it reads it, runs the tool, and answers in place. | Drop a file on Explorer and hold <kbd>Shift</kbd> to pick a conversion or edit. |
 
 ---
 

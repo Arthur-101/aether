@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <title>Aether</title>
+  <!--
+    Flat mark. No gradients, no glow filters: the icon has to stay legible
+    at 16px and must not read as neon against a dark taskbar.
+
+    White edition: the mark is a soft white on the original ink squircle.
+  -->
+  <defs>
+    <style>
+      .white { fill: #F4F6FA; }
+      .white-bright { fill: #FFFFFF; }
+      .ink { fill: #0F1218; }
+      .base { fill: #0F1218; }
+    </style>
+  </defs>
+
+  <!-- App icon squircle base -->
+  <rect width="464" height="464" x="24" y="24" rx="108" class="base" stroke="#242A36" stroke-width="4" />
+
+  <!-- Top "Desktop Island" pill indicator -->
+  <rect width="120" height="14" x="196" y="52" rx="7" fill="#242A36" />
+  <circle cx="232" cy="59" r="3.5" class="white" />
+  <rect width="44" height="5" x="244" y="56.5" rx="2.5" fill="#39404E" />
+
+  <!-- Outer radial wheel: eight stored segments, stored flat -->
+  <circle cx="256" cy="268" r="148" fill="none" stroke="#F4F6FA" stroke-opacity="0.28" stroke-width="28" stroke-dasharray="98 18.2" stroke-linecap="round" transform="rotate(-15 256 268)" />
+
+  <!-- Straightened "active" segment -->
+  <path d="M 294 125 A 148 148 0 0 1 388 201" fill="none" stroke="#FFFFFF" stroke-width="30" stroke-linecap="round" />
+
+  <!-- Inner "Circle to Ask" vision ring -->
+  <circle cx="256" cy="268" r="98" fill="none" stroke="#F4F6FA" stroke-width="4" stroke-dasharray="180 40 80 30" stroke-linecap="round" stroke-opacity="0.88" />
+
+  <!-- Center core -->
+  <circle cx="256" cy="268" r="72" fill="#151A23" stroke="#2A303C" stroke-width="2" />
+
+  <!-- Voice waveform bars -->
+  <g class="white">
+    <rect x="204" y="254" width="10" height="28" rx="5" />
+    <rect x="226" y="236" width="10" height="64" rx="5" />
+    <rect x="276" y="242" width="10" height="52" rx="5" />
+    <rect x="298" y="256" width="10" height="24" rx="5" />
+  </g>
+  <rect x="250" y="218" width="12" height="100" rx="6" class="white-bright" />
+</svg>
