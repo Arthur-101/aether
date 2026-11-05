@@ -40,7 +40,7 @@ def _render_first_page(source: Path, target: Path) -> None:
 
 def convert_document(file_path: str, target_format: str) -> str:
     """
-    Converts a PDF to JPG, PNG, or TXT.
+    Converts a PDF to JPG, PNG, or TXT, and DOCX to TXT.
     target_format: 'jpg', 'png', 'txt'
     """
     p = Path(file_path)
@@ -48,18 +48,29 @@ def convert_document(file_path: str, target_format: str) -> str:
         raise FileNotFoundError(f"Document not found: {file_path}")
 
     fmt = target_format.lower().strip(".")
-    if p.suffix.lower() == ".pdf":
+    suffix = p.suffix.lower()
+    if suffix == ".pdf":
         if fmt in ("jpg", "png"):
             out_path = exported_path(p, f"{p.stem}.{fmt}")
             _render_first_page(p, out_path)
             return str(out_path)
 
-        elif fmt == "txt":
+        if fmt == "txt":
             out_path = exported_path(p, f"{p.stem}.txt")
             out_path.write_text(extract_pdf_text(p), encoding="utf-8")
             return str(out_path)
 
-    return f"Unsupported conversion from {p.suffix} to {fmt}"
+    elif suffix == ".docx" and fmt == "txt":
+        from docx import Document
+
+        out_path = exported_path(p, f"{p.stem}.txt")
+        out_path.write_text(
+            "\n".join(paragraph.text for paragraph in Document(str(p)).paragraphs),
+            encoding="utf-8",
+        )
+        return str(out_path)
+
+    raise ValueError(f"Unsupported conversion from {p.suffix or p.name} to .{fmt}")
 
 
 def ingest_file_for_rag(session_id: str, file_path: str) -> Dict[str, Any]:

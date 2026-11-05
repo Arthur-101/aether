@@ -147,40 +147,60 @@ def _window_selected_path(window: Any) -> Optional[str]:
     return _item_file_path(focused)
 
 
-def _clipboard_selected_path() -> Optional[str]:
-    """Best-effort read of files an in-flight drag exposed on the clipboard."""
-    try:
-        import win32clipboard
-        import win32con
-    except Exception:
-        return None
-    data: Any = None
-    try:
-        win32clipboard.OpenClipboard()
-    except Exception:
-        return None
-    try:
-        if win32clipboard.IsClipboardFormatAvailable(win32con.CF_HDROP):
-            data = win32clipboard.GetClipboardData(win32con.CF_HDROP)
-    except Exception:
-        data = None
-    finally:
-        try:
-            win32clipboard.CloseClipboard()
-        except Exception:
-            pass
-    entries = data if isinstance(data, (list, tuple)) else [data]
-    for entry in entries:
-        if _is_file_path(entry):
-            return str(entry)
-    return None
+def _windows_for_hwnd(shell: Any, target: int) -> list[Any]:
+    """Returns every Shell browser tab whose HWND equals ``target``.
 
-
-def _window_for_hwnd(shell: Any, target: int) -> Optional[Any]:
-    """Finds the Shell browser window whose HWND equals ``target``."""
+    Windows 11 Explorer keeps tabs inside one top-level window, so several
+    Shell.Application entries share an HWND. Callers must pick the active tab.
+    """
+    matches: list[Any] = []
     for window in shell.Windows():
         try:
             if int(window.HWND) == target:
+                matches.append(window)
+        except Exception:
+            continue
+    return matches
+
+
+def _active_tab(windows: list[Any], hwnd: int) -> Optional[Any]:
+    """Picks the visible tab of a multi-tab Explorer window.
+
+    Explorer's title starts with the active tab's folder name ("RealClips and
+    2 more tabs - File Explorer"), while inactive tabs report their own
+    LocationName. The longest matching name wins so "Real" cannot shadow
+    "RealClips"; a tab holding a selection is the fallback when the title is
+    unavailable, and None otherwise.
+    """
+    if len(windows) == 1:
+        return windows[0]
+    try:
+        # The drag source may be a child control; the tab title lives on root.
+        root = win32gui.GetAncestor(hwnd, 2) or hwnd
+    except Exception:
+        root = hwnd
+    try:
+        title = win32gui.GetWindowText(root).casefold()
+    except Exception:
+        title = ""
+
+    if title:
+        best: Optional[Any] = None
+        best_len = 0
+        for window in windows:
+            try:
+                name = str(window.LocationName).casefold()
+            except Exception:
+                continue
+            if name and len(name) > best_len and title.startswith(name):
+                best = window
+                best_len = len(name)
+        if best is not None:
+            return best
+
+    for window in windows:
+        try:
+            if window.Document.SelectedItems().Count > 0:
                 return window
         except Exception:
             continue
@@ -193,53 +213,42 @@ def get_selected_explorer_file(hwnd: Optional[int] = None) -> Optional[str]:
     ``hwnd`` should be the window under the drag's initial mouse-down. When
     given, it takes priority over the foreground window so a drag started in
     one Explorer window is not misattributed to whichever window is focused.
-    Only real files are returned; folders are never valid wheel payloads.
+    Tabbed Explorer windows share one HWND, so the active tab is resolved by
+    its title before its selection is read. Only real files are returned;
+    folders are never valid wheel payloads.
     """
     pythoncom.CoInitialize()
     try:
         shell = win32com.client.Dispatch("Shell.Application")
 
+        def resolve(target: int) -> Optional[str]:
+            try:
+                cls = win32gui.GetClassName(target)
+            except Exception:
+                cls = ""
+            if cls in ("Progman", "WorkerW"):
+                return _desktop_selected_path()
+            window = _active_tab(_windows_for_hwnd(shell, target), target)
+            if window is None:
+                return None
+            return _window_selected_path(window)
+
         # Prefer the recorded drag source.
         if hwnd:
             root = win32gui.GetAncestor(int(hwnd), 2)  # GA_ROOT
-            for target in (int(hwnd), int(root)):
-                try:
-                    cls = win32gui.GetClassName(target)
-                except Exception:
-                    cls = ""
-                if cls in ("Progman", "WorkerW"):
-                    path = _desktop_selected_path()
-                    if path:
-                        return path
-                window = _window_for_hwnd(shell, target)
-                if window is not None:
-                    path = _window_selected_path(window)
-                    if path:
-                        return path
+            for target in dict.fromkeys((int(hwnd), int(root))):
+                path = resolve(target)
+                if path:
+                    return path
 
         # Fall back to the foreground window (or its top-level ancestor).
         fg_hwnd = win32gui.GetForegroundWindow()
         fg_root = win32gui.GetAncestor(fg_hwnd, 2)  # GA_ROOT
-        fg_class = win32gui.GetClassName(fg_hwnd)
-
-        # Desktop icons are not exposed by Shell.Application.Windows().
-        if fg_class in ("Progman", "WorkerW"):
-            path = _desktop_selected_path()
+        for target in dict.fromkeys((int(fg_hwnd), int(fg_root))):
+            path = resolve(target)
             if path:
                 return path
-
-        for window in shell.Windows():
-            try:
-                if int(window.HWND) in (int(fg_hwnd), int(fg_root)):
-                    path = _window_selected_path(window)
-                    if path:
-                        return path
-            except Exception:
-                continue
-
-        # Last resort: an in-flight drag may have published the files on the
-        # clipboard even though no window reports a usable selection.
-        return _clipboard_selected_path()
+        return None
     except Exception:
         return None
     finally:

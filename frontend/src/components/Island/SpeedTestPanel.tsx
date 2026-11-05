@@ -197,7 +197,7 @@ const SpeedGauge: React.FC<SpeedGaugeProps> = ({
         <span className="font-mono text-[21px] leading-none tracking-tight text-[var(--aether-text-1)]">
           {value == null ? '—' : formatSpeed(value)}
         </span>
-        <span className="mt-0.5 text-[7px] uppercase tracking-[0.18em] text-[var(--aether-text-3)]">
+        <span className="mt-0.5 text-[7px] tracking-[0.18em] text-[var(--aether-text-3)]">
           Mbps
         </span>
         <span

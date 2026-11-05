@@ -242,7 +242,7 @@ class TestWheelAction(unittest.TestCase):
             patch("backend.mcp_tools.clock_scheduler.register_wake_callback"),
             patch("backend.os_hooks.system_controls.get_system_telemetry",
                   return_value={"cpu_percent": 5.0, "ram_percent": 30.0}),
-            patch("backend.mcp_tools.server.execute_tool",
+            patch("backend.tool_events.execute_tool",
                   return_value="Converted test.png to test.jpg"),
         ]
         for p in self._patches:

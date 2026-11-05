@@ -31,6 +31,16 @@ except ImportError:
 # the user at Settings -> Components instead of failing with a raw OSError.
 MEDIA_COMPONENT_ID = "ffmpeg"
 
+IMAGE_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".webp", ".heic", ".avif", ".bmp", ".tif", ".tiff", ".gif",
+}
+VIDEO_EXTENSIONS = {
+    ".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v", ".wmv", ".flv",
+}
+AUDIO_EXTENSIONS = {
+    ".mp3", ".wav", ".m4a", ".aac", ".ogg", ".opus", ".flac", ".wma",
+}
+
 
 def _version_key(name: str) -> tuple:
     """Natural sort key so 0.10.0 sorts after 0.9.0."""
@@ -126,6 +136,33 @@ def _resolve_media_binary(binary_name: str) -> str:
     )
 
 
+def _media_duration(path: Path) -> float:
+    """Reads a media file's duration in seconds via ffprobe."""
+    ffprobe = _resolve_media_binary("ffprobe")
+    probe = subprocess.run(
+        [ffprobe, "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        capture_output=True, text=True, check=True,
+    )
+    try:
+        return max(float(probe.stdout.strip()), 1.0)
+    except ValueError:
+        return 1.0
+
+
+def _ffmpeg_run(args: list[str]) -> None:
+    """Runs FFmpeg silently and raises its last stderr line on failure."""
+    no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    result = subprocess.run(
+        args, capture_output=True, text=True, creationflags=no_win
+    )
+    if result.returncode != 0:
+        lines = (result.stderr or "").strip().splitlines()
+        raise RuntimeError(
+            lines[-1] if lines else f"FFmpeg failed ({result.returncode})."
+        )
+
+
 def convert_image_format(file_path: str, target_format: str) -> str:
     """
     Converts an image to target format (png, jpg, webp, heic, tiff, avif, bmp, pdf).
@@ -157,6 +194,51 @@ def convert_image_format(file_path: str, target_format: str) -> str:
         }.get(fmt, fmt.upper())
         img.save(out_path, format=save_fmt)
 
+    return str(out_path)
+
+
+def convert_media(file_path: str, target_format: str) -> str:
+    """Converts a video or audio file with FFmpeg.
+
+    Video targets: mp4, webm, gif, mp3, wav, m4a, ogg.
+    Audio targets: mp3, wav, m4a, ogg.
+    """
+    p = Path(file_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Source file not found: {file_path}")
+
+    source = p.suffix.lower()
+    fmt = target_format.lower().strip(".")
+    is_video = source in VIDEO_EXTENSIONS
+    if is_video:
+        allowed = {"mp4", "webm", "gif", "mp3", "wav", "m4a", "ogg"}
+    elif source in AUDIO_EXTENSIONS:
+        allowed = {"mp3", "wav", "m4a", "ogg"}
+    else:
+        raise ValueError(f"Not a video or audio file: {p.name}")
+    if fmt not in allowed:
+        raise ValueError(f"Cannot convert {source or p.name} to .{fmt}.")
+    if fmt == source.lstrip("."):
+        raise ValueError(f"{p.name} is already .{fmt}.")
+
+    ffmpeg = _resolve_media_binary("ffmpeg")
+    out_path = exported_path(p, f"{p.stem}.{fmt}")
+    args = [ffmpeg, "-y", "-i", str(p)]
+    if fmt == "gif":
+        args += ["-vf", "fps=12,scale=720:-1:flags=lanczos", "-loop", "0"]
+    elif is_video and fmt == "mp4":
+        args += ["-c:v", "libopenh264", "-c:a", "aac", "-movflags", "+faststart"]
+    elif is_video and fmt == "webm":
+        args += ["-c:v", "libvpx-vp9", "-crf", "30", "-b:v", "0", "-c:a", "libopus"]
+    elif fmt == "mp3":
+        args += ["-vn", "-c:a", "libmp3lame", "-b:a", "192k"]
+    elif fmt == "wav":
+        args += ["-vn", "-c:a", "pcm_s16le"]
+    elif fmt == "m4a":
+        args += ["-vn", "-c:a", "aac", "-b:a", "192k"]
+    else:  # ogg
+        args += ["-vn", "-c:a", "libvorbis", "-b:a", "192k"]
+    _ffmpeg_run(args + [str(out_path)])
     return str(out_path)
 
 
@@ -224,8 +306,8 @@ def black_and_white(file_path: str) -> str:
 
 def compress_media(file_path: str, target_mb: float = 5.0) -> str:
     """
-    Compresses an image, video, or PDF to reduce disk size.
-    Uses Pillow for images, FFmpeg for videos, and pypdf for PDFs.
+    Compresses an image, video, audio, or PDF to reduce disk size.
+    Uses Pillow for images, FFmpeg for video/audio, and pypdf for PDFs.
     """
     p = Path(file_path)
     if not p.exists():
@@ -234,25 +316,20 @@ def compress_media(file_path: str, target_mb: float = 5.0) -> str:
     ext = p.suffix.lower()
     out_path = exported_path(p, f"{p.stem}_compressed{ext}")
 
-    if ext in (".jpg", ".jpeg", ".png", ".webp"):
+    if ext in IMAGE_EXTENSIONS and ext != ".gif":
         with Image.open(p) as img:
-            if img.mode in ("RGBA", "P") and ext in (".jpg", ".jpeg"):
+            if img.mode in ("RGBA", "P") and ext in (".jpg", ".jpeg", ".bmp"):
                 img = img.convert("RGB")
-            img.save(out_path, optimize=True, quality=65)
+            options: Dict[str, Any] = {"optimize": True}
+            if ext in (".jpg", ".jpeg", ".webp", ".heic", ".avif"):
+                options["quality"] = 65
+            img.save(out_path, **options)
         return str(out_path)
 
-    elif ext in (".mp4", ".mov", ".mkv", ".avi", ".webm"):
-        ffprobe = _resolve_media_binary("ffprobe")
+    elif ext in VIDEO_EXTENSIONS:
         ffmpeg = _resolve_media_binary("ffmpeg")
-
-        # Get video duration
-        probe = subprocess.run(
-            [ffprobe, "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(p)],
-            capture_output=True, text=True, check=True
-        )
-        duration = float(probe.stdout.strip())
-        target_kbps = int((target_mb * 8192) / max(duration, 1.0))
+        duration = _media_duration(p)
+        target_kbps = int((target_mb * 8192) / duration)
         video_kbps = max(target_kbps - 128, 200)
 
         no_win = getattr(subprocess, "CREATE_NO_WINDOW", 0)
@@ -260,6 +337,26 @@ def compress_media(file_path: str, target_mb: float = 5.0) -> str:
             ffmpeg, "-y", "-i", str(p),
             "-b:v", f"{video_kbps}k", "-b:a", "128k", str(out_path)
         ], check=True, creationflags=no_win)
+        return str(out_path)
+
+    elif ext in AUDIO_EXTENSIONS:
+        ffmpeg = _resolve_media_binary("ffmpeg")
+        duration = _media_duration(p)
+        bitrate = max(64, min(int((target_mb * 8192) / duration), 320))
+        # Lossless containers become MP3; lossy ones keep their extension.
+        out_ext = ext if ext in (".mp3", ".m4a", ".aac", ".ogg", ".opus") else ".mp3"
+        out_path = exported_path(p, f"{p.stem}_compressed{out_ext}")
+        codec = {
+            ".mp3": "libmp3lame",
+            ".m4a": "aac",
+            ".aac": "aac",
+            ".ogg": "libvorbis",
+            ".opus": "libopus",
+        }[out_ext]
+        _ffmpeg_run([
+            ffmpeg, "-y", "-i", str(p),
+            "-vn", "-c:a", codec, "-b:a", f"{bitrate}k", str(out_path),
+        ])
         return str(out_path)
 
     elif ext == ".pdf":
@@ -275,7 +372,7 @@ def compress_media(file_path: str, target_mb: float = 5.0) -> str:
             writer.write(handle)
         return str(out_path)
 
-    return f"Unsupported format for compression: {ext}"
+    raise ValueError(f"Unsupported format for compression: {ext or p.name}")
 
 
 def _hex_to_rgb(value: str) -> tuple[int, int, int]:

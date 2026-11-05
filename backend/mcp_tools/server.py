@@ -21,6 +21,7 @@ from .media_tools import (
     black_and_white,
     compress_media,
     convert_image_format,
+    convert_media,
     crop_image,
     strip_image_metadata,
 )
@@ -114,6 +115,7 @@ mcp = FastMCP("AetherTools")
 
 # Register FastMCP tools
 mcp.tool()(convert_image_format)
+mcp.tool()(convert_media)
 mcp.tool()(black_and_white)
 mcp.tool()(compress_media)
 mcp.tool()(strip_image_metadata)
@@ -187,6 +189,7 @@ def _read_clipboard_tolerant(**_kwargs: Any) -> str:
 # Tool Dispatch Table
 TOOL_DISPATCH: Dict[str, Callable[..., Any]] = {
     "convert_image_format": convert_image_format,
+    "convert_media": convert_media,
     "black_and_white": black_and_white,
     "compress_media": compress_media,
     "strip_image_metadata": strip_image_metadata,
@@ -308,6 +311,21 @@ def get_openai_tool_schemas(
         {
             "type": "function",
             "function": {
+                "name": "convert_media",
+                "description": "Convert a video (mp4, webm, gif, mp3, wav, m4a, ogg) or audio (mp3, wav, m4a, ogg) file with FFmpeg.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string", "description": "Absolute path to source video or audio."},
+                        "target_format": {"type": "string", "description": "Target extension: mp4, webm, gif, mp3, wav, m4a, ogg."}
+                    },
+                    "required": ["file_path", "target_format"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "black_and_white",
                 "description": "Convert an image to black and white (grayscale).",
                 "parameters": {
@@ -352,7 +370,7 @@ def get_openai_tool_schemas(
             "type": "function",
             "function": {
                 "name": "convert_document",
-                "description": "Convert PDF to jpg, png, or txt.",
+                "description": "Convert a PDF to jpg, png, or txt, or a docx to txt.",
                 "parameters": {
                     "type": "object",
                     "properties": {

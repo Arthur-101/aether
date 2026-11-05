@@ -13,6 +13,7 @@ from .db.attachments import list_attachments, remove_attachment
 from .db.sessions import session_manager
 from .event_router import register_handler
 from .mcp_tools.doc_tools import attach_file_for_ask
+from .mcp_tools.media_tools import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
 from .mcp_tools.server import execute_tool
 from .os_hooks.region_capture import discard_capture
 from .ws_manager import ws_manager
@@ -47,6 +48,16 @@ def _parse_crop_options(target: str) -> Dict[str, Any]:
         return args
     width, height = _parse_crop_target(target)
     return {"file_path": "", "width": width, "height": height}
+
+
+def _convert_tool(file_path: str) -> str:
+    """Picks the converter that matches the file's real type."""
+    ext = Path(file_path).suffix.lower()
+    if ext in (".pdf", ".docx"):
+        return "convert_document"
+    if ext in VIDEO_EXTENSIONS or ext in AUDIO_EXTENSIONS:
+        return "convert_media"
+    return "convert_image_format"
 
 
 async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
@@ -85,32 +96,38 @@ async def _handle_wheel_action(payload: Dict[str, Any]) -> None:
                 ),
             )
         else:
-            tool_map = {
-                "CONVERT": (
-                    "convert_image_format",
-                    {"file_path": file_path, "target_format": target},
-                ),
-                "COMPRESS": ("compress_media", {"file_path": file_path}),
-                "STRIP_META": ("strip_image_metadata", {"file_path": file_path}),
-                "B&W": ("black_and_white", {"file_path": file_path}),
-                "CONVERT_DOC": (
-                    "convert_document",
-                    {"file_path": file_path, "target_format": target},
-                ),
-            }
-            entry = tool_map.get(action)
-            if not entry:
-                await ws_manager.broadcast(
-                    "WHEEL_RESULT", {"error": f"Unknown action: {action}"}
-                )
-                return
-            tool_name, args = entry
+            if action == "CONVERT":
+                tool_name = _convert_tool(file_path)
+                args = {"file_path": file_path, "target_format": target}
+            else:
+                tool_map = {
+                    "COMPRESS": ("compress_media", {"file_path": file_path}),
+                    "STRIP_META": ("strip_image_metadata", {"file_path": file_path}),
+                    "B&W": ("black_and_white", {"file_path": file_path}),
+                    "CONVERT_DOC": (
+                        "convert_document",
+                        {"file_path": file_path, "target_format": target},
+                    ),
+                }
+                entry = tool_map.get(action)
+                if not entry:
+                    await ws_manager.broadcast(
+                        "WHEEL_RESULT", {"error": f"Unknown action: {action}"}
+                    )
+                    return
+                tool_name, args = entry
             result = await loop.run_in_executor(
                 None, lambda: execute_tool(tool_name, args)
             )
     except Exception as exc:
         await ws_manager.broadcast(
             "WHEEL_RESULT", {"action": action, "error": str(exc)}
+        )
+        return
+
+    if isinstance(result, str) and result.startswith("Error"):
+        await ws_manager.broadcast(
+            "WHEEL_RESULT", {"action": action, "error": result}
         )
         return
 

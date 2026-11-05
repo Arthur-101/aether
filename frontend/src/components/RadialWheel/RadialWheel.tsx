@@ -127,6 +127,14 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dropPoint?.id]);
 
+  // A type with no applicable action must not leave an empty ring on screen.
+  const empty = slices.length === 0;
+  useEffect(() => {
+    if (empty) onClose();
+  }, [empty, onClose]);
+
+  if (empty) return null;
+
   return (
     <div
       data-aether-interactive
