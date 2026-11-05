@@ -106,7 +106,7 @@ cd frontend
 npm run tauri build
 ```
 
-The build writes `Aether_<version>_x64-setup.exe` (currently `0.1.5`) under
+The build writes `Aether_<version>_x64-setup.exe` (currently `1.0.0`) under
 `frontend/src-tauri/target/release/bundle/nsis/`. v1.0 ships NSIS only; the WiX MSI was
 built and verified during 0.9 but is not part of the release target. The installer carries
 the overlay plus the frozen daemon at `aether-backend\`; the isolated STT runtime remains

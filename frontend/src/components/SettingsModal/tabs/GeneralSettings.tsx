@@ -3,6 +3,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { isTauri } from '@tauri-apps/api/core';
 import { Info, MonitorUp, PanelTop, SlidersHorizontal, Timer } from 'lucide-react';
 import type { AIProviderConfig, AppearanceConfig, GeneralConfig } from '../../../types/ipc';
+import { openExternalTarget } from '../../../lib/externalWindows';
 import {
   SettingsGroup,
   SettingsToggleRow,
@@ -74,7 +75,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   onAppearanceChange,
   onAiChange,
 }) => {
-  const [version, setVersion] = useState('0.1.0');
+  const [version, setVersion] = useState('1.0.0');
   // `tauri dev` serves the UI from Vite, so the debug executable cannot boot
   // without the dev server. Only a packaged build can start with Windows.
   const autostartSupported = !import.meta.env.DEV;
@@ -184,6 +185,20 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             <span className="font-mono text-[10px] text-[var(--aether-text-1)]">
               {version}
             </span>
+          </div>
+          <div className={settingsRowClass}>
+            <span className="text-[11px] text-[var(--aether-text-2)]">
+              Developer
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                void openExternalTarget('https://github.com/Arthur-101')
+              }
+              className="text-[10px] text-[var(--aether-accent-text)] transition hover:underline"
+            >
+              Arthur · @Arthur-101
+            </button>
           </div>
           <div className={settingsRowClass}>
             <span className="text-[11px] text-[var(--aether-text-2)]">
