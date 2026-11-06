@@ -176,7 +176,7 @@ const DefaultMediaCard: React.FC<
               aria-label={playing ? 'Pause' : 'Play'}
               title={playing ? 'Pause' : 'Play'}
               disabled={!canToggle}
-              onClick={() => onControl('play_pause')}
+              onClick={() => onControl(playing ? 'pause' : 'play')}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--aether-accent)] text-[var(--aether-accent-contrast)] transition hover:brightness-110 disabled:cursor-default disabled:opacity-75"
             >
               {playing ? (

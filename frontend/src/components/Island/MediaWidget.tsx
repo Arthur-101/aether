@@ -182,7 +182,7 @@ export const MediaWidget: React.FC<MediaWidgetProps> = ({
             type="button"
             aria-label={media.is_playing ? 'Pause' : 'Play'}
             disabled={!canToggle || !onControl}
-            onClick={() => onControl?.('play_pause')}
+            onClick={() => onControl?.(media.is_playing ? 'pause' : 'play')}
             className={`${controlClass} ${compact ? 'h-8 w-8' : 'h-9 w-9'}`}
             style={{ backgroundColor: accent, color: media.is_spotify ? '#08130c' : 'var(--aether-accent-contrast)' }}
           >

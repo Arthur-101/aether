@@ -28,11 +28,17 @@ class _Session:
 
 
 class _Manager:
-    def __init__(self, session: _Session | None) -> None:
+    def __init__(
+        self, session: _Session | None, sessions: list[_Session] | None = None
+    ) -> None:
         self.session = session
+        self.sessions = sessions or []
 
     def get_current_session(self):
         return self.session
+
+    def get_sessions(self):
+        return list(self.sessions)
 
 
 def test_poller_applies_queued_actions_on_its_own_thread():
@@ -57,6 +63,26 @@ def test_poller_reports_a_missing_session_without_raising():
 
     assert applied is False
     assert future.result(timeout=0) is False
+
+
+def test_poller_controls_the_fallback_session_the_widget_shows():
+    """A paused player can be listed without being the *current* session.
+
+    The snapshot falls back to the first session, so the transport controls
+    must too; otherwise the visible Play button applies to nothing.
+    """
+    poller = MediaPoller()
+    session = _Session()
+    future: Future = Future()
+    poller._controls.put(("play", future))
+
+    applied = asyncio.run(
+        poller._run_controls(_Manager(None, sessions=[session]))
+    )
+
+    assert applied is True
+    assert future.result(timeout=0) is True
+    assert session.calls == ["play"]
 
 
 def test_latest_snapshot_reads_the_cache_and_never_captures(monkeypatch):

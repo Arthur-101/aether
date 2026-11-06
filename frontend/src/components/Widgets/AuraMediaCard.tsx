@@ -142,7 +142,7 @@ export const AuraMediaCard: React.FC<AuraMediaCardProps> = ({
             aria-label={playing ? 'Pause' : 'Play'}
             title={playing ? 'Pause' : 'Play'}
             disabled={!canToggle}
-            onClick={() => onControl('play_pause')}
+            onClick={() => onControl(playing ? 'pause' : 'play')}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--aether-accent)] text-[var(--aether-accent-contrast)] transition hover:brightness-110 disabled:cursor-default disabled:opacity-60"
             style={{
               boxShadow:

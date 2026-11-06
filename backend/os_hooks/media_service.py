@@ -10,6 +10,7 @@ from concurrent.futures import Future
 from typing import Any, Callable, Dict, Optional
 
 from .media_snapshot import (
+    _pick_session,
     snapshot_differs,
     unavailable_snapshot,
 )
@@ -139,7 +140,7 @@ class MediaPoller:
             if future.done():
                 continue
             try:
-                session = manager.get_current_session()
+                session = _pick_session(manager)
                 if session is None:
                     future.set_result(False)
                     continue

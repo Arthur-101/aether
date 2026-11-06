@@ -194,7 +194,7 @@ export const BlueprintMediaCard: React.FC<BlueprintMediaCardProps> = ({
               aria-label={playing ? 'Pause' : 'Play'}
               title={playing ? 'Pause' : 'Play'}
               disabled={!canToggle}
-              onClick={() => onControl('play_pause')}
+              onClick={() => onControl(playing ? 'pause' : 'play')}
               className={playClass}
             >
               {playing ? (

@@ -202,7 +202,7 @@ export const CozyMediaCard: React.FC<CozyMediaCardProps> = ({
           src={session?.artwork ?? null}
           playing={playing}
           canToggle={canToggle}
-          onToggle={() => onControl('play_pause')}
+          onToggle={() => onControl(playing ? 'pause' : 'play')}
         />
         <div className="min-w-0 flex-1">
           <CozyWaves mirrored />

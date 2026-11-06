@@ -93,6 +93,20 @@ def empty_session_snapshot(
     return snapshot
 
 
+def _pick_session(manager: Any) -> Any:
+    """Returns the session the widget shows: current, else the first one.
+
+    Windows sometimes reports no *current* session while a paused player is
+    still listed. The snapshot already falls back to the first session, so
+    transport controls must do the same or the visible Play button fails.
+    """
+    session = manager.get_current_session()
+    if session is not None:
+        return session
+    sessions = list(manager.get_sessions() or [])
+    return sessions[0] if sessions else None
+
+
 async def _read_artwork(
     thumbnail: Any, cache: Optional[Dict[str, Any]], key: str
 ) -> Optional[str]:
@@ -134,10 +148,7 @@ async def capture_snapshot(
     manager: Any, art_cache: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Reads one now-playing snapshot from the active SMTC session."""
-    session = manager.get_current_session()
-    if session is None:
-        sessions = list(manager.get_sessions() or [])
-        session = sessions[0] if sessions else None
+    session = _pick_session(manager)
     if session is None:
         return empty_session_snapshot()
 
