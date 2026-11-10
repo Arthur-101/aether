@@ -9,6 +9,7 @@
   <sub>Windows 10/11 · x64 · Tauri + Python · Apache-2.0 · no account required</sub>
 </p>
 
+
 <p align="center">
   <a href="https://github.com/Arthur-101/aether/releases/latest"><img src="https://img.shields.io/github/v/release/Arthur-101/aether?style=flat-square&amp;label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-Apache--2.0-blue?style=flat-square" alt="Apache-2.0" /></a>
