@@ -189,6 +189,31 @@ def test_auto_hide_pill_defaults_off_and_requires_a_boolean():
     assert normalize_appearance({"auto_hide_pill": "yes"})["auto_hide_pill"] is False
 
 
+def test_pill_indicator_switches_default_and_require_booleans():
+    defaults = normalize_appearance({})
+    assert defaults["pill_show_clock"] is True
+    assert defaults["pill_show_media"] is True
+    assert defaults["pill_show_cpu"] is False
+    assert defaults["pill_show_gpu"] is False
+    assert defaults["pill_show_ram"] is False
+    enabled = normalize_appearance(
+        {
+            "pill_show_clock": False,
+            "pill_show_media": False,
+            "pill_show_cpu": True,
+            "pill_show_gpu": True,
+            "pill_show_ram": True,
+        }
+    )
+    assert enabled["pill_show_clock"] is False
+    assert enabled["pill_show_media"] is False
+    assert enabled["pill_show_cpu"] is True
+    assert enabled["pill_show_gpu"] is True
+    assert enabled["pill_show_ram"] is True
+    # A non-boolean must not switch an indicator on.
+    assert normalize_appearance({"pill_show_cpu": "yes"})["pill_show_cpu"] is False
+
+
 def test_taskbar_mode_and_pins_are_normalized():
     taskbar = normalize_taskbar_apps(
         {

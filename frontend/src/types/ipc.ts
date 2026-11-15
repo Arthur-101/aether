@@ -65,6 +65,12 @@ export interface AppearanceConfig {
   button_gradient: boolean;
   close_on_outside_click: boolean;
   auto_hide_pill: boolean;
+  /** Which readouts the collapsed pill shows beside the clock. */
+  pill_show_clock: boolean;
+  pill_show_media: boolean;
+  pill_show_cpu: boolean;
+  pill_show_gpu: boolean;
+  pill_show_ram: boolean;
   time_format: TimeFormat;
 }
 

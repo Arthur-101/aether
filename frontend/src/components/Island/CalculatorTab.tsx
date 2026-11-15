@@ -1,4 +1,4 @@
-import React, { useMemo, useReducer, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import { ArrowDownUp, Delete } from 'lucide-react';
 import { autoCloseExpression, evaluateExpression, formatNumber, prettyExpression } from './calculatorMath';
 import { CALC_HEIGHT } from './tabSizes';
@@ -70,6 +70,13 @@ const INITIAL_STATE: StandardState = {
   error: '',
   history: [],
 };
+
+/**
+ * The tab unmounts whenever another tab is shown or the island collapses, but
+ * the history is expected to stay. Keeping the reducer state at module scope
+ * preserves it for the session without adding a storage round-trip.
+ */
+let sessionState: StandardState | null = null;
 
 const KEYPAD: CalcKey[][] = [
   ['clear', 'back', '(', ')', '%'],
@@ -449,7 +456,14 @@ function keypadClass(key: CalcKey): string {
  */
 export const CalculatorTab: React.FC = () => {
   const [mode, setMode] = useState<CalculatorMode>('standard');
-  const [standard, dispatch] = useReducer(standardReducer, INITIAL_STATE);
+  const [standard, dispatch] = useReducer(
+    standardReducer,
+    null,
+    () => sessionState ?? INITIAL_STATE
+  );
+  useEffect(() => {
+    sessionState = standard;
+  }, [standard]);
 
   const [categoryId, setCategoryId] = useState(UNIT_CATEGORIES[0].id);
   const [fromId, setFromId] = useState(UNIT_CATEGORIES[0].defaultFrom);

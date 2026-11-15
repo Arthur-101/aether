@@ -101,6 +101,11 @@ DEFAULT_APPEARANCE: Dict[str, Any] = {
     "button_gradient": True,
     "close_on_outside_click": False,
     "auto_hide_pill": False,
+    "pill_show_clock": True,
+    "pill_show_media": True,
+    "pill_show_cpu": False,
+    "pill_show_gpu": False,
+    "pill_show_ram": False,
     "time_format": "12h",
 }
 
@@ -391,6 +396,26 @@ def normalize_appearance(value: Any) -> Dict[str, Any]:
         "auto_hide_pill": _as_bool(
             raw.get("auto_hide_pill"),
             DEFAULT_APPEARANCE["auto_hide_pill"],
+        ),
+        "pill_show_clock": _as_bool(
+            raw.get("pill_show_clock"),
+            DEFAULT_APPEARANCE["pill_show_clock"],
+        ),
+        "pill_show_media": _as_bool(
+            raw.get("pill_show_media"),
+            DEFAULT_APPEARANCE["pill_show_media"],
+        ),
+        "pill_show_cpu": _as_bool(
+            raw.get("pill_show_cpu"),
+            DEFAULT_APPEARANCE["pill_show_cpu"],
+        ),
+        "pill_show_gpu": _as_bool(
+            raw.get("pill_show_gpu"),
+            DEFAULT_APPEARANCE["pill_show_gpu"],
+        ),
+        "pill_show_ram": _as_bool(
+            raw.get("pill_show_ram"),
+            DEFAULT_APPEARANCE["pill_show_ram"],
         ),
         "time_format": (
             time_format if time_format in _TIME_FORMATS else DEFAULT_APPEARANCE["time_format"]

@@ -9,12 +9,15 @@ import {
   formatPillTimer,
   isStopwatchVisible,
   isTimerVisible,
+  type PillStat,
 } from './pillTools';
 
 interface NotchIdleProps {
   now: Date;
   mediaActive: boolean;
   spotify: boolean;
+  stats: PillStat[];
+  showClock: boolean;
   clockTools: ClockTools;
   onOpen: () => void;
 }
@@ -23,6 +26,8 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
   now,
   mediaActive,
   spotify,
+  stats,
+  showClock,
   clockTools,
   onOpen,
 }) => {
@@ -33,6 +38,12 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
   const timerText = formatPillTimer(clockTools.timer.remainingMs);
   const stopwatchText = formatPillStopwatch(clockTools.stopwatch.elapsedMs);
   const hasTools = timerVisible || stopwatchVisible;
+  const hasRight = stopwatchVisible || mediaActive || stats.length > 0;
+  // The three-column grid keeps the clock dead-centre, but its side columns
+  // share the leftover space equally, so a wide right group such as three
+  // stats would be squeezed and overlap the clock. Anything with stats uses the
+  // centred row instead, the same shape the clock tools already use.
+  const grouped = hasTools || stats.length > 0;
   const timerTone = clockTools.timer.finished
     ? 'text-[var(--aether-accent-text)]'
     : clockTools.timer.running
@@ -73,7 +84,7 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
         status ? `. ${status}` : ''
       }`}
       className={`focus-inset relative h-full w-full items-center px-3 text-[var(--aether-text-1)] ${
-        hasTools
+        grouped
           ? 'flex justify-center gap-[18px]'
           : 'grid grid-cols-[1fr_auto_1fr] gap-2'
       }`}
@@ -102,20 +113,31 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
             ) : null}
           </span>
         </span>
-      ) : !hasTools ? (
+      ) : !grouped ? (
         <span aria-hidden className="pointer-events-none flex min-w-0" />
       ) : null}
 
-      <span className="shrink-0 whitespace-nowrap text-center font-mono text-[13px] font-semibold tabular-nums tracking-[0.01em]">
-        {time}
-      </span>
+      {showClock ? (
+        <span className="shrink-0 whitespace-nowrap text-center font-mono text-[13px] font-semibold tabular-nums tracking-[0.01em]">
+          {time}
+        </span>
+      ) : null}
 
-      {stopwatchVisible || mediaActive ? (
+      {hasRight ? (
         <span
           className={`pointer-events-none flex min-w-0 items-center gap-1.5 ${
-            hasTools ? '' : 'justify-end'
+            grouped ? '' : 'justify-end'
           }`}
         >
+          {stats.map((stat) => (
+            <span
+              key={stat.label}
+              className="flex items-center gap-1 whitespace-nowrap font-mono text-[10px] font-semibold leading-none tabular-nums text-[var(--aether-text-2)]"
+            >
+              <span className="text-[var(--aether-text-3)]">{stat.label}</span>
+              {stat.value}
+            </span>
+          ))}
           {stopwatchVisible ? (
             <span
               className={`flex items-center gap-1 whitespace-nowrap font-mono text-[10px] font-semibold leading-none tabular-nums ${stopwatchTone}`}

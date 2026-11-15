@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AppWindow,
+  ChevronDown,
+  ChevronRight,
+  Cpu,
   LayoutGrid,
   MonitorCog,
   Moon,
@@ -87,6 +90,26 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   const update = (patch: Partial<AppearanceConfig>) =>
     onChange({ ...appearance, ...patch });
 
+  const indicatorKeys = [
+    'pill_show_clock',
+    'pill_show_media',
+    'pill_show_cpu',
+    'pill_show_gpu',
+    'pill_show_ram',
+  ] as const;
+  const indicatorsOn = indicatorKeys.filter((key) => appearance[key]).length;
+  const allIndicatorsOn = indicatorsOn === indicatorKeys.length;
+  const setAllIndicators = (checked: boolean) =>
+    update({
+      pill_show_clock: checked,
+      pill_show_media: checked,
+      pill_show_cpu: checked,
+      pill_show_gpu: checked,
+      pill_show_ram: checked,
+    });
+  const [showIndicators, setShowIndicators] = useState(false);
+  const IndicatorChevron = showIndicators ? ChevronDown : ChevronRight;
+
   return (
     <div className="flex flex-col gap-4 pb-2">
       <SettingsGroup icon={<Palette size={13} />} title="Theme & accent">
@@ -150,6 +173,67 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
             onChange={(island_pop) => update({ island_pop })}
           />
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup
+        icon={<Cpu size={13} />}
+        title="Pill indicators"
+        hint="Choose what the collapsed pill shows. The clock turns itself back on when every stat is hidden."
+      >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowIndicators((open) => !open)}
+            aria-expanded={showIndicators}
+            aria-label={showIndicators ? 'Hide readouts' : 'Show readouts'}
+            title={showIndicators ? 'Hide readouts' : 'Show readouts'}
+            className="rounded p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--aether-accent)]"
+          >
+            <IndicatorChevron size={13} />
+          </button>
+          <div className="min-w-0 flex-1">
+            <SettingsToggleRow
+              label="Show all"
+              hint={`${indicatorsOn} of ${indicatorKeys.length} readouts on`}
+              checked={allIndicatorsOn}
+              onChange={setAllIndicators}
+            />
+          </div>
+        </div>
+        {showIndicators ? (
+          <div className="flex flex-col gap-1.5 border-t border-[var(--aether-line-soft)] pt-1.5 pl-7">
+            <SettingsToggleRow
+              label="Clock"
+              hint="Stays on automatically when every other readout is hidden."
+              checked={appearance.pill_show_clock}
+              onChange={(checked) => update({ pill_show_clock: checked })}
+            />
+            <SettingsToggleRow
+              label="Media animation"
+              hint="Now-playing bars while audio is playing."
+              checked={appearance.pill_show_media}
+              onChange={(checked) => update({ pill_show_media: checked })}
+            />
+            <SettingsToggleRow
+              label="CPU usage"
+              hint="CPU load percentage beside the clock."
+              checked={appearance.pill_show_cpu}
+              onChange={(checked) => update({ pill_show_cpu: checked })}
+            />
+            <SettingsToggleRow
+              label="GPU usage"
+              hint="Shows a dash when no GPU sensor is available."
+              checked={appearance.pill_show_gpu}
+              onChange={(checked) => update({ pill_show_gpu: checked })}
+            />
+            <SettingsToggleRow
+              label="RAM usage"
+              hint="Memory load percentage beside the clock."
+              checked={appearance.pill_show_ram}
+              onChange={(checked) => update({ pill_show_ram: checked })}
+            />
+          </div>
+        ) : null}
       </SettingsGroup>
 
       <SettingsGroup icon={<Type size={13} />} title="Island bar">

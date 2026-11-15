@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import type { AppearanceConfig, MediaSnapshot, TaskbarPinnedApp } from '../../types/ipc';
+import type {
+  AppearanceConfig,
+  MediaSnapshot,
+  SystemStats,
+  TaskbarPinnedApp,
+} from '../../types/ipc';
 import type { AutoHidePillMetrics } from '../../hooks/useAutoHidePill';
 import { appearanceCssVars } from './appearance';
 import { useTimeFormat } from '../../hooks/useTimeFormat';
@@ -9,7 +14,12 @@ import { NotchHeader } from './NotchHeader';
 import { NotchIdle } from './NotchIdle';
 import { NotchPeek } from './NotchPeek';
 import { computePeekLayout } from './peekLayout';
-import { compactPillWidth } from './pillTools';
+import {
+  compactPillWidth,
+  pillClockVisible,
+  pillStats,
+  pillStatsWidth,
+} from './pillTools';
 import type { ClockTools } from './useClockTools';
 import {
   CONTENT_PADDING,
@@ -29,6 +39,8 @@ interface NotchShellProps {
   peekEnabled: boolean;
   apps: TaskbarPinnedApp[];
   media: MediaSnapshot | null;
+  /** Latest polled system stats, for the pill indicators the user enabled. */
+  systemStats: SystemStats | null;
   clockTools: ClockTools;
   onLaunchApp: (app: TaskbarPinnedApp) => void;
   onManageApps: () => void;
@@ -59,6 +71,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   peekEnabled,
   apps,
   media,
+  systemStats,
   clockTools,
   onLaunchApp,
   onManageApps,
@@ -272,10 +285,14 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [close, focusIslandTrigger, isExpanded, showPeek]);
 
+  const stats = pillStats(appearance, systemStats);
+  const showClock = pillClockVisible(appearance);
   const compactWidth = compactPillWidth(
     clockTools,
-    mediaActive,
-    2 + formatClockTime(now, timeFormat).length * 7.4
+    mediaActive && appearance.pill_show_media,
+    showClock,
+    2 + formatClockTime(now, timeFormat).length * 7.4,
+    pillStatsWidth(stats)
   );
   // The peek grows with the number of apps rather than scrolling.
   const peekLayout = useMemo(
@@ -452,7 +469,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
               now={now}
               layout={peekLayout}
               apps={apps}
-              mediaActive={mediaActive}
+              mediaActive={mediaActive && appearance.pill_show_media}
               spotify={spotify}
               onOpen={open}
               onLaunch={onLaunchApp}
@@ -461,8 +478,10 @@ export const NotchShell: React.FC<NotchShellProps> = ({
           ) : (
             <NotchIdle
               now={now}
-              mediaActive={mediaActive}
+              mediaActive={mediaActive && appearance.pill_show_media}
               spotify={spotify}
+              stats={stats}
+              showClock={showClock}
               clockTools={clockTools}
               onOpen={open}
             />

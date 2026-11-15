@@ -60,6 +60,11 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   button_gradient: true,
   close_on_outside_click: false,
   auto_hide_pill: false,
+  pill_show_clock: true,
+  pill_show_media: true,
+  pill_show_cpu: false,
+  pill_show_gpu: false,
+  pill_show_ram: false,
   time_format: '12h',
 };
 
@@ -226,6 +231,26 @@ export function resolveAppearance(
       typeof raw.auto_hide_pill === 'boolean'
         ? raw.auto_hide_pill
         : DEFAULT_APPEARANCE.auto_hide_pill,
+    pill_show_clock:
+      typeof raw.pill_show_clock === 'boolean'
+        ? raw.pill_show_clock
+        : DEFAULT_APPEARANCE.pill_show_clock,
+    pill_show_media:
+      typeof raw.pill_show_media === 'boolean'
+        ? raw.pill_show_media
+        : DEFAULT_APPEARANCE.pill_show_media,
+    pill_show_cpu:
+      typeof raw.pill_show_cpu === 'boolean'
+        ? raw.pill_show_cpu
+        : DEFAULT_APPEARANCE.pill_show_cpu,
+    pill_show_gpu:
+      typeof raw.pill_show_gpu === 'boolean'
+        ? raw.pill_show_gpu
+        : DEFAULT_APPEARANCE.pill_show_gpu,
+    pill_show_ram:
+      typeof raw.pill_show_ram === 'boolean'
+        ? raw.pill_show_ram
+        : DEFAULT_APPEARANCE.pill_show_ram,
     time_format: normalizeTimeFormat(raw.time_format),
   };
 }

@@ -25,6 +25,7 @@ import type {
 import {
   createWidget,
   loadWidgets,
+  saveWidgetAppearance,
   saveWidgets,
 } from '../widgets/store';
 import {
@@ -44,6 +45,17 @@ import {
   type WidgetPinMessage,
   type WidgetStatePayload,
 } from '../widgets/types';
+
+/**
+ * Drops a widget from the list and stashes its look, so re-adding the same kind
+ * restores the theme and surface the user last chose. Both removal paths (the
+ * hook and a widget window's own remove button) go through here.
+ */
+function withoutWidget(current: DesktopWidget[], id: string): DesktopWidget[] {
+  const removed = current.find((widget) => widget.id === id);
+  if (removed) saveWidgetAppearance(removed.kind, removed.appearance);
+  return current.filter((widget) => widget.id !== id);
+}
 
 interface UseDesktopWidgetsOptions {
   appearance: AppearanceConfig;
@@ -170,9 +182,7 @@ export function useDesktopWidgets({
 
     track(
       listen<WidgetIdMessage>(WIDGET_REMOVE_EVENT, (event) => {
-        setWidgets((current) =>
-          current.filter((widget) => widget.id !== event.payload.id)
-        );
+        setWidgets((current) => withoutWidget(current, event.payload.id));
       })
     );
 
@@ -198,7 +208,7 @@ export function useDesktopWidgets({
   }, []);
 
   const removeWidget = useCallback((id: string) => {
-    setWidgets((current) => current.filter((widget) => widget.id !== id));
+    setWidgets((current) => withoutWidget(current, id));
   }, []);
 
   const setWidgetAlwaysOnTop = useCallback((id: string, value: boolean) => {
@@ -226,6 +236,9 @@ export function useDesktopWidgets({
     setWidgets((current) =>
       current.map((widget) => {
         if (widget.id !== id) return widget;
+        // Reset also drops the remembered look, so a later re-add starts from
+        // the shared defaults too.
+        saveWidgetAppearance(widget.kind, undefined);
         const { appearance: _appearance, ...rest } = widget;
         return rest;
       })

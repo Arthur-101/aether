@@ -6,6 +6,7 @@
  * value when their tool is paused, so a paused countdown never looks finished.
  */
 
+import type { AppearanceConfig, SystemStats } from '../../types/ipc';
 import type { ClockTools } from './useClockTools';
 import { formatCompactDuration } from './clockFormat';
 
@@ -28,6 +29,68 @@ const PILL_FINISHED_DOT = 6;
 const PILL_MEDIA_MARK_WIDTH = 14;
 /** Space between a stopwatch and the media glyph in the right-hand group. */
 const PILL_MEDIA_GAP = 6;
+/** Gap between the label and the value of one stat, and between two stats. */
+const PILL_STAT_LABEL_GAP = 4;
+const PILL_STAT_GAP = 6;
+/** Uppercase mono letters run a little wider than the tabular digits. */
+const PILL_STAT_LABEL_WIDTH = 6;
+
+export interface PillStat {
+  label: string;
+  value: string;
+}
+
+/**
+ * The clock is the pill's fallback readout: hiding it while every stat is also
+ * off would leave an empty pill, so it is forced back on. The media glyph does
+ * not count, because it is a state cue rather than a reading.
+ */
+export function pillClockVisible(appearance: AppearanceConfig): boolean {
+  const anyStat =
+    appearance.pill_show_cpu || appearance.pill_show_gpu || appearance.pill_show_ram;
+  return appearance.pill_show_clock || !anyStat;
+}
+
+/** The system stats the user switched on for the collapsed pill, in order. */
+export function pillStats(
+  appearance: AppearanceConfig,
+  stats: SystemStats | null
+): PillStat[] {
+  if (!stats) return [];
+  const percent = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? `${Math.round(value)}%`
+      : '—';
+  const out: PillStat[] = [];
+  if (appearance.pill_show_cpu) {
+    out.push({ label: 'CPU', value: percent(stats.cpu_percent) });
+  }
+  if (appearance.pill_show_gpu) {
+    // GPU readings come from vendor sensors and stay null on some machines;
+    // the dash keeps the pill from lying about a value it cannot read.
+    out.push({ label: 'GPU', value: percent(stats.gpu_percent) });
+  }
+  if (appearance.pill_show_ram) {
+    out.push({ label: 'RAM', value: percent(stats.ram_percent) });
+  }
+  return out;
+}
+
+/** Width the pill has to reserve for its stats, measured like the clock. */
+export function pillStatsWidth(stats: PillStat[]): number {
+  if (!stats.length) return 0;
+  return (
+    stats.reduce(
+      (total, stat) =>
+        total +
+        stat.label.length * PILL_STAT_LABEL_WIDTH +
+        stat.value.length * PILL_DIGIT_WIDTH +
+        PILL_STAT_LABEL_GAP,
+      0
+    ) +
+    (stats.length - 1) * PILL_STAT_GAP
+  );
+}
 
 export function isTimerVisible(timer: ClockTools['timer']): boolean {
   return (
@@ -54,11 +117,13 @@ export function formatPillStopwatch(ms: number): string {
 export function compactPillWidth(
   tools: ClockTools,
   mediaActive: boolean,
-  clockWidth: number
+  showClock: boolean,
+  clockWidth: number,
+  statsWidth = 0
 ): number {
   const timer = isTimerVisible(tools.timer);
   const stopwatch = isStopwatchVisible(tools.stopwatch);
-  if (!timer && !stopwatch) {
+  if (!timer && !stopwatch && statsWidth === 0) {
     return mediaActive ? PILL_MEDIA_ONLY_WIDTH : PILL_BASE_WIDTH;
   }
 
@@ -72,22 +137,23 @@ export function compactPillWidth(
       formatPillStopwatch(tools.stopwatch.elapsedMs).length * PILL_DIGIT_WIDTH
     : 0;
   const mediaWidth = mediaActive
-    ? PILL_MEDIA_MARK_WIDTH + (stopwatch ? PILL_MEDIA_GAP : 0)
+    ? PILL_MEDIA_MARK_WIDTH +
+      (stopwatch || statsWidth > 0 ? PILL_MEDIA_GAP : 0)
     : 0;
-  const rightWidth = stopwatchWidth + mediaWidth;
+  const rightWidth = statsWidth + stopwatchWidth + mediaWidth;
 
   // The active indicators and clock form one centred group. Empty slots are
   // not reserved, so a lone timer or stopwatch stays close to the clock rather
   // than leaving a matching hole on the other side.
-  const cells = (timer ? 1 : 0) + 1 + (rightWidth > 0 ? 1 : 0);
-  const gaps = (cells - 1) * PILL_COLUMN_GAP;
+  const cells = (timer ? 1 : 0) + (showClock ? 1 : 0) + (rightWidth > 0 ? 1 : 0);
+  const gaps = Math.max(0, cells - 1) * PILL_COLUMN_GAP;
 
   return Math.max(
     PILL_BASE_WIDTH,
     Math.ceil(
       PILL_SHELL_BORDER +
         PILL_HORIZONTAL_PADDING +
-        clockWidth +
+        (showClock ? clockWidth : 0) +
         timerWidth +
         rightWidth +
         gaps

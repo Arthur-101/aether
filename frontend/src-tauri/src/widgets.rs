@@ -65,7 +65,8 @@ mod native {
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         DestroyWindow, EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindowLongPtrW,
         GetWindowTextW, GetWindowThreadProcessId, SetParent, SetWindowLongPtrW, SetWindowPos,
-        GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED,
+        GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, HWND_TOP,
+        SWP_FRAMECHANGED,
         SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_EX_LAYERED,
         WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SIZEBOX, WS_SYSMENU,
     };
@@ -174,7 +175,7 @@ mod native {
                     height,
                     SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
                 );
-            } else if let Some((progman, defview)) = desktop_layer() {
+            } else if let Some((progman, _defview)) = desktop_layer() {
                 // Adopt the desktop layer as the parent. Coordinates become
                 // Progman-relative, and Progman fills the screen from (0, 0),
                 // so the physical rectangle needs no shift.
@@ -195,14 +196,15 @@ mod native {
                 SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex & !(WS_EX_LAYERED as isize));
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                 SetWindowLongPtrW(hwnd, GWL_STYLE, style & !CHROME);
-                // Sit directly below the icon view: the widget never covers
-                // the desktop icons, and clicks over empty desktop still
-                // reach it, because the icon view passes non-icon areas
-                // through.
-                let insert_after = if defview.is_null() { HWND_BOTTOM } else { defview };
+                // Above the icon view, not below it. `SHELLDLL_DefView`
+                // covers the whole desktop and handles every click on it, so
+                // a sibling underneath is visible through the icon view but
+                // never receives input: the widget renders and its buttons
+                // are dead. Above the icon view, clicks on the card reach the
+                // webview and clicks elsewhere still reach the desktop.
                 SetWindowPos(
                     hwnd,
-                    insert_after,
+                    HWND_TOP,
                     x,
                     y,
                     width,
@@ -400,6 +402,20 @@ mod native {
                 &mut state as *mut Repaint as LPARAM,
             );
             for hwnd in &state.windows {
+                // A composition change can raise the icon view above the
+                // desktop-pinned widgets; put them back on top of it, or their
+                // buttons go dead while the card stays visible through it.
+                if !GetParent(*hwnd as HWND).is_null() {
+                    SetWindowPos(
+                        *hwnd as HWND,
+                        HWND_TOP,
+                        0,
+                        0,
+                        0,
+                        0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                    );
+                }
                 RedrawWindow(
                     *hwnd as HWND,
                     std::ptr::null(),

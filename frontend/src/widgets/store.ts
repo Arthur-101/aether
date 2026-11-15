@@ -17,6 +17,11 @@ import {
 } from './types';
 
 const STORAGE_KEY = 'aether.desktop_widgets';
+/**
+ * Last appearance used per widget kind. Removing a widget deletes its card, so
+ * the overrides are stashed here and applied again when the kind is re-added.
+ */
+const APPEARANCE_KEY = 'aether.widget_appearance';
 // Version 2 changed every widget's fixed size. Older layouts are re-flowed so
 // a grown card does not land on top of the one below it.
 const STORAGE_VERSION = 2;
@@ -195,6 +200,44 @@ export function saveWidgets(widgets: DesktopWidget[]): void {
   }
 }
 
+function loadAppearanceCache(): Partial<Record<WidgetKind, WidgetAppearanceOverrides>> {
+  try {
+    const text = window.localStorage.getItem(APPEARANCE_KEY);
+    if (!text) return {};
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: Partial<Record<WidgetKind, WidgetAppearanceOverrides>> = {};
+    for (const kind of WIDGET_KINDS) {
+      const appearance = normalizeWidgetAppearance(parsed[kind]);
+      if (appearance) out[kind] = appearance;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/** The overrides the last removed widget of this kind carried, if any. */
+export function loadWidgetAppearance(
+  kind: WidgetKind
+): WidgetAppearanceOverrides | undefined {
+  return loadAppearanceCache()[kind];
+}
+
+export function saveWidgetAppearance(
+  kind: WidgetKind,
+  appearance: WidgetAppearanceOverrides | undefined
+): void {
+  try {
+    const cache = loadAppearanceCache();
+    if (appearance && Object.keys(appearance).length) cache[kind] = appearance;
+    else delete cache[kind];
+    window.localStorage.setItem(APPEARANCE_KEY, JSON.stringify(cache));
+  } catch {
+    // A full or unavailable store must not break the running UI.
+  }
+}
+
 export function nextWidgetId(): string {
   // No dashes: the native window label is `widget-<kind>-<id>`.
   return `w${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
@@ -253,6 +296,9 @@ export function createWidget(
     y: position.y,
     // A new widget starts on top so it is immediately visible where it lands.
     always_on_top: true,
+    // Re-adding a widget keeps the theme and surface the user last chose for
+    // this kind instead of falling back to the shared defaults.
+    appearance: loadWidgetAppearance(kind),
   };
 }
 
