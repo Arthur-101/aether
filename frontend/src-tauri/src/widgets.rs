@@ -21,11 +21,13 @@
 //! * `WS_EX_TOOLWINDOW` keeps the window out of Alt-Tab and the taskbar.
 //! * The two placements are structurally different. An on-top widget is a
 //!   top-level window raised into the topmost band with `HWND_TOPMOST`. A
-//!   desktop-pinned widget becomes a **child of Progman**, the shell's desktop
-//!   window, so it lives *in* the desktop: Win+D ("show desktop") raises the
-//!   whole Progman tree and the widget rises with it instead of disappearing
-//!   behind the wallpaper, while any normal window the user opens still
-//!   covers it.
+//!   desktop-pinned widget stays a top-level window but is **owned by
+//!   Progman**, the shell's desktop window, and sits directly above it in the
+//!   Z order. DWM's per-pixel transparency only applies to top-level windows,
+//!   so the old child-of-Progman placement painted the webview's base colour
+//!   as an opaque square behind the rounded card. Ownership keeps the widget
+//!   out of the taskbar and Alt-Tab, above the wallpaper (so Win+D still shows
+//!   it), and below every normal window the user opens.
 //!
 //! Rust is only a window host. The main window owns the widget list, and the
 //! widget windows are pure renderers, so there is a single source of truth.
@@ -63,12 +65,12 @@ mod native {
     use windows_sys::Win32::Foundation::{FALSE, HWND, LPARAM, TRUE};
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        DestroyWindow, EnumWindows, FindWindowExW, FindWindowW, GetParent, GetWindowLongPtrW,
-        GetWindowTextW, GetWindowThreadProcessId, SetParent, SetWindowLongPtrW, SetWindowPos,
-        GWL_EXSTYLE, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOPMOST, HWND_TOP,
-        SWP_FRAMECHANGED,
-        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, WS_CAPTION, WS_CHILD, WS_EX_LAYERED,
-        WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SIZEBOX, WS_SYSMENU,
+        DestroyWindow, EnumWindows, FindWindowExW, FindWindowW, GetWindow, GetWindowLongPtrW,
+        GetWindowTextW, GetWindowThreadProcessId, SetWindowLongPtrW, SetWindowPos,
+        GWLP_HWNDPARENT, GWL_EXSTYLE, GWL_STYLE, GW_OWNER, HWND_BOTTOM, HWND_NOTOPMOST,
+        HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW,
+        WS_CAPTION, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX,
+        WS_MINIMIZEBOX, WS_SIZEBOX, WS_SYSMENU,
     };
     use windows_sys::Win32::Graphics::Dwm::{
         DwmEnableBlurBehindWindow, DwmSetWindowAttribute, DWM_BLURBEHIND, DWM_BB_BLURREGION,
@@ -121,16 +123,15 @@ mod native {
     ///
     /// The two placements differ in more than the Z-order band:
     ///
-    /// * On top: the window stays a top-level window and is raised into the
-    ///   topmost band, above every other window.
-    /// * Pinned to the desktop: the window is made a **child of Progman**, the
-    ///   window that hosts the desktop. That is what Rainmeter-class widgets
-    ///   do, and it is not optional: pressing Win+D ("show desktop") raises
-    ///   Progman to the top of the normal band, and a window that merely sat
-    ///   at the bottom of the Z order is suddenly *below the wallpaper* — the
-    ///   widget vanishes exactly when the user asks to see the desktop. A
-    ///   child of Progman travels with the desktop instead, so it stays
-    ///   visible, and any normal window opened later covers it again.
+    /// * On top: the window is raised into the topmost band, above every
+    ///   other window.
+    /// * Pinned to the desktop: the window stays a top-level window and is
+    ///   **owned by Progman**, the window that hosts the desktop. DWM's
+    ///   per-pixel transparency only works on top-level windows — as a
+    ///   `WS_CHILD` of Progman the webview's base colour was composited as an
+    ///   opaque square behind the rounded card. An owned window always sits
+    ///   directly above its owner, so Win+D (which raises Progman) still shows
+    ///   the widget, while every normal window covers it.
     unsafe fn apply_one(job: &Job) {
         let (x, y, width, height) = job.rect;
         let hwnd = job.hwnd as HWND;
@@ -155,14 +156,8 @@ mod native {
 
             if job.always_on_top {
                 // Leave the desktop layer if the widget was pinned to it.
-                if !GetParent(hwnd).is_null() {
-                    let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-                    SetWindowLongPtrW(
-                        hwnd,
-                        GWL_STYLE,
-                        (style & !(WS_CHILD as isize)) | WS_POPUP as isize,
-                    );
-                    SetParent(hwnd, std::ptr::null_mut());
+                if !GetWindow(hwnd, GW_OWNER).is_null() {
+                    SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, 0);
                 }
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                 SetWindowLongPtrW(hwnd, GWL_STYLE, style & !CHROME);
@@ -176,35 +171,27 @@ mod native {
                     SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
                 );
             } else if let Some((progman, _defview)) = desktop_layer() {
-                // Adopt the desktop layer as the parent. Coordinates become
-                // Progman-relative, and Progman fills the screen from (0, 0),
-                // so the physical rectangle needs no shift.
-                if GetParent(hwnd) != progman {
-                    let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
-                    SetWindowLongPtrW(
-                        hwnd,
-                        GWL_STYLE,
-                        (style & !(WS_POPUP as isize)) | WS_CHILD as isize,
-                    );
-                    SetParent(hwnd, progman);
+                // Stay top-level and adopt the desktop as the owner. The
+                // rectangle is in screen pixels — what the frontend sends —
+                // and Progman starts at (0, 0), so nothing needs shifting.
+                if GetWindow(hwnd, GW_OWNER) != progman {
+                    SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, progman as isize);
                 }
                 // A layered window with no layered attributes paints nothing,
                 // and this widget may still carry `WS_EX_LAYERED` from an
-                // earlier on-top placement. The desktop placement is a plain
-                // child window, so strip it or the widget vanishes.
+                // earlier on-top placement. DWM transparency needs no layered
+                // attributes, so strip it or the widget vanishes.
                 let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
                 SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex & !(WS_EX_LAYERED as isize));
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                 SetWindowLongPtrW(hwnd, GWL_STYLE, style & !CHROME);
-                // Above the icon view, not below it. `SHELLDLL_DefView`
-                // covers the whole desktop and handles every click on it, so
-                // a sibling underneath is visible through the icon view but
-                // never receives input: the widget renders and its buttons
-                // are dead. Above the icon view, clicks on the card reach the
-                // webview and clicks elsewhere still reach the desktop.
+                // The owner relationship keeps an owned window above Progman
+                // even when it is sent to the bottom of the Z order: the
+                // widget lands over the wallpaper and under every app, and
+                // clicks on the card still reach it.
                 SetWindowPos(
                     hwnd,
-                    HWND_TOP,
+                    HWND_BOTTOM,
                     x,
                     y,
                     width,
@@ -214,6 +201,9 @@ mod native {
             } else {
                 // No desktop layer to attach to: settle for the bottom of the
                 // Z order, below every application window.
+                if !GetWindow(hwnd, GW_OWNER).is_null() {
+                    SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, 0);
+                }
                 let style = GetWindowLongPtrW(hwnd, GWL_STYLE);
                 SetWindowLongPtrW(hwnd, GWL_STYLE, style & !CHROME);
                 SetWindowPos(
@@ -389,8 +379,8 @@ mod native {
     /// can composite that surface from stale opaque pixels: the webview's
     /// transparent corners come back as white wedges. Invalidating the window
     /// makes WebView2 present its transparent surface again and the wedges
-    /// vanish. The desktop window is enumerated instead of `EnumWindows`
-    /// because pinned widgets are children of Progman.
+    /// vanish. Enumerating from the desktop window reaches both top-level
+    /// widget windows and anything nested under the shell.
     pub fn repaint_widgets() {
         let mut state = Repaint {
             windows: Vec::new(),
@@ -402,13 +392,14 @@ mod native {
                 &mut state as *mut Repaint as LPARAM,
             );
             for hwnd in &state.windows {
-                // A composition change can raise the icon view above the
-                // desktop-pinned widgets; put them back on top of it, or their
-                // buttons go dead while the card stays visible through it.
-                if !GetParent(*hwnd as HWND).is_null() {
+                // A composition change can push a pinned widget behind the
+                // desktop. Owned windows always sit directly above their
+                // owner, so sinking it into the bottom of the Z order puts it
+                // back over the wallpaper and under every app.
+                if !GetWindow(*hwnd as HWND, GW_OWNER).is_null() {
                     SetWindowPos(
                         *hwnd as HWND,
-                        HWND_TOP,
+                        HWND_BOTTOM,
                         0,
                         0,
                         0,
@@ -494,7 +485,7 @@ mod native {
     /// Re-asserts the island windows at the top of the topmost band: the main
     /// window first, then every top-level widget window, so the widgets stay
     /// above the main window while both sit above everything. Desktop-pinned
-    /// widgets are children of Progman and are skipped — their placement is
+    /// widgets are owned by Progman and are skipped — their placement is
     /// owned by `apply_one`.
     ///
     /// Windows re-orders within the topmost band whenever *any* topmost
@@ -515,7 +506,7 @@ mod native {
                 );
             }
             for hwnd in widget_hwnds {
-                if GetParent(hwnd as HWND).is_null() {
+                if GetWindow(hwnd as HWND, GW_OWNER).is_null() {
                     SetWindowPos(
                         hwnd as HWND,
                         HWND_TOPMOST,

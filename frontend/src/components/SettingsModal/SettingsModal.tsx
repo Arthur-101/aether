@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { getVersion } from '@tauri-apps/api/app';
+import { isTauri } from '@tauri-apps/api/core';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
@@ -165,9 +167,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSaved, setIsSaved] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [recordingHotkey, setRecordingHotkey] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const { offset, dragHandleProps } = useSettingsDrag(isOpen);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    void getVersion()
+      .then(setVersion)
+      .catch(() => undefined);
+  }, []);
 
   useFocusTrap(isOpen, panelRef, {
     // The shortcut recorder owns Escape and Tab while it is listening.
@@ -438,7 +448,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               <GripHorizontal size={12} className="shrink-0" />
               {!sidebarCollapsed ? (
-                <span className="truncate">Aether v0.1.0 · Local-first</span>
+                <span className="truncate">
+                  Aether{version ? ` v${version}` : ''} · Local-first
+                </span>
               ) : null}
             </div>
           </div>
@@ -450,41 +462,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             className="flex min-h-0 min-w-0 flex-1 flex-col p-5"
           >
             <div
+              {...dragHandleProps}
+              className="mb-4 flex shrink-0 cursor-grab items-center justify-between border-b border-[var(--aether-line)] pb-3 active:cursor-grabbing"
+              title="Drag to move Settings"
+            >
+              <h4 className="text-sm font-semibold text-[var(--aether-text-1)]">
+                {activeTab === 'general' && 'General & Desktop'}
+                {activeTab === 'ai' && 'AI Engine & Inference'}
+                {activeTab === 'tools' && 'Assistant Tool Loadout'}
+                {activeTab === 'voice' && 'Voice Pipeline'}
+                {activeTab === 'hotkeys' && 'Global System Hotkeys'}
+                {activeTab === 'storage' && 'Output & Session Storage'}
+                {activeTab === 'appearance' && 'Notch Appearance'}
+                {activeTab === 'widgets' && 'Desktop Widgets'}
+                {activeTab === 'integrations' && 'Integrations'}
+                {activeTab === 'components' && 'Optional Components'}
+                {activeTab === 'guide' && 'Aether Guide'}
+              </h4>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close settings"
+                title="Close settings"
+                className="rounded-md p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div
               className={`min-h-0 min-w-0 flex-1 pr-1 ${
                 activeTab === 'guide'
                   ? 'flex flex-col overflow-hidden'
                   : 'overflow-x-hidden overflow-y-auto'
               }`}
             >
-              <div
-                {...dragHandleProps}
-                className="mb-4 flex cursor-grab items-center justify-between border-b border-[var(--aether-line)] pb-3 active:cursor-grabbing"
-                title="Drag to move Settings"
-              >
-                <h4 className="text-sm font-semibold text-[var(--aether-text-1)]">
-                  {activeTab === 'general' && 'General & Desktop'}
-                  {activeTab === 'ai' && 'AI Engine & Inference'}
-                  {activeTab === 'tools' && 'Assistant Tool Loadout'}
-                  {activeTab === 'voice' && 'Voice Pipeline'}
-                  {activeTab === 'hotkeys' && 'Global System Hotkeys'}
-                  {activeTab === 'storage' && 'Output & Session Storage'}
-                  {activeTab === 'appearance' && 'Notch Appearance'}
-                  {activeTab === 'widgets' && 'Desktop Widgets'}
-                  {activeTab === 'integrations' && 'Integrations'}
-                  {activeTab === 'components' && 'Optional Components'}
-                  {activeTab === 'guide' && 'Aether Guide'}
-                </h4>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close settings"
-                  title="Close settings"
-                  className="rounded-md p-1 text-[var(--aether-text-3)] transition hover:bg-[var(--aether-fill)] hover:text-[var(--aether-text-1)]"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
               {activeTab === 'guide' ? (
                 <GuideSettings />
               ) : activeTab === 'components' ? (
