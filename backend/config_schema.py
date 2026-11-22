@@ -48,6 +48,8 @@ MAX_BRAND_NAME_LENGTH = 24
 DEFAULT_GENERAL: Dict[str, Any] = {
     "start_on_startup": False,
     "show_tray_icon": True,
+    # Target for the universal input bar's shorthand conversions (`$1`).
+    "default_currency": "USD",
 }
 
 DEFAULT_CLOCK: Dict[str, Any] = {
@@ -270,6 +272,14 @@ def _clamp_pixels(value: Any, fallback: int, limit: int) -> int:
 
 def _as_bool(value: Any, fallback: bool) -> bool:
     return value if isinstance(value, bool) else fallback
+
+
+def _currency_code(value: Any, fallback: str) -> str:
+    """Keeps a three-letter ISO code; the provider table uses upper case."""
+    if not isinstance(value, str):
+        return fallback
+    raw = value.strip().upper()
+    return raw if len(raw) == 3 and raw.isalpha() else fallback
 
 
 def _optional_hex(value: Any) -> str:
@@ -617,6 +627,9 @@ def normalize_general(value: Any) -> Dict[str, Any]:
         ),
         "show_tray_icon": _as_bool(
             raw.get("show_tray_icon"), DEFAULT_GENERAL["show_tray_icon"]
+        ),
+        "default_currency": _currency_code(
+            raw.get("default_currency"), DEFAULT_GENERAL["default_currency"]
         ),
     }
 

@@ -46,6 +46,76 @@ TTS_UNAVAILABLE_NOTICE = (
 )
 TTS_FAILED_NOTICE = "Voice output failed. The reply is in Quick Chat."
 
+# Raw Win32 messages and flags seen by the low-level hook (see
+# `_win32_event_filter`). pynput hands the filter these instead of a Key.
+_WM_KEYDOWN = 0x0100
+_WM_SYSKEYDOWN = 0x0104  # Alt is held, which is how Alt+Space arrives
+_WM_KEYUP = 0x0101
+_WM_SYSKEYUP = 0x0105
+_PRESS_MESSAGES = (_WM_KEYDOWN, _WM_SYSKEYDOWN)
+_RELEASE_MESSAGES = (_WM_KEYUP, _WM_SYSKEYUP)
+_KBDLLHOOKSTRUCT_INJECTED = 0x10
+
+MODIFIER_NAMES = ("ctrl", "cmd", "alt", "shift")
+# Virtual-key codes for the keys a shortcut can use; everything else (media
+# keys, IME keys) is left to the system untouched.
+_VK_KEYS = {
+    0x08: "backspace",
+    0x09: "tab",
+    0x0D: "enter",
+    0x1B: "esc",
+    0x20: "space",
+    0x10: "shift",
+    0x11: "ctrl",
+    0x12: "alt",
+    0x5B: "cmd",
+    0x5C: "cmd",
+    0x21: "page_up",
+    0x22: "page_down",
+    0x23: "end",
+    0x24: "home",
+    0x25: "left",
+    0x26: "up",
+    0x27: "right",
+    0x28: "down",
+    0x2E: "delete",
+}
+_LABELS = {"ctrl": "Ctrl", "cmd": "Win", "alt": "Alt", "shift": "Shift", "space": "Space"}
+
+
+def key_from_vk(vk: int) -> str:
+    """Normalizes a Win32 virtual-key code the way `key_name` names a Key."""
+    if vk in _VK_KEYS:
+        return _VK_KEYS[vk]
+    if 0x41 <= vk <= 0x5A:
+        return chr(vk).lower()
+    if 0x30 <= vk <= 0x39:
+        return chr(vk)
+    if 0x70 <= vk <= 0x7B:
+        return f"f{vk - 0x6F}"
+    return ""
+
+
+def _label(name: str) -> str:
+    """Spells a normalized key the way the Settings recorder writes it."""
+    if name in _LABELS:
+        return _LABELS[name]
+    if len(name) == 1 or (name[:1] == "f" and name[1:].isdigit()):
+        return name.upper()
+    return name
+
+
+def combo_label(pressed: Any, name: str) -> str:
+    """Renders the shortcut that just completed, or '' for modifiers only.
+
+    *name* is the key that was pressed last, so a held Ctrl reports
+    ``Ctrl + Space`` rather than every key that happens to be down.
+    """
+    if not name or name in MODIFIER_NAMES:
+        return ""
+    held = [modifier for modifier in MODIFIER_NAMES if modifier in pressed]
+    return " + ".join(_label(token) for token in held + [name])
+
 
 class HotkeyManager:
     """Manages global hotkey listeners and dispatches AI/voice/overlay actions."""
@@ -58,6 +128,7 @@ class HotkeyManager:
         on_session_updated: Optional[Callable[[Dict[str, Any]], None]] = None,
         on_wheel_move: Optional[Callable[[int, int], None]] = None,
         on_open_island: Optional[Callable[[], None]] = None,
+        on_hotkey_captured: Optional[Callable[[str], None]] = None,
         on_error: Optional[Callable[[str], None]] = None,
         hold_threshold: float = VOICE_HOLD_SECONDS,
     ):
@@ -67,11 +138,15 @@ class HotkeyManager:
         self.on_session_updated = on_session_updated or (lambda data: None)
         self.on_wheel_move = on_wheel_move or (lambda x, y: None)
         self.on_open_island = on_open_island or (lambda: None)
+        self.on_hotkey_captured = on_hotkey_captured or (lambda keys: None)
         self.on_error = on_error or (lambda message: None)
         self.hold_threshold = max(0.0, float(hold_threshold))
 
         self._pressed: set[str] = set()
         self._active: set[str] = set()
+        # Keys whose key-down was swallowed from the rest of the system; their
+        # key-up has to be swallowed with it or apps see a release on its own.
+        self._swallowed: set[str] = set()
         self._lock = threading.RLock()
         self._bindings: Dict[str, HotkeyBinding] = {}
         self._voice_hold_pending = False
@@ -157,6 +232,7 @@ class HotkeyManager:
         self.suspended = suspended
         with self._lock:
             self._pressed.clear()
+            self._swallowed.clear()
             self._clear_voice_hold()
             if suspended:
                 self._active.clear()
@@ -211,6 +287,13 @@ class HotkeyManager:
                 return
             self._pressed.add(name)
             if self.suspended:
+                # Settings is recording a shortcut. Most combos reach the page on
+                # their own, but Windows keeps a few to itself before the webview
+                # ever sees them (Alt+Space opens the window menu), so the combo
+                # is reported from here, where every key is visible.
+                captured = combo_label(self._pressed, name)
+                if captured:
+                    self.on_hotkey_captured(captured)
                 return
 
             pressed = frozenset(self._pressed)
@@ -232,6 +315,50 @@ class HotkeyManager:
                     continue
                 if binding.matches(pressed):
                     self._start_action(action)
+
+    def _completes_shortcut(self, name: str) -> bool:
+        """True when a configured combination ends on the key just pressed."""
+        if not name or name in MODIFIER_NAMES:
+            # A modifiers-only binding (Ctrl + Shift) fires as soon as the last
+            # modifier lands; swallowing that would break the modifier system
+            # wide, and Windows has no system action on it anyway.
+            return False
+        pressed = self._pressed | {name}
+        return any(
+            binding.key == name and binding.modifiers.issubset(pressed)
+            for binding in self._bindings.values()
+        )
+
+    def _win32_event_filter(self, msg: int, data: Any) -> bool:
+        """Swallows a configured shortcut so nothing else on the system reacts.
+
+        A global shortcut has to be invisible: without this, Alt+Space opens the
+        focused window's system menu and Ctrl+Space types a space into it.
+        pynput only offers a system-wide swallow, and a swallowed event never
+        reaches our own callback either, so the flag is flipped for this one
+        event: `_handler` posts the event to our callback first and reads the
+        flag immediately after.
+
+        shortcut: pynput's private `_suppress`; revisit if it grows per-event
+        suppression. Only bound combinations are touched, and never injected
+        keys, so dictation's own Ctrl+V still lands.
+        """
+        swallow = False
+        if msg in _PRESS_MESSAGES or msg in _RELEASE_MESSAGES:
+            flags = int(getattr(data, "flags", 0))
+            if not flags & _KBDLLHOOKSTRUCT_INJECTED:
+                name = key_from_vk(int(getattr(data, "vkCode", 0)))
+                if msg in _PRESS_MESSAGES:
+                    swallow = self._completes_shortcut(name)
+                    if swallow:
+                        self._swallowed.add(name)
+                else:
+                    swallow = name in self._swallowed
+                    self._swallowed.discard(name)
+        listener = self._listener
+        if listener is not None:
+            listener._suppress = swallow
+        return True
 
     def _on_key_release(self, key: Any) -> None:
         name = key_name(key)
@@ -369,11 +496,19 @@ class HotkeyManager:
         if self._listener is not None:
             return
         self._listener = keyboard.Listener(
-            on_press=self._on_key_press, on_release=self._on_key_release
+            on_press=self._on_key_press,
+            on_release=self._on_key_release,
+            win32_event_filter=self._win32_event_filter,
         )
         self._listener.daemon = True
         self._listener.start()
         self.drag_detector.start()
+        # The wheel follows this saved per-user value, not a hardcoded key: a
+        # stale config is the usual reason a drag "does nothing" on a new PC.
+        logger.info(
+            "Radial wheel modifier is %r (config hotkeys.radial_wheel_modifier)",
+            self.drag_detector.modifier,
+        )
 
     def stop(self) -> None:
         if self._listener:
@@ -384,6 +519,7 @@ class HotkeyManager:
             self._clear_voice_hold()
             self._active.clear()
             self._pressed.clear()
+            self._swallowed.clear()
 
 
 # Global singleton instance

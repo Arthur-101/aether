@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard } from 'lucide-react';
 import type { HotkeysConfig } from '../../../types/ipc';
 import { SettingsGroup, SettingsResetButton } from '../SettingsControls';
@@ -12,10 +12,12 @@ interface HotkeySettingsProps {
   hotkeys: HotkeysConfig;
   onChange: (patch: Partial<HotkeysConfig>) => void;
   onRecordingChange: (enabled: boolean) => void;
+  /** Combination the global hook reported; Windows eats a few before keydown. */
+  captured?: { keys: string; at: number } | null;
 }
 
 const rows = [
-  { label: 'Open Aether Island', key: 'open_island' as const },
+  { label: 'Universal input', key: 'open_island' as const },
   { label: 'Voice Assistant (Hold)', key: 'toggle_drawer' as const },
   { label: 'Smart Dictation (Hold)', key: 'dictation' as const },
   { label: 'Region to Ask (Hold)', key: 'circle_to_ask' as const },
@@ -24,10 +26,10 @@ const rows = [
 
 const DEFAULTS: HotkeysConfig = {
   dictation: 'Ctrl + Win',
-  toggle_drawer: 'Alt + Space',
+  toggle_drawer: 'Ctrl + Space',
   circle_to_ask: 'Ctrl + Shift',
   radial_wheel_modifier: 'shift',
-  open_island: 'Ctrl + Space',
+  open_island: 'Alt + Space',
 };
 
 function humanize(value: string): string {
@@ -71,8 +73,23 @@ export const HotkeySettings: React.FC<HotkeySettingsProps> = ({
   hotkeys,
   onChange,
   onRecordingChange,
+  captured,
 }) => {
   const [recording, setRecording] = useState<keyof HotkeysConfig | null>(null);
+  // Recording start time, so a combination reported before this row started
+  // listening is never pasted into it (that would set the wrong shortcut).
+  const startedRef = useRef(0);
+
+  useEffect(() => {
+    startedRef.current = recording ? Date.now() : 0;
+  }, [recording]);
+
+  useEffect(() => {
+    if (!recording || !captured?.keys) return;
+    if (captured.at <= startedRef.current) return;
+    onChange({ [recording]: captured.keys });
+    setRecording(null);
+  }, [captured, recording, onChange]);
 
   useEffect(() => {
     onRecordingChange(recording !== null);

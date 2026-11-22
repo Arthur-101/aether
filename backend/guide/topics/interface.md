@@ -56,13 +56,13 @@ Switch to **Units** for conversion. Pick a category — length, mass, temperatur
 
 | Action | Default |
 | :--- | :--- |
-| Open Aether Island | Ctrl + Space |
-| Voice Assistant (hold) | Alt + Space |
+| Universal input | Alt + Space |
+| Voice Assistant (hold) | Ctrl + Space |
 | Smart Dictation (hold) | Ctrl + Win |
 | Region to Ask (hold) | Ctrl + Shift |
 | Context Radial Wheel | Drag + Shift |
 
-Change these in Settings → **Hotkeys**. Click a shortcut, press the new keys, then **Save & Apply**. If Open and Voice share the same binding, a tap opens the island and a hold starts voice capture.
+Change these in Settings → **Hotkeys**. Click a shortcut, press the new keys, then **Save & Apply**. If Open and Voice share the same binding, a tap opens the input bar and a hold starts voice capture.
 
 ## Radial wheel
 

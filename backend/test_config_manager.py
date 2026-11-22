@@ -78,9 +78,14 @@ def test_general_defaults_are_written(app_dir):
 
     assert manager.get("general", "start_on_startup") is False
     assert manager.get("general", "show_tray_icon") is True
+    assert manager.get("general", "default_currency") == "USD"
     assert json.loads((app_dir / "config.json").read_text(encoding="utf-8"))[
         "general"
-    ] == {"start_on_startup": False, "show_tray_icon": True}
+    ] == {
+        "start_on_startup": False,
+        "show_tray_icon": True,
+        "default_currency": "USD",
+    }
 
 
 def test_general_preferences_are_normalized(app_dir):
@@ -90,6 +95,7 @@ def test_general_preferences_are_normalized(app_dir):
                 "general": {
                     "start_on_startup": True,
                     "show_tray_icon": False,
+                    "default_currency": "inr",
                     "unknown": "dropped",
                 }
             }
@@ -102,6 +108,7 @@ def test_general_preferences_are_normalized(app_dir):
     assert manager.get("general") == {
         "start_on_startup": True,
         "show_tray_icon": False,
+        "default_currency": "INR",
     }
 
 
@@ -117,6 +124,7 @@ def test_general_wrong_types_fall_back_to_defaults(app_dir):
 
     assert manager.get("general", "start_on_startup") is False
     assert manager.get("general", "show_tray_icon") is True
+    assert manager.get("general", "default_currency") == "USD"
 
 
 def test_corrupt_config_is_preserved_before_defaults_are_written(app_dir):

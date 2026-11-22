@@ -327,6 +327,8 @@ export interface SessionItem {
   last_turn_prompt?: string;
   last_turn_reply?: string;
   turn_count?: number;
+  /** Exempt from the inactivity timeout, and the session chat opens on. */
+  pinned?: boolean;
 }
 
 export interface ToolExecution {
@@ -392,6 +394,38 @@ export interface RadialWheelDropPayload {
 export interface RadialWheelCursor {
   x: number;
   y: number;
+}
+
+export type MediaJobStatus =
+  | 'queued'
+  | 'running'
+  | 'done'
+  | 'error'
+  | 'cancelled';
+
+/** One background compress/convert job, from submit to result. */
+export interface MediaJob {
+  id: string;
+  action: 'COMPRESS' | 'CONVERT';
+  file_name: string;
+  status: MediaJobStatus;
+  /** 0..1 for media FFmpeg can time; null while a spinner is all we have. */
+  progress: number | null;
+  message: string;
+  /** Written output path, once the job succeeded. */
+  result?: string | null;
+}
+
+/** Approximate result of a compression, from a real sample encode. */
+export interface MediaEstimate {
+  kind: 'image' | 'video' | 'audio' | 'pdf';
+  original_bytes: number;
+  estimated_bytes: number | null;
+  ratio?: number;
+  quality_label: string;
+  lossless: boolean;
+  ssim: number | null;
+  detail: string;
 }
 
 export interface AttachmentItem {
@@ -528,6 +562,8 @@ export interface GeneralConfig {
   start_on_startup: boolean;
   /** Keep the Aether icon in the Windows notification area. */
   show_tray_icon: boolean;
+  /** Target for the universal input bar's shorthand conversions (`$1`). */
+  default_currency: string;
 }
 
 export interface RegionCapture {
@@ -688,11 +724,31 @@ export type OutgoingEvent =
     }
   | { type: 'NEW_SESSION'; payload: Record<string, never> }
   | { type: 'SWITCH_SESSION'; payload: { session_id: string } }
+  | {
+      type: 'CAPTURE_SCREEN';
+      payload: Record<string, never>;
+    }
   | { type: 'LIST_SESSIONS'; payload: Record<string, never> }
+  | {
+      type: 'SET_SESSION_PIN';
+      payload: { session_id: string; pinned: boolean };
+    }
   | {
       type: 'WHEEL_ACTION';
       payload: { file_path: string; action: string; target?: string };
     }
+  | {
+      type: 'SUBMIT_MEDIA_JOB';
+      payload: {
+        job_id: string;
+        action: 'COMPRESS' | 'CONVERT';
+        file_path: string;
+        quality?: number;
+        target_mb?: number;
+        target_format?: string;
+      };
+    }
+  | { type: 'CANCEL_MEDIA_JOB'; payload: { job_id: string } }
   | { type: 'FILE_DROPPED_ISLAND'; payload: { file_path: string } }
   | { type: 'ATTACH_FILE'; payload: { file_path: string } }
   | { type: 'DETACH_FILE'; payload: { file_path: string } }

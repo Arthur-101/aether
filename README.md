@@ -57,7 +57,32 @@ https://github.com/user-attachments/assets/94866339-9265-4268-a054-bb0e3135b9b5
 | **Quick Chat** | **Drag + Shift** |
 |:--:|:--:|
 | <img src="docs/media/shot-quick-chat.png" width="320" alt="Quick Chat reading a document and answering in place." /> | <img src="docs/media/shot-radial-wheel.png" width="470" alt="The radial wheel offering crop, compress, convert and Ask AI for a PDF." /> |
-| Ask about the file in front of you: it reads it, runs the tool, and answers in place. | Drop a file on Explorer and hold <kbd>Shift</kbd> to pick a conversion or edit. |
+| Ask about the file in front of you: it reads it, runs the tool, and answers in place. | Drop a file on Explorer and hold <kbd>Shift</kbd> — the default modifier, changeable in Settings → Hotkeys. |
+
+---
+
+## One bar for everything
+
+<kbd>Alt</kbd> + <kbd>Space</kbd> opens one bar for all of it: maths, currency and units answer
+as you type, `/` lists every tool, and a screenshot can ride along with the next question.
+<kbd>Enter</kbd> copies the answer; <kbd>Tab</kbd> hands the question to Aether.
+
+| **Convert as you type** | **Currency and maths** |
+|:--:|:--:|
+| <img src="docs/media/shot-bar-units.png" width="420" alt="The bar converting 5 feet to cm while the text is still being typed." /> | <img src="docs/media/shot-bar-currency.png" width="420" alt="The bar converting 1 dollar to INR at the day's rate." /> |
+| Length, mass, volume, area, speed, temperature, time and data — `5 feet in cm`, `54% of 200`, `$100 in INR`. | Currency uses the day's rate and shows the date it was last updated. |
+
+<p align="center">
+  <img src="docs/media/shot-bar-commands.png" width="860" alt="Typing a slash lists every command: settings, models, speed test, new session, theme, mute, volume, brightness and colour picker." />
+  <br />
+  <sub><b>Every tool behind a slash</b> — filtered as you type, with the keys that drive the bar along the bottom.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/media/shot-bar-screenshot.png" width="860" alt="A screenshot of the desktop attached to the question what's on my screen, with Aether's answer describing it." />
+  <br />
+  <sub><b>Screenshot to ask</b> — <kbd>Ctrl</kbd> + <kbd>S</kbd> or the camera captures the screen under the cursor and attaches it to the next question.</sub>
+</p>
 
 ---
 
@@ -125,7 +150,7 @@ cd frontend
 npm run tauri build
 ```
 
-The build writes `Aether_<version>_x64-setup.exe` (currently `1.0.3`) under
+The build writes `Aether_<version>_x64-setup.exe` (currently `1.1.0`) under
 `frontend/src-tauri/target/release/bundle/nsis/`. v1.0 ships NSIS only; the WiX MSI was
 built and verified during 0.9 but is not part of the release target. The installer carries
 the overlay plus the frozen daemon at `aether-backend\`; the isolated STT runtime remains

@@ -219,8 +219,8 @@ def get_default_config() -> Dict[str, Any]:
             "dictation": "<ctrl>+<cmd>",
             "circle_to_ask": "<ctrl>+<shift>",
             "radial_wheel_modifier": "shift",
-            "toggle_drawer": "<alt>+<space>",
-            "open_island": "<ctrl>+<space>",
+            "toggle_drawer": "<ctrl>+<space>",
+            "open_island": "<alt>+<space>",
         },
         "storage": {
             "export_directory": "SAME_AS_SOURCE",

@@ -114,6 +114,15 @@ export function useBackendActions(
     sendEvent({ type: 'LIST_SESSIONS', payload: {} });
   }, [sendEvent]);
 
+  const setSessionPin = useCallback(
+    (sessionId: string, pinned: boolean) =>
+      sendEvent({
+        type: 'SET_SESSION_PIN',
+        payload: { session_id: sessionId, pinned },
+      }),
+    [sendEvent]
+  );
+
   const refreshTasks = useCallback(() => {
     sendEvent({ type: 'LIST_TASKS', payload: {} });
   }, [sendEvent]);
@@ -261,6 +270,10 @@ export function useBackendActions(
     },
     [sendEvent]
   );
+
+  const captureScreen = useCallback(() => {
+    sendEvent({ type: 'CAPTURE_SCREEN', payload: {} });
+  }, [sendEvent]);
 
   const deleteSession = useCallback(
     (sessionId: string) => {
@@ -472,6 +485,7 @@ export function useBackendActions(
     resolveToolApproval,
     newSession,
     switchSession,
+    setSessionPin,
     refreshSessions,
     refreshTasks,
     refreshTaskbarApps,
@@ -497,6 +511,7 @@ export function useBackendActions(
     attachFile,
     detachFile,
     captureRegion,
+    captureScreen,
     deleteSession,
     toggleThinking,
     saveConfig,

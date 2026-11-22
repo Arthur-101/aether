@@ -3,7 +3,7 @@
  * Maintains a resilient connection to ws://127.0.0.1:8765/ws with auto-reconnect.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import type {
@@ -20,6 +20,7 @@ import type {
   DisplayInfo,
   IncomingEnvelope,
   LocalVoiceState,
+  MediaJob,
   MediaSnapshot,
   ModelStatus,
   OutgoingEvent,
@@ -55,6 +56,22 @@ const EMPTY_STATS: SystemStats = { cpu_percent: 0, ram_percent: 0, disk_percent:
 // The backend bounds a turn at 300 s, so this only fires when the reply itself
 // is lost on the wire (backend restart mid-turn, socket drop).
 const CHAT_REPLY_TIMEOUT_MS = 330_000;
+
+/** Keeps live job snapshots, bounded so a long session cannot grow forever. */
+function mergeMediaJob(
+  previous: Record<string, MediaJob>,
+  update: MediaJob
+): Record<string, MediaJob> {
+  const next = { ...previous, [update.id]: { ...previous[update.id], ...update } };
+  const ids = Object.keys(next);
+  if (ids.length > 12) {
+    const finished = ids.filter((id) =>
+      ['done', 'error', 'cancelled'].includes(next[id].status)
+    );
+    for (const id of finished.slice(0, ids.length - 12)) delete next[id];
+  }
+  return next;
+}
 export function useBackendSocket() {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -108,6 +125,15 @@ export function useBackendSocket() {
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [isRegionOpen, setIsRegionOpen] = useState(false);
   const [regionCapture, setRegionCapture] = useState<RegionCapture | null>(null);
+  // Bumped when a full-screen screenshot finishes (or fails), so the UI can
+  // show the overlay it hid for the shot.
+  const [screenshotAt, setScreenshotAt] = useState(0);
+  // Combination the global hook saw while Settings is recording; carries the
+  // moment as well so the same combo can arrive twice in a row.
+  const [hotkeyCapture, setHotkeyCapture] = useState<{
+    keys: string;
+    at: number;
+  } | null>(null);
   const [regionCaptureError, setRegionCaptureError] = useState<{
     id: number;
     message: string;
@@ -125,7 +151,8 @@ export function useBackendSocket() {
   const [wallpaperState, setWallpaperState] = useState<WallpaperState | null>(null);
   const [powerResult, setPowerResult] = useState<PowerActionResult | null>(null);
   const [lastWheelResult, setLastWheelResult] = useState<string | null>(null);
-  const [openIslandRequest, setOpenIslandRequest] = useState(0);
+  const [mediaJobs, setMediaJobs] = useState<Record<string, MediaJob>>({});
+  const [openInputBarRequest, setOpenInputBarRequest] = useState(0);
   const mouseListenersRef = useRef<Set<MouseSubscriber>>(new Set());
   const wasConnectedRef = useRef(false);
   // Id of the prompt whose reply may clear the foreground "Thinking..." state.
@@ -167,6 +194,10 @@ export function useBackendSocket() {
           break;
         case 'WHEEL_RESULT':
           setLastWheelResult(payload.result || payload.error || '');
+          break;
+        case 'MEDIA_JOB_PROGRESS':
+        case 'MEDIA_JOB_RESULT':
+          setMediaJobs((prev) => mergeMediaJob(prev, payload as MediaJob));
           break;
         case 'FILE_ATTACHED_READY':
           setAttachments(
@@ -513,8 +544,17 @@ export function useBackendSocket() {
             message: payload.message || 'Could not capture the selected region.',
           });
           break;
-        case 'OPEN_ISLAND':
-          setOpenIslandRequest((request) => request + 1);
+        case 'OPEN_INPUT_BAR':
+          setOpenInputBarRequest((request) => request + 1);
+          break;
+        // Both outcomes bring the hidden overlay back; failures report through
+        // the normal ERROR banner.
+        case 'SCREENSHOT_ATTACHED':
+        case 'SCREEN_CAPTURE_FAILED':
+          setScreenshotAt((at) => at + 1);
+          break;
+        case 'HOTKEY_CAPTURED':
+          setHotkeyCapture({ keys: String(payload.keys || ''), at: Date.now() });
           break;
         case 'MOUSE_POSITION':
           mouseListenersRef.current.forEach((cb) => cb(payload.x, payload.y));
@@ -542,6 +582,8 @@ export function useBackendSocket() {
       setVoiceState('idle');
       setVoiceTranscript('');
       setTtsState({ status: 'idle', request_id: '', message: '' });
+      // A restart mid-job would otherwise strand a progress pill forever.
+      setMediaJobs({});
     }
     wasConnectedRef.current = connected;
   }, [connected]);
@@ -601,6 +643,31 @@ export function useBackendSocket() {
     setWheelDrop(null);
   }, []);
 
+  // The backend runs one media job at a time, so the pill shows the running
+  // one and falls back to the head of the queue.
+  const activeMediaJob = useMemo(() => {
+    const jobs = Object.values(mediaJobs);
+    return (
+      jobs.find((job) => job.status === 'running') ??
+      jobs.find((job) => job.status === 'queued') ??
+      null
+    );
+  }, [mediaJobs]);
+
+  const submitMediaJob = useCallback(
+    (payload: Extract<OutgoingEvent, { type: 'SUBMIT_MEDIA_JOB' }>['payload']) => {
+      sendEvent({ type: 'SUBMIT_MEDIA_JOB', payload });
+    },
+    [sendEvent]
+  );
+
+  const cancelMediaJob = useCallback(
+    (jobId: string) => {
+      sendEvent({ type: 'CANCEL_MEDIA_JOB', payload: { job_id: jobId } });
+    },
+    [sendEvent]
+  );
+
   const closeRegion = useCallback(() => setIsRegionOpen(false), []);
   const clearClockEvent = useCallback(() => setClockAlert(null), []);
   const clearError = useCallback(() => setErrorMessage(null), []);
@@ -657,6 +724,8 @@ export function useBackendSocket() {
     isRegionOpen,
     regionCapture,
     regionCaptureError,
+    screenshotAt,
+    hotkeyCapture,
     wifiProfiles,
     bluetoothDevices,
     clockAlert,
@@ -670,7 +739,9 @@ export function useBackendSocket() {
     wallpaperState,
     powerResult,
     lastWheelResult,
-    openIslandRequest,
+    mediaJobs,
+    activeMediaJob,
+    openInputBarRequest,
     subscribeMouse,
     ...actions,
     // Wrapped so every prompt carries a request id the reply can be matched to.
@@ -683,5 +754,7 @@ export function useBackendSocket() {
     clearError,
     clearConfigError,
     clearWheelResult,
+    submitMediaJob,
+    cancelMediaJob,
   };
 }

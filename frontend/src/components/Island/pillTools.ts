@@ -12,6 +12,8 @@ import { formatCompactDuration } from './clockFormat';
 
 const PILL_BASE_WIDTH = 140;
 const PILL_MEDIA_ONLY_WIDTH = 176;
+/** Job takeover: a label, a bar, and a percentage. */
+const PILL_JOB_WIDTH = 186;
 const PILL_SHELL_BORDER = 2;
 const PILL_HORIZONTAL_PADDING = 24;
 /**
@@ -119,8 +121,11 @@ export function compactPillWidth(
   mediaActive: boolean,
   showClock: boolean,
   clockWidth: number,
-  statsWidth = 0
+  statsWidth = 0,
+  jobActive = false
 ): number {
+  // A running media job owns the pill until it finishes.
+  if (jobActive) return PILL_JOB_WIDTH;
   const timer = isTimerVisible(tools.timer);
   const stopwatch = isStopwatchVisible(tools.stopwatch);
   if (!timer && !stopwatch && statsWidth === 0) {

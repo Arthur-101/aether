@@ -5,6 +5,7 @@ Radial Wheel on the configured modifier. Emits a drop event on left-button
 release so the frontend can activate the slice under the cursor.
 """
 
+import logging
 import time
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple
@@ -14,6 +15,8 @@ from pynput import keyboard, mouse
 
 from .explorer_selection import get_selected_explorer_file
 from .hotkey_parser import key_name
+
+logger = logging.getLogger("aether.explorer_spy")
 
 
 class DragShiftDetector:
@@ -38,6 +41,9 @@ class DragShiftDetector:
         self.is_dragging = False
         self.wheel_active = False
         self._last_move_emit = 0.0
+        # One diagnostic per drag so a PC where the wheel never opens can show
+        # whether the hook fired and the file lookup failed, or neither.
+        self._miss_warned = False
 
         self._mouse_listener: Optional[mouse.Listener] = None
         self._key_listener: Optional[keyboard.Listener] = None
@@ -55,16 +61,25 @@ class DragShiftDetector:
         # Target the window the drag started in, not whichever Explorer window
         # happens to be focused, and never open the wheel for a folder.
         file_path = get_selected_explorer_file(self.drag_source_hwnd)
-        if file_path and Path(file_path).is_file():
-            self.wheel_active = True
-            self._last_move_emit = 0.0
-            ext = Path(file_path).suffix.lstrip(".").lower()
-            self.on_trigger(
-                x=self.current_pos[0],
-                y=self.current_pos[1],
-                file_path=file_path,
-                ext=ext,
-            )
+        if not file_path or not Path(file_path).is_file():
+            if not self._miss_warned:
+                self._miss_warned = True
+                logger.info(
+                    "Radial wheel modifier held during a drag, but no file was "
+                    "resolved from hwnd %s (source is not an Explorer file?)",
+                    self.drag_source_hwnd,
+                )
+            return
+
+        self.wheel_active = True
+        self._last_move_emit = 0.0
+        ext = Path(file_path).suffix.lstrip(".").lower()
+        self.on_trigger(
+            x=self.current_pos[0],
+            y=self.current_pos[1],
+            file_path=file_path,
+            ext=ext,
+        )
 
     def on_move(self, x: int, y: int) -> None:
         self.current_pos = (x, y)
@@ -90,6 +105,7 @@ class DragShiftDetector:
             self.left_down = True
             self.drag_start_pos = (x, y)
             self.current_pos = (x, y)
+            self._miss_warned = False
             try:
                 self.drag_source_hwnd = win32gui.WindowFromPoint((x, y))
             except Exception:

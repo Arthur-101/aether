@@ -56,7 +56,6 @@ interface QuickChatProps {
   onResolveToolApproval?: (approval: ToolApprovalRequest, approved: boolean) => void;
   attachments?: AttachmentItem[];
   focusToken?: number;
-  openFocusToken?: number;
   hotkeys?: HotkeysConfig;
   model: { status: ModelStatus | null; onLoad: () => void; onRelease: () => void };
   notes: NotesApi;
@@ -70,6 +69,7 @@ interface QuickChatProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
+  onTogglePin: (id: string, pinned: boolean) => void;
   onRefreshSessions: () => void;
   onCycleBackend: () => void;
   onConfigureInference?: (mode: AIProviderConfig['mode']) => void;
@@ -186,7 +186,6 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onResolveToolApproval,
   attachments = [],
   focusToken = 0,
-  openFocusToken = 0,
   hotkeys,
   model,
   notes,
@@ -200,6 +199,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onTogglePin,
   onRefreshSessions,
   onCycleBackend,
   onConfigureInference,
@@ -230,11 +230,6 @@ export const QuickChat: React.FC<QuickChatProps> = ({
     [ai, model.status]
   );
   const [setupSkipped, setSetupSkipped] = useState(false);
-  // Skip only collapses the card for this visit; opening Quick Chat brings it
-  // back while the backend still has no usable target.
-  useEffect(() => {
-    setSetupSkipped(false);
-  }, [openFocusToken]);
   const showSetup = Boolean(ai) && !readiness.ready && !setupSkipped;
   const showSetupHint = Boolean(ai) && !readiness.ready && setupSkipped;
   const openSetup = (mode: AIProviderConfig['mode']) => onConfigureInference?.(mode);
@@ -279,13 +274,13 @@ export const QuickChat: React.FC<QuickChatProps> = ({
     return () => window.clearTimeout(timer);
   }, [focusToken]);
 
-  // The global Open Island shortcut always lands in Quick Chat. The 80ms
-  // delay lets the shell finish expanding before the composer takes focus.
+  // The global shortcut opens the input bar; this composer keeps focus after
+  // an Ask request lands in the chat.
   useEffect(() => {
-    if (!openFocusToken) return;
+    if (!focusToken) return;
     const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
     return () => window.clearTimeout(timer);
-  }, [openFocusToken]);
+  }, [focusToken]);
 
   useEffect(() => {
     const el = inputRef.current;
@@ -334,6 +329,7 @@ export const QuickChat: React.FC<QuickChatProps> = ({
           onSelectSession={onSelectSession}
           onNewSession={onNewSession}
           onDeleteSession={onDeleteSession}
+          onTogglePin={onTogglePin}
           onRefreshSessions={onRefreshSessions}
         />
 

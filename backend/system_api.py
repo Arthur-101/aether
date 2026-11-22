@@ -18,7 +18,7 @@ import uuid
 from ctypes import wintypes
 from typing import Dict, List, Optional, Tuple
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 _dialog_lock = threading.Lock()
@@ -368,3 +368,19 @@ def pick_file(
                     pythoncom.CoUninitialize()
                 except Exception:
                     pass
+
+
+@router.post("/clean-temp")
+def clean_temp_folder() -> dict:
+    """Deletes unlocked, no-longer-fresh files from the user's temp folder.
+
+    Files held open by other processes are skipped, so a partial sweep is a
+    normal result rather than an error.
+    """
+    from .os_hooks.temp_clean import clean_temp
+
+    try:
+        return clean_temp()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+

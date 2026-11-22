@@ -8,19 +8,25 @@
 
 use std::path::Path;
 use std::ptr::null_mut;
+use std::sync::atomic::{AtomicIsize, Ordering};
 use std::time::Duration;
 
 use serde::Deserialize;
 use windows_sys::Win32::Foundation::HWND;
-use windows_sys::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+use windows_sys::Win32::System::Threading::{
+    AttachThreadInput, GetCurrentProcessId, GetCurrentThreadId,
+};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{SetActiveWindow, SetFocus};
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetClassNameW,
-    GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
+    GetForegroundWindow, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow,
     IsWindowVisible, SetForegroundWindow, SetWindowPos, ShowWindow, HWND_TOP,
     SWP_NOACTIVATE, SWP_SHOWWINDOW, SW_RESTORE, SW_SHOWNORMAL, WNDENUMPROC,
 };
+
+/// The window that had focus before the universal input bar took it.
+static PREVIOUS_FOREGROUND: AtomicIsize = AtomicIsize::new(0);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum WindowKind {
@@ -151,6 +157,41 @@ fn focus_window(hwnd: HWND) {
         }
         if foreground_thread != 0 {
             AttachThreadInput(current_thread, foreground_thread, 0);
+        }
+    }
+}
+
+/// Remembers which app had focus, so Esc can hand it back after the bar closes.
+/// A press that happens while Aether is already focused keeps the older target,
+/// which is what the user wants when they return to the bar.
+#[tauri::command]
+pub fn remember_foreground_window() {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.is_null() {
+            return;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        if pid == GetCurrentProcessId() {
+            return;
+        }
+        PREVIOUS_FOREGROUND.store(hwnd as isize, Ordering::SeqCst);
+    }
+}
+
+/// Returns keyboard focus to the app the bar was opened over. A window that
+/// closed in the meantime is ignored rather than activating a recycled handle.
+#[tauri::command]
+pub fn restore_foreground_window() {
+    let stored = PREVIOUS_FOREGROUND.swap(0, Ordering::SeqCst);
+    if stored == 0 {
+        return;
+    }
+    let hwnd = stored as HWND;
+    unsafe {
+        if IsWindow(hwnd) != 0 {
+            focus_window(hwnd);
         }
     }
 }

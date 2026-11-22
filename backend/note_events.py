@@ -22,8 +22,20 @@ async def _broadcast_list() -> None:
     await ws_manager.broadcast("NOTES_LIST", payload)
 
 
+def _sync_whats_new() -> None:
+    """Brings the vault's What's New note up to date before it is listed.
+
+    Runs on the caller's thread (the handlers below hand it to the executor),
+    so a notes folder switched in Settings is reflected in the same list.
+    """
+    from .notes.whats_new import sync_whats_new_note
+
+    sync_whats_new_note()
+
+
 async def broadcast_notes() -> None:
     """Publishes the current note list so open Notes tabs refresh."""
+    await _run(_sync_whats_new)
     await _broadcast_list()
 
 

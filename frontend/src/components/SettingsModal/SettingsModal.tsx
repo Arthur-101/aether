@@ -73,6 +73,8 @@ interface SettingsModalProps {
   onToggleThinking: (enabled: boolean) => void;
   onSave: (config: AppConfig) => void;
   onHotkeyCapture: (enabled: boolean) => void;
+  /** Last combination the global hook saw while recording, if any. */
+  capturedHotkey?: { keys: string; at: number } | null;
   onOpenNotesFolder: (path: string) => void;
   onSpotifyConnect: (clientId: string) => void;
   onSpotifyDisconnect: () => void;
@@ -141,6 +143,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleThinking,
   onSave,
   onHotkeyCapture,
+  capturedHotkey,
   onOpenNotesFolder,
   onSpotifyConnect,
   onSpotifyDisconnect,
@@ -249,6 +252,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             general: {
               start_on_startup: false,
               show_tray_icon: true,
+              default_currency: 'USD',
               ...prev.general,
               ...patch,
             },
@@ -521,6 +525,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         draft.general ?? {
                           start_on_startup: false,
                           show_tray_icon: true,
+                          default_currency: 'USD',
                         }
                       }
                       appearance={resolveAppearance(draft.appearance)}
@@ -572,6 +577,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       hotkeys={draft.hotkeys}
                       onChange={updateHotkeys}
                       onRecordingChange={handleHotkeyCapture}
+                      captured={capturedHotkey}
                     />
                   )}
                   {activeTab === 'storage' && (

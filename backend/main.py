@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config_manager import config_manager
 from .config_api import router as config_router
+from .currency_api import router as currency_router
 from .event_router import route_event
 from .guide_api import router as guide_router
 from .logging_setup import configure_logging
@@ -71,6 +72,28 @@ async def lifespan(app: FastAPI):
         daemon=True,
     ).start()
 
+    # Same shape for the calculator's daily exchange rates: an old or missing
+    # table is refreshed behind the startup path, so the first lookup answers
+    # from the file even while the provider is being contacted.
+    from .currency_service import refresh_if_stale
+
+    threading.Thread(
+        target=refresh_if_stale,
+        name="currency-refresh-check",
+        daemon=True,
+    ).start()
+
+    # Mirrors the shipped changelog into the notes vault. Also runs before
+    # every notes list, so a folder changed in Settings gets the note without
+    # waiting for a restart.
+    from .notes.whats_new import sync_whats_new_note
+
+    threading.Thread(
+        target=sync_whats_new_note,
+        name="whats-new-note",
+        daemon=True,
+    ).start()
+
     logger.info("Aether daemon ready.")
     try:
         yield
@@ -82,8 +105,9 @@ async def lifespan(app: FastAPI):
         logger.info("Aether daemon stopped.")
 
 
-app = FastAPI(title="Aether", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Aether", version="1.1.0", lifespan=lifespan)
 app.include_router(config_router)
+app.include_router(currency_router)
 app.include_router(system_router)
 app.include_router(notes_router)
 app.include_router(guide_router)

@@ -207,8 +207,74 @@ def capture_region(
     }
 
 
+def _monitor_at(x: int, y: int, capture: Any) -> Dict[str, int]:
+    """The monitor holding a virtual-desktop point, primary when none does."""
+    monitors = list(capture.monitors)
+    for monitor in monitors[1:]:
+        if (
+            monitor["left"] <= x < monitor["left"] + monitor["width"]
+            and monitor["top"] <= y < monitor["top"] + monitor["height"]
+        ):
+            return monitor
+    return monitors[1] if len(monitors) > 1 else monitors[0]
+
+
+def capture_screen(
+    x: Optional[int] = None,
+    y: Optional[int] = None,
+    capture: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Captures the whole monitor under the cursor and saves it as a PNG.
+
+    The overlay window is hidden before this runs, so the popup and the notch
+    stay out of the shot. The file keeps the `region-` prefix on purpose: the
+    existing orphan sweep and discard rules then cover full-screen shots too.
+    """
+    active_capture = capture or _get_capture()
+    if x is None or y is None:
+        try:
+            import win32api
+
+            x, y = win32api.GetCursorPos()
+        except Exception:  # pragma: no cover - non-Windows fallback
+            x, y = 0, 0
+
+    monitor = _monitor_at(int(x), int(y), active_capture)
+    box = {
+        key: int(monitor[key]) for key in ("left", "top", "width", "height")
+    }
+
+    from PIL import Image
+
+    shot = active_capture.grab(box)
+    image = Image.frombytes("RGB", shot.size, shot.rgb)
+
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    suffix = uuid.uuid4().hex[:6]
+    path = get_captures_dir() / f"region-{stamp}-{suffix}.png"
+    image.save(path, format="PNG", optimize=False)
+
+    logger.info(
+        "Captured screen %sx%s at (%s, %s) -> %s",
+        box["width"],
+        box["height"],
+        box["left"],
+        box["top"],
+        path,
+    )
+    return {
+        "file_path": str(path),
+        "file_name": path.name,
+        "width": box["width"],
+        "height": box["height"],
+        "x": box["left"],
+        "y": box["top"],
+    }
+
+
 __all__ = [
     "capture_region",
+    "capture_screen",
     "get_captures_dir",
     "is_capture_path",
     "discard_capture",

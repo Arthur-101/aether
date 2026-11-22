@@ -51,7 +51,7 @@ The reply text is sent to the provider. If the cloud call fails and a local TTS 
 
 ## Hold-to-talk and dictation
 
-- **Voice Assistant (Alt + Space)** — hold, speak a request, release. Aether transcribes, answers, and can speak the reply.
+- **Voice Assistant (Ctrl + Space)** — hold, speak a request, release. Aether transcribes, answers, and can speak the reply.
 - **Smart Dictation (Ctrl + Win)** — hold, speak, release. The transcript is cleaned and typed into the focused text field instead of being sent to chat.
 - **Region to Ask (Ctrl + Shift)** — select part of the screen and ask about it. See [The interface](interface.md).
 

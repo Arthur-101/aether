@@ -53,6 +53,12 @@ def llm_activity() -> Iterator[None]:
             _llm_last_used = _now()
 
 
+def assistant_busy() -> bool:
+    """True while a model turn is in flight; helper jobs yield CPU when so."""
+    with _lock:
+        return _llm_active > 0
+
+
 @contextlib.contextmanager
 def embedding_activity() -> Iterator[None]:
     """Marks the embedding model busy for the duration of a memory lookup."""

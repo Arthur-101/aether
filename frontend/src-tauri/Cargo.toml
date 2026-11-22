@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "1.0.3"
+version = "1.1.0"
 description = "Aether - local-first Windows AI desktop assistant"
 authors = ["Aether Contributors"]
 license = "Apache-2.0"

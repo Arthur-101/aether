@@ -1051,6 +1051,13 @@ main {
   outline-offset: 2px;
 }
 
+/* Surfaces that are nothing but an input keep the caret as the focus cue.
+   The universal bar focuses its textarea the instant the popup opens, so the
+   ring above read as a pink border drawn around the whole input. */
+.focus-bare:focus-visible {
+  outline: none;
+}
+
 /* The collapsed pill fills an overflow-hidden shell; keep its ring inside. */
 .focus-inset:focus-visible {
   outline-offset: -3px;

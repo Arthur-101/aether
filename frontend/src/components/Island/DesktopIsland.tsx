@@ -11,6 +11,7 @@ import type {
   DisplayInfo,
   HotkeysConfig,
   MediaControlAction,
+  MediaJob,
   MediaSnapshot,
   ModelStatus,
   PowerAction,
@@ -44,10 +45,11 @@ import { useOverlayBounds } from '../../hooks/useOverlayBounds';
 import type { ScaleUnit } from './scaleUnits';
 import type { DesktopWidgetsApi } from '../../hooks/useDesktopWidgets';
 import { TAB_WIDTH } from './tabSizes';
-import { useClockTools } from './useClockTools';
+import type { ClockTools } from './useClockTools';
 
 interface DesktopIslandProps {
   systemStats: SystemStats | null;
+  mediaJob: MediaJob | null;
   speedTest: SpeedTestResult | null;
   onRunSpeedTest: (durationSeconds: number) => void;
   wallpaperState: WallpaperState | null;
@@ -71,7 +73,10 @@ interface DesktopIslandProps {
   activeSessionId: string;
   activeSessionTitle: string;
   askRequest: { id: number; filePath: string } | null;
-  openIslandRequest: number;
+  /** Increments when App wants the "What's New" note brought up. */
+  notesTabRequest: number;
+  /** Clock and stopwatch state, owned by App so the input bar shares it. */
+  clockTools: ClockTools;
   tasks: ScheduledTask[];
   weather: WeatherSnapshot | null;
   clockConfig: ClockConfig;
@@ -89,6 +94,7 @@ interface DesktopIslandProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
+  onTogglePin: (id: string, pinned: boolean) => void;
   onRefreshSessions: () => void;
   onToggleThinking: (enabled: boolean) => void;
   onCycleBackend: () => void;
@@ -151,6 +157,7 @@ interface DesktopIslandProps {
 
 export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   systemStats,
+  mediaJob,
   speedTest,
   onRunSpeedTest,
   wallpaperState,
@@ -174,7 +181,8 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   activeSessionId,
   activeSessionTitle,
   askRequest,
-  openIslandRequest,
+  notesTabRequest,
+  clockTools,
   tasks,
   weather,
   clockConfig,
@@ -192,6 +200,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onTogglePin,
   onRefreshSessions,
   onToggleThinking,
   onCycleBackend,
@@ -249,7 +258,6 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   widgets,
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTabId>('controls');
-  const clockTools = useClockTools();
   const tabs = visibleTabIds(appearance);
   const effectiveTab = tabs.includes(activeTab) ? activeTab : tabs[0] ?? 'controls';
 
@@ -261,6 +269,18 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
     if (!aiConfig || userPickedTabRef.current) return;
     setActiveTab(readiness.ready ? 'controls' : 'chat');
   }, [aiConfig, readiness.ready]);
+
+  // Opening the chat tab lands on the pinned session, the one the inactivity
+  // timeout cannot replace. Only on the way in: browsing another session from
+  // the menu afterwards must not bounce back.
+  const pinnedSessionId = sessions.find((session) => session.pinned)?.id ?? '';
+  const lastTabRef = useRef(effectiveTab);
+  useEffect(() => {
+    const opened = lastTabRef.current !== 'chat' && effectiveTab === 'chat';
+    lastTabRef.current = effectiveTab;
+    if (!opened || !pinnedSessionId || pinnedSessionId === activeSessionId) return;
+    onSelectSession(pinnedSessionId);
+  }, [effectiveTab, pinnedSessionId, activeSessionId, onSelectSession]);
   const [contentHeight, setContentHeight] = useState(0);
   const [tabsWidth, setTabsWidth] = useState(0);
   const [focusWithin, setFocusWithin] = useState(false);
@@ -317,10 +337,13 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
   }, [askRequest, onExpandedChange]);
 
   useEffect(() => {
-    if (!openIslandRequest) return;
+    if (!notesTabRequest) return;
+    // This counts as a deliberate choice: the readiness default must not pull
+    // the island back to Controls while the note is being shown.
+    userPickedTabRef.current = true;
     onExpandedChange(true);
-    setActiveTab('chat');
-  }, [openIslandRequest, onExpandedChange]);
+    setActiveTab('notes');
+  }, [notesTabRequest, onExpandedChange]);
 
   const browseForAsk = async () => {
     const filePath = await pickNativePath('file', 'all');
@@ -377,6 +400,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
           apps={taskbarApps}
           media={media}
           systemStats={systemStats}
+          mediaJob={mediaJob}
           clockTools={clockTools}
           onLaunchApp={onLaunchTaskbarApp}
           onManageApps={onManageTaskbarApps}
@@ -453,7 +477,6 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               onResolveToolApproval,
               attachments,
               focusToken: askRequest?.id ?? 0,
-              openFocusToken: openIslandRequest,
               hotkeys,
               model,
               notes,
@@ -469,6 +492,7 @@ export const DesktopIsland: React.FC<DesktopIslandProps> = ({
               onSelectSession,
               onNewSession,
               onDeleteSession,
+              onTogglePin,
               onRefreshSessions,
               onBrowseFiles: browseForAsk,
               onSend: onSendMessage,

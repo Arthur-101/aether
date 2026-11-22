@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion';
 import type {
   AppearanceConfig,
+  MediaJob,
   MediaSnapshot,
   SystemStats,
   TaskbarPinnedApp,
@@ -41,6 +42,8 @@ interface NotchShellProps {
   media: MediaSnapshot | null;
   /** Latest polled system stats, for the pill indicators the user enabled. */
   systemStats: SystemStats | null;
+  /** Running or queued media job, shown in place of the pill contents. */
+  mediaJob: MediaJob | null;
   clockTools: ClockTools;
   onLaunchApp: (app: TaskbarPinnedApp) => void;
   onManageApps: () => void;
@@ -72,6 +75,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
   apps,
   media,
   systemStats,
+  mediaJob,
   clockTools,
   onLaunchApp,
   onManageApps,
@@ -292,7 +296,8 @@ export const NotchShell: React.FC<NotchShellProps> = ({
     mediaActive && appearance.pill_show_media,
     showClock,
     2 + formatClockTime(now, timeFormat).length * 7.4,
-    pillStatsWidth(stats)
+    pillStatsWidth(stats),
+    Boolean(mediaJob)
   );
   // The peek grows with the number of apps rather than scrolling.
   const peekLayout = useMemo(
@@ -483,6 +488,7 @@ export const NotchShell: React.FC<NotchShellProps> = ({
               stats={stats}
               showClock={showClock}
               clockTools={clockTools}
+              job={mediaJob}
               onOpen={open}
             />
           )}

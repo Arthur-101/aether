@@ -346,7 +346,8 @@ def get_openai_tool_schemas(
                     "type": "object",
                     "properties": {
                         "file_path": {"type": "string", "description": "Absolute path to media file."},
-                        "target_mb": {"type": "number", "description": "Target size in MB (default 5.0)."}
+                        "target_mb": {"type": "number", "description": "Optional target size in MB; when omitted, quality drives the encode."},
+                        "quality": {"type": "integer", "description": "Quality 1-100 (default 65). Higher keeps more detail."}
                     },
                     "required": ["file_path"]
                 }

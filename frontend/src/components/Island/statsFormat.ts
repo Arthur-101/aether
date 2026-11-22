@@ -29,6 +29,15 @@ export function formatGb(value?: number | null, digits = 1): string {
   return `${value.toFixed(digits)} GB`;
 }
 
+/** Whole-byte sizes for the temp sweep, where a few hundred KB still matters. */
+export function formatBytes(value?: number | null): string {
+  if (value == null || Number.isNaN(value)) return '—';
+  if (value < 1024) return `${Math.round(value)} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 export function formatAppRam(megabytes: number): string {
   if (megabytes >= 1024) return `${(megabytes / 1024).toFixed(1)} GB`;
   return `${Math.round(megabytes)} MB`;

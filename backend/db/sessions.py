@@ -84,6 +84,7 @@ MEMORY_BLOCK_CHAR_LIMIT = 1200
 SEMANTIC_DISTANCE_LIMIT = 0.80
 ACTIVE_SESSION_KEY = "active_session_id"
 ACTIVE_SESSION_AT_KEY = "active_session_at"
+PINNED_SESSION_KEY = "pinned_session_id"
 
 REASONING_ONLY_REPLY = (
     "The model returned only reasoning, not an answer. Please try again."
@@ -256,9 +257,14 @@ class SessionManager:
         # Set by get_or_create_session when the active session was replaced
         # (fresh start or timeout) so the router can reset the visible chat.
         self.session_changed = False
+        # The user-pinned session, which the inactivity timeout never replaces.
+        self.pinned_session_id: Optional[str] = None
+        # True when session_changed came from resuming the pinned session rather
+        # than a fresh start: the router loads its history instead of clearing.
+        self.resumed_pinned = False
 
     def _load_state(self) -> None:
-        """Restores the active session after a daemon restart.
+        """Restores the active and pinned sessions after a daemon restart.
 
         Without this, the first message after any restart silently opened a new
         session while the Island still displayed the previous chat, so the model
@@ -271,21 +277,28 @@ class SessionManager:
         try:
             conn = get_db()
             rows = conn.execute(
-                "SELECT key, value FROM app_state WHERE key IN (?, ?)",
-                (ACTIVE_SESSION_KEY, ACTIVE_SESSION_AT_KEY),
+                "SELECT key, value FROM app_state WHERE key IN (?, ?, ?)",
+                (ACTIVE_SESSION_KEY, ACTIVE_SESSION_AT_KEY, PINNED_SESSION_KEY),
             ).fetchall()
             state = {row["key"]: row["value"] for row in rows}
-            session_id = str(state.get(ACTIVE_SESSION_KEY) or "").strip()
-            exists = False
-            if session_id:
-                exists = conn.execute(
+
+            def present(session_id: str) -> bool:
+                return bool(session_id) and conn.execute(
                     "SELECT 1 FROM sessions WHERE id = ?", (session_id,)
                 ).fetchone() is not None
+
+            # A pin on a session that was deleted is dropped, not remembered.
+            pinned = str(state.get(PINNED_SESSION_KEY) or "").strip()
+            if present(pinned):
+                self.pinned_session_id = pinned
+            session_id = str(state.get(ACTIVE_SESSION_KEY) or "").strip()
+            if not present(session_id):
+                session_id = ""
             conn.close()
         except Exception:
             return
 
-        if not session_id or not exists:
+        if not session_id:
             return
         self.active_session_id = session_id
         stamp = str(state.get(ACTIVE_SESSION_AT_KEY) or "").strip()
@@ -294,6 +307,26 @@ class SessionManager:
                 self.last_interaction = datetime.fromisoformat(stamp)
             except ValueError:
                 self.last_interaction = datetime.min
+
+    def _persist_pin(self) -> None:
+        """Writes or clears the pinned session so a restart keeps it."""
+        try:
+            conn = get_db()
+            if self.pinned_session_id:
+                conn.execute(
+                    "INSERT INTO app_state (key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (PINNED_SESSION_KEY, self.pinned_session_id),
+                )
+            else:
+                conn.execute(
+                    "DELETE FROM app_state WHERE key = ?", (PINNED_SESSION_KEY,)
+                )
+            conn.commit()
+            conn.close()
+        except Exception:
+            # Losing the pin is recoverable; never fail a session action over it.
+            pass
 
     def _persist_state(self) -> None:
         """Writes the active session id and last interaction for restart recovery."""
@@ -323,24 +356,57 @@ class SessionManager:
         """Returns the active session or creates a new one on timeout/fresh start."""
         self._load_state()
         self.session_changed = False
+        self.resumed_pinned = False
         now = datetime.now()
         is_expired = (now - self.last_interaction) > timedelta(minutes=self.timeout_minutes)
 
         if not self.active_session_id or is_expired:
-            self.active_session_id = str(uuid.uuid4())
-            self.session_changed = True
-            title = generate_session_title(first_prompt)
-            conn = get_db()
-            conn.execute(
-                "INSERT INTO sessions (id, title) VALUES (?, ?)",
-                (self.active_session_id, title)
-            )
-            conn.commit()
-            conn.close()
+            # A pinned session is exempt from the inactivity timeout: resume it
+            # instead of opening a fresh one the user would have to find again.
+            if self.pinned_session_id:
+                self.resumed_pinned = self.active_session_id != self.pinned_session_id
+                self.session_changed = self.resumed_pinned
+                self.active_session_id = self.pinned_session_id
+            else:
+                self.active_session_id = str(uuid.uuid4())
+                self.session_changed = True
+                title = generate_session_title(first_prompt)
+                conn = get_db()
+                conn.execute(
+                    "INSERT INTO sessions (id, title) VALUES (?, ?)",
+                    (self.active_session_id, title)
+                )
+                conn.commit()
+                conn.close()
 
         self.last_interaction = now
         self._persist_state()
         return self.active_session_id
+
+    def set_session_pin(self, session_id: str, pinned: bool) -> Dict[str, Any]:
+        """Pins a session past the inactivity timeout, or clears the pin.
+
+        Pinning also switches to that session, so the visible chat matches what
+        the next message will use. Returns the switch payload, or {} on unpin.
+        """
+        self._load_state()
+        if not pinned:
+            if self.pinned_session_id == session_id:
+                self.pinned_session_id = None
+                self._persist_pin()
+            return {}
+
+        conn = get_db()
+        row = conn.execute(
+            "SELECT 1 FROM sessions WHERE id = ?", (session_id,)
+        ).fetchone()
+        conn.close()
+        if not row:
+            raise ValueError(f"Session {session_id} does not exist.")
+
+        self.pinned_session_id = session_id
+        self._persist_pin()
+        return self.switch_session(session_id)
 
     def create_empty_session(self) -> Dict[str, Any]:
         """Creates a blank session (used by the Drawer's New Chat button)."""
@@ -402,6 +468,7 @@ class SessionManager:
 
     def list_sessions(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Returns all sessions ordered by updated_at DESC for SessionDrawer."""
+        self._load_state()
         conn = get_db()
         cur = conn.cursor()
         cur.execute("""
@@ -412,7 +479,12 @@ class SessionManager:
             ORDER BY s.updated_at DESC
             LIMIT ?
         """, (limit,))
-        sessions = [dict(r) for r in cur.fetchall()]
+        pinned = self.pinned_session_id
+        sessions = []
+        for row in cur.fetchall():
+            item = dict(row)
+            item["pinned"] = bool(pinned) and item["id"] == pinned
+            sessions.append(item)
         conn.close()
         return sessions
 
@@ -605,6 +677,9 @@ class SessionManager:
             conn.commit()
         finally:
             conn.close()
+        if self.pinned_session_id == session_id:
+            self.pinned_session_id = None
+            self._persist_pin()
         if self.active_session_id == session_id:
             self.active_session_id = None
             self.last_interaction = datetime.min

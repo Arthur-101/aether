@@ -55,6 +55,8 @@ export interface ClockTools {
     laps: number[];
   };
   setTimerDuration: (seconds: number) => void;
+  /** Sets a fresh duration and starts immediately, with no stale state. */
+  startTimer: (seconds: number) => void;
   toggleTimer: () => void;
   resetTimer: () => void;
   dismissTimerFinished: () => void;
@@ -114,6 +116,15 @@ export function useClockTools(): ClockTools {
     }
   }, [timerRunning]);
 
+  const startTimer = useCallback((seconds: number) => {
+    const safe = Math.max(1, Math.round(seconds));
+    setDurationSec(safe);
+    setTimerFinished(false);
+    timerEndRef.current = Date.now() + safe * 1000;
+    setRemainingMs(safe * 1000);
+    setTimerRunning(true);
+  }, []);
+
   const toggleTimer = useCallback(() => {
     setTimerFinished(false);
     if (timerRunning) {
@@ -171,6 +182,7 @@ export function useClockTools(): ClockTools {
     },
     stopwatch: { elapsedMs, running: stopwatchRunning, laps },
     setTimerDuration,
+    startTimer,
     toggleTimer,
     resetTimer,
     dismissTimerFinished,

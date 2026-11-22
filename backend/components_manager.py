@@ -42,7 +42,7 @@ logger = logging.getLogger("aether.components")
 
 # Must track `frontend/src-tauri/tauri.conf.json` `version` and the FastAPI
 # version in `main.py`.
-APP_VERSION = "0.1.0"
+APP_VERSION = "1.1.0"
 
 MANIFEST_ENV = "AETHER_COMPONENTS_MANIFEST"
 MANIFEST_FILENAME = "components_manifest.json"

@@ -1,8 +1,9 @@
-import React from 'react';
-import { ArrowDown, ArrowUp, HardDrive } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowDown, ArrowUp, HardDrive, Loader2, Sparkles } from 'lucide-react';
 import type { SystemStats } from '../../types/ipc';
-import { ControlPanel } from './ControlPanel';
-import { formatGb, formatRate } from './statsFormat';
+import { cleanTempFiles, type TempCleanResult } from '../../lib/system';
+import { ControlPanel, PanelFooterRow } from './ControlPanel';
+import { formatBytes, formatGb, formatRate } from './statsFormat';
 
 interface SystemIoPanelProps {
   stats: SystemStats | null;
@@ -16,11 +17,59 @@ export const SystemIoPanel: React.FC<SystemIoPanelProps> = ({ stats }) => {
   const total = stats?.disk_total_gb;
   const percent = Math.max(0, Math.min(100, stats?.disk_percent ?? 0));
 
+  const [cleaning, setCleaning] = useState(false);
+  const [sweep, setSweep] = useState<TempCleanResult | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  const runClean = async () => {
+    setCleaning(true);
+    setFailed(false);
+    const result = await cleanTempFiles();
+    setCleaning(false);
+    if (!result) {
+      setFailed(true);
+      return;
+    }
+    setSweep(result);
+  };
+
+  const cleanStatus = cleaning
+    ? 'Cleaning temp files...'
+    : failed
+      ? 'Cleanup failed'
+      : sweep
+        ? `Freed ${formatBytes(sweep.freed_bytes)} · ${sweep.skipped} in use`
+        : 'Temp files older than 10 min';
+
   return (
     <ControlPanel
       label="Disk & network"
       icon={<HardDrive size={14} className="text-[#f0c36a]" />}
       className="h-full"
+      footer={
+        <PanelFooterRow
+          left={<span className="truncate">{cleanStatus}</span>}
+          leftClassName="min-w-0 flex-1 truncate text-[9px] text-[var(--aether-text-3)]"
+          right={
+            <button
+              type="button"
+              onClick={runClean}
+              disabled={cleaning}
+              aria-busy={cleaning}
+              title="Delete unlocked files from the Windows temp folder"
+              className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2 py-0.5 text-[9px] font-medium text-[var(--aether-text-2)] transition hover:text-[var(--aether-text-1)] disabled:cursor-wait disabled:opacity-60"
+            >
+              {cleaning ? (
+                <Loader2 size={10} className="animate-spin" aria-hidden />
+              ) : (
+                <Sparkles size={10} aria-hidden />
+              )}
+              Clean
+            </button>
+          }
+          rightClassName="text-[9.5px] text-[var(--aether-text-2)]"
+        />
+      }
     >
       <div className="flex flex-1 flex-col justify-center gap-3">
         <div>

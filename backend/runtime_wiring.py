@@ -70,13 +70,21 @@ def wire_hotkey_callbacks() -> None:
         asyncio.run_coroutine_threadsafe(ws_manager.broadcast("REGION_TO_ASK", {}), loop)
 
     def on_open_island() -> None:
+        # Ctrl+Space opens the universal input bar; the Island stays on the pill.
         asyncio.run_coroutine_threadsafe(
-            ws_manager.broadcast("OPEN_ISLAND", {"source": "hotkey"}), loop
+            ws_manager.broadcast("OPEN_INPUT_BAR", {"source": "hotkey"}), loop
         )
 
     def on_session_updated(data: Dict[str, Any]) -> None:
         asyncio.run_coroutine_threadsafe(
             ws_manager.broadcast("SESSION_UPDATED", data), loop
+        )
+
+    def on_hotkey_captured(keys: str) -> None:
+        # Settings is recording a shortcut and the hook saw a combination the
+        # webview cannot (Windows keeps Alt+Space for the window menu).
+        asyncio.run_coroutine_threadsafe(
+            ws_manager.broadcast("HOTKEY_CAPTURED", {"keys": keys}), loop
         )
 
     def on_error(message: str) -> None:
@@ -90,6 +98,7 @@ def wire_hotkey_callbacks() -> None:
     hotkey_manager.on_circle_to_ask = on_circle_to_ask
     hotkey_manager.on_open_island = on_open_island
     hotkey_manager.on_session_updated = on_session_updated
+    hotkey_manager.on_hotkey_captured = on_hotkey_captured
     hotkey_manager.on_error = on_error
     hotkey_manager.drag_detector.on_drop = on_wheel_drop
     hotkey_manager.start()

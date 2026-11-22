@@ -11,7 +11,9 @@ import {
   buildSlices,
   hitTestWheel,
   sliceActionLabel,
+  wheelPosition,
 } from './geometry';
+import { useOverlayGeometry } from '../../hooks/useOverlayBounds';
 import { RadialWheelCanvas } from './RadialWheelCanvas';
 
 interface RadialWheelProps {
@@ -22,6 +24,8 @@ interface RadialWheelProps {
   onAsk: (filePath: string) => void;
   onOpenCrop: (filePath: string) => void;
   onOpenAddBg: (filePath: string) => void;
+  onOpenCompress: (filePath: string) => void;
+  onOpenConvert: (filePath: string, format: string) => void;
   onClose: () => void;
 }
 
@@ -38,6 +42,8 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   onAsk,
   onOpenCrop,
   onOpenAddBg,
+  onOpenCompress,
+  onOpenConvert,
   onClose,
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -48,21 +54,20 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   const askEligible = ASK_EXTENSIONS.has(ext);
   const slices = buildSlices(ext, askEligible);
 
-  // Global cursor coordinates are physical pixels; CSS uses logical pixels.
-  const scale = window.devicePixelRatio || 1;
-  const left = Math.min(
-    Math.max(data.x / scale - WHEEL_SIZE / 2, 8),
-    window.innerWidth - WHEEL_SIZE - 8
-  );
-  const top = Math.min(
-    Math.max(data.y / scale - WHEEL_SIZE / 2, 8),
-    window.innerHeight - WHEEL_SIZE - 8
-  );
+  // Global cursor coordinates are physical pixels. The overlay window is still
+  // the idle strip when the wheel first mounts, so its viewport cannot be the
+  // frame of reference: position against the monitor rectangle the window is
+  // growing into, which is published before the OS resize lands.
+  const geo = useOverlayGeometry();
+  const scale = geo.dpr || 1;
+  const toLocalX = (physicalX: number) => (physicalX - geo.x) / scale;
+  const toLocalY = (physicalY: number) => (physicalY - geo.y) / scale;
+  const { left, top } = wheelPosition(data.x, data.y, geo);
   const centerX = left + WHEEL_SIZE / 2;
   const centerY = top + WHEEL_SIZE / 2;
 
   const liveHit = cursor
-    ? hitTestWheel(cursor.x / scale, cursor.y / scale, centerX, centerY, slices.length)
+    ? hitTestWheel(toLocalX(cursor.x), toLocalY(cursor.y), centerX, centerY, slices.length)
     : null;
   const liveIndex = liveHit?.type === 'slice' ? liveHit.index : null;
   const coreHighlighted = liveHit?.type === 'core' || coreHovered;
@@ -89,13 +94,18 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
       return;
     }
     if (label === 'COMPRESS') {
-      onAction(data.file_path, 'COMPRESS');
-    } else if (label === 'METADATA') {
+      onOpenCompress(data.file_path);
+      onClose();
+      return;
+    }
+    if (label === 'METADATA') {
       onAction(data.file_path, 'STRIP_META');
     } else if (label === 'B&W') {
       onAction(data.file_path, 'B&W');
+    } else if (isPdf) {
+      onAction(data.file_path, 'CONVERT_DOC', label.toLowerCase());
     } else {
-      onAction(data.file_path, isPdf ? 'CONVERT_DOC' : 'CONVERT', label.toLowerCase());
+      onOpenConvert(data.file_path, label.toLowerCase());
     }
     onClose();
   };
@@ -109,8 +119,8 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   useEffect(() => {
     if (!dropPoint) return;
     const hit = hitTestWheel(
-      dropPoint.x / scale,
-      dropPoint.y / scale,
+      toLocalX(dropPoint.x),
+      toLocalY(dropPoint.y),
       centerX,
       centerY,
       slices.length
@@ -128,12 +138,14 @@ export const RadialWheel: React.FC<RadialWheelProps> = ({
   }, [dropPoint?.id]);
 
   // A type with no applicable action must not leave an empty ring on screen.
+  // Nor should the wheel paint while the overlay is still the idle strip: the
+  // geometry is published a frame or two later, then it lands on the cursor.
   const empty = slices.length === 0;
   useEffect(() => {
     if (empty) onClose();
   }, [empty, onClose]);
 
-  if (empty) return null;
+  if (empty || !geo.fullScreen) return null;
 
   return (
     <div

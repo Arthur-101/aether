@@ -29,6 +29,16 @@ function readWidgetTarget(): { kind: WidgetKind; id: string } | null {
 
 const widget = readWidgetTarget()
 
+// The webview brings its own browser chrome: right click offers Back, Refresh,
+// Save as, Print and Inspect, and Alt+Left would navigate the shell away from
+// the app. Aether draws its own menus, so both are turned off for every window.
+document.addEventListener('contextmenu', (event) => event.preventDefault())
+window.addEventListener('keydown', (event) => {
+  if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+    event.preventDefault()
+  }
+})
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MotionConfig reducedMotion="user">

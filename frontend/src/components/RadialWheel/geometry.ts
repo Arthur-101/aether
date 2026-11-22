@@ -32,6 +32,44 @@ export function hitTestWheel(
   return { type: 'slice', index: Math.floor(angle / (360 / sliceCount)) % sliceCount };
 }
 
+/** The overlay window rectangle, in physical pixels. */
+export interface WheelFrame {
+  x: number;
+  y: number;
+  /** Physical window size (the monitor once the overlay has grown). */
+  width: number;
+  height: number;
+  /** Physical pixels per CSS pixel. */
+  dpr: number;
+}
+
+/**
+ * Window-local CSS position for the wheel centred on a global physical point,
+ * clamped inside the frame. The frame is the monitor the overlay is growing
+ * into, not the current window viewport: the wheel mounts while the window is
+ * still the idle strip, so measuring against its own viewport would clip it
+ * into the top-left corner until a later re-render.
+ */
+export function wheelPosition(
+  x: number,
+  y: number,
+  frame: WheelFrame
+): { left: number; top: number } {
+  const dpr = frame.dpr || 1;
+  const width = frame.width / dpr;
+  const height = frame.height / dpr;
+  return {
+    left: Math.min(
+      Math.max((x - frame.x) / dpr - WHEEL_SIZE / 2, 8),
+      Math.max(8, width - WHEEL_SIZE - 8)
+    ),
+    top: Math.min(
+      Math.max((y - frame.y) / dpr - WHEEL_SIZE / 2, 8),
+      Math.max(8, height - WHEEL_SIZE - 8)
+    ),
+  };
+}
+
 export function sliceActionLabel(label: string, isPdf: boolean): string {
   if (label === 'ASK') return 'Ask AI';
   if (label === 'CROP') return 'Crop Image';

@@ -131,9 +131,21 @@ async def _handle_chat(payload: Dict[str, Any]) -> Any:
     if session_manager.session_changed:
         # A restart or the inactivity timeout opened a new session. Reset the
         # visible history so it never mixes turns the model cannot remember.
-        await ws_manager.broadcast("SESSION_STARTED", {
-            "session": {"id": sid, "title": _get_session_title(sid)},
-        })
+        # Resuming the pinned session is not a fresh start: its turns are still
+        # there, so the UI is told to switch and load them instead.
+        if session_manager.resumed_pinned:
+            loop = asyncio.get_running_loop()
+            data = await loop.run_in_executor(
+                None, lambda: session_manager.switch_session(sid)
+            )
+            data["attachments"] = await loop.run_in_executor(
+                None, lambda: list_attachments(sid)
+            )
+            await ws_manager.broadcast("SESSION_SWITCHED", data)
+        else:
+            await ws_manager.broadcast("SESSION_STARTED", {
+                "session": {"id": sid, "title": _get_session_title(sid)},
+            })
 
     running = _ACTIVE_TURNS.get(sid)
     if running is not None and not running.done():
@@ -275,6 +287,30 @@ async def _handle_switch_session(payload: Dict[str, Any]) -> None:
     await ws_manager.broadcast("SESSION_SWITCHED", data)
 
 
+@_handler("SET_SESSION_PIN")
+async def _handle_set_session_pin(payload: Dict[str, Any]) -> None:
+    """Pins a session past the inactivity timeout, or unpins it."""
+    sid = str(payload.get("session_id") or "")
+    pinned = bool(payload.get("pinned"))
+    if not sid:
+        return
+    loop = asyncio.get_running_loop()
+    try:
+        data = await loop.run_in_executor(
+            None, lambda: session_manager.set_session_pin(sid, pinned)
+        )
+    except ValueError:
+        return
+    if data:
+        # Pinning switched to that session; mirror the switch in the UI.
+        data["attachments"] = await loop.run_in_executor(
+            None, lambda: list_attachments(sid)
+        )
+        await ws_manager.broadcast("SESSION_SWITCHED", data)
+    sessions = await loop.run_in_executor(None, session_manager.list_sessions)
+    await ws_manager.broadcast("SESSION_LIST", {"sessions": sessions})
+
+
 @_handler("DELETE_SESSION")
 async def _handle_delete_session(payload: Dict[str, Any]) -> None:
     """Deletes a session and its session-scoped attachments/vectors."""
@@ -342,6 +378,7 @@ def _register_builtin_handlers() -> None:
     from .app_events import register_app_events
     from .components_events import register_components_events
     from .config_events import register_config_events
+    from .media_jobs import register_media_job_events
     from .model_events import register_model_events
     from .note_events import register_note_events
     from .power_events import register_power_events
@@ -366,6 +403,7 @@ def _register_builtin_handlers() -> None:
     register_app_events()
     register_spotify_events()
     register_components_events()
+    register_media_job_events()
 
 
 _register_builtin_handlers()

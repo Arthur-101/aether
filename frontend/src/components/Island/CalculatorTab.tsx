@@ -3,6 +3,14 @@ import { ArrowDownUp, Delete } from 'lucide-react';
 import { autoCloseExpression, evaluateExpression, formatNumber, prettyExpression } from './calculatorMath';
 import { CALC_HEIGHT } from './tabSizes';
 import {
+  convertCurrency,
+  currencyCodes,
+  currencyLabel,
+  currencySymbol,
+  formatMoney,
+} from './currencyConvert';
+import { fetchCurrencyRates, type CurrencyRates } from '../../lib/currency';
+import {
   QUICK_CONVERSIONS,
   UNIT_CATEGORIES,
   convertUnits,
@@ -12,7 +20,7 @@ import {
   type UnitCategory,
 } from './unitConversion';
 
-type CalculatorMode = 'standard' | 'units';
+type CalculatorMode = 'standard' | 'units' | 'currency';
 
 type CalcKey =
   | '0'
@@ -91,6 +99,7 @@ const KEYPAD: CalcKey[][] = [
 const MODES: Array<{ id: CalculatorMode; label: string; hint: string }> = [
   { id: 'standard', label: 'Standard', hint: 'Type or click. Enter evaluates.' },
   { id: 'units', label: 'Units', hint: 'Pick a category, then convert both ways.' },
+  { id: 'currency', label: 'Currency', hint: 'Daily reference rates. Offline after the first lookup.' },
 ];
 
 function isOperatorKey(key: CalcKey): boolean {
@@ -470,6 +479,27 @@ export const CalculatorTab: React.FC = () => {
   const [toId, setToId] = useState(UNIT_CATEGORIES[0].defaultTo);
   const [unitValue, setUnitValue] = useState('1');
 
+  const [currencyTable, setCurrencyTable] = useState<CurrencyRates | null>(null);
+  const [currencyError, setCurrencyError] = useState('');
+  const [currencyFrom, setCurrencyFrom] = useState('USD');
+  const [currencyTo, setCurrencyTo] = useState('EUR');
+  const [currencyValue, setCurrencyValue] = useState('1');
+
+  // The daemon owns the file cache and the daily refresh, so one read per
+  // session is enough: the table only changes once a day.
+  useEffect(() => {
+    if (mode !== 'currency' || currencyTable || currencyError) return;
+    let cancelled = false;
+    void fetchCurrencyRates().then((table) => {
+      if (cancelled) return;
+      if (table) setCurrencyTable(table);
+      else setCurrencyError('Rates unavailable. Check your connection.');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, currencyTable, currencyError]);
+
   const press = (key: CalcKey) => dispatch({ type: 'key', key });
 
   const preview = useMemo(() => {
@@ -493,6 +523,43 @@ export const CalculatorTab: React.FC = () => {
   const converted = Number.isFinite(conversion) ? formatNumber(conversion) : '—';
   const unitRate = formatNumber(convertUnits(1, category, fromUnit.id, toUnit.id));
 
+  const currencyRateList = currencyTable ? currencyCodes(currencyTable.rates) : [];
+  const currencyTrimmed = currencyValue.trim();
+  const currencyNumeric =
+    currencyTrimmed === '' ? NaN : Number(currencyTrimmed.replace(/,/g, ''));
+  const currencyResult = currencyTable
+    ? convertCurrency(currencyNumeric, currencyFrom, currencyTo, currencyTable.rates)
+    : NaN;
+  const currencyUnitRate = currencyTable
+    ? convertCurrency(1, currencyFrom, currencyTo, currencyTable.rates)
+    : NaN;
+  const currencyConverted = Number.isFinite(currencyResult)
+    ? formatMoney(currencyResult)
+    : '—';
+  const currencyUpdated = useMemo(() => {
+    const stamp = currencyTable?.fetched_at;
+    if (!stamp) return '';
+    const parsed = new Date(stamp);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }, [currencyTable]);
+  const currencyStatus = currencyError
+    ? currencyError
+    : !currencyTable
+      ? 'Fetching daily exchange rates...'
+      : [
+          currencyUpdated ? `Last updated ${currencyUpdated}` : 'Cached rates',
+          currencyTable.stale ? 'offline rates' : null,
+          `${currencyRateList.length} currencies`,
+          'Rates by ExchangeRate-API',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
   const chooseCategory = (id: string) => {
     const next = findCategory(id);
     if (!next) return;
@@ -510,6 +577,11 @@ export const CalculatorTab: React.FC = () => {
   const swapUnits = () => {
     setFromId(toUnit.id);
     setToId(fromUnit.id);
+  };
+
+  const swapCurrencies = () => {
+    setCurrencyFrom(currencyTo);
+    setCurrencyTo(currencyFrom);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -683,7 +755,7 @@ export const CalculatorTab: React.FC = () => {
             </div>
           </aside>
         </div>
-      ) : (
+      ) : mode === 'units' ? (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
           <div className="flex shrink-0 flex-wrap gap-1">
             {UNIT_CATEGORIES.map((entry) => (
@@ -831,6 +903,113 @@ export const CalculatorTab: React.FC = () => {
               })}
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2.5">
+            <div className="notch-card flex min-w-0 flex-col gap-2 rounded-2xl p-3">
+              <div>
+                <label
+                  htmlFor="aether-calc-currency-value"
+                  className="text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]"
+                >
+                  Amount
+                </label>
+                <input
+                  id="aether-calc-currency-value"
+                  value={currencyValue}
+                  onChange={(event) => setCurrencyValue(event.target.value)}
+                  inputMode="decimal"
+                  spellCheck={false}
+                  placeholder="0"
+                  aria-label="Amount to convert"
+                  className="mt-1 w-full min-w-0 bg-transparent font-mono text-[28px] font-semibold leading-none text-[var(--aether-text-1)] outline-none placeholder:text-[var(--aether-text-3)]"
+                />
+              </div>
+              <select
+                value={currencyFrom}
+                onChange={(event) => setCurrencyFrom(event.target.value)}
+                aria-label="Convert from currency"
+                className="w-full rounded-lg border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2 py-1.5 text-[10px] text-[var(--aether-text-1)] outline-none"
+              >
+                {currencyRateList.map((code) => (
+                  <option key={code} value={code}>
+                    {currencyLabel(code)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={swapCurrencies}
+              aria-label="Swap currencies"
+              title="Swap currencies"
+              className="h-8 w-8 shrink-0 self-center rounded-full border border-[var(--aether-line)] bg-[var(--aether-fill)] text-[var(--aether-text-3)] transition hover:text-[var(--aether-text-1)]"
+            >
+              <ArrowDownUp size={14} className="mx-auto" />
+            </button>
+
+            <div className="notch-card flex min-w-0 flex-col gap-2 rounded-2xl p-3">
+              <div>
+                <p className="text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+                  Converted
+                </p>
+                <div
+                  className="mt-1 truncate font-mono text-[28px] font-semibold leading-none text-[var(--aether-accent)]"
+                  aria-live="polite"
+                >
+                  {currencySymbol(currencyTo) !== currencyTo ? (
+                    <span className="mr-1 text-[20px]">{currencySymbol(currencyTo)}</span>
+                  ) : null}
+                  {currencyConverted}
+                </div>
+                <p className="mt-1 truncate text-[9px] text-[var(--aether-text-3)]">
+                  1 {currencyFrom} = {formatMoney(currencyUnitRate)} {currencyTo}
+                </p>
+              </div>
+              <select
+                value={currencyTo}
+                onChange={(event) => setCurrencyTo(event.target.value)}
+                aria-label="Convert to currency"
+                className="w-full rounded-lg border border-[var(--aether-line)] bg-[var(--aether-fill)] px-2 py-1.5 text-[10px] text-[var(--aether-text-1)] outline-none"
+              >
+                {currencyRateList.map((code) => (
+                  <option key={code} value={code}>
+                    {currencyLabel(code)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="notch-card flex min-h-0 flex-1 flex-col rounded-2xl p-3">
+            <p className="text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+              All rates · 1 {currencyFrom}
+            </p>
+            <div className="no-scrollbar mt-2 grid min-h-0 flex-1 grid-cols-3 content-start gap-1 overflow-y-auto pr-0.5">
+              {currencyRateList.map((code) => {
+                const value = currencyTable
+                  ? convertCurrency(1, currencyFrom, code, currencyTable.rates)
+                  : NaN;
+                return (
+                  <div
+                    key={code}
+                    className="flex items-baseline justify-between gap-2 rounded-lg bg-[var(--aether-fill)] px-2 py-1.5"
+                  >
+                    <span className="shrink-0 text-[9px] text-[var(--aether-text-3)]">
+                      {code}
+                    </span>
+                    <span className="truncate font-mono text-[10px] text-[var(--aether-text-1)]">
+                      {Number.isFinite(value) ? formatMoney(value) : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <p className="shrink-0 text-[9px] text-[var(--aether-text-3)]">{currencyStatus}</p>
         </div>
       )}
     </div>

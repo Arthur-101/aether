@@ -33,3 +33,27 @@ export async function pickNativePath(
     return null;
   }
 }
+
+export interface TempCleanResult {
+  path: string;
+  freed_bytes: number;
+  deleted: number;
+  /** Entries left behind, almost always because another process holds them. */
+  skipped: number;
+}
+
+/** Sweeps %TEMP% on the daemon side; null when the daemon could not run it. */
+export async function cleanTempFiles(): Promise<TempCleanResult | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/system/clean-temp`, {
+      method: 'POST',
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as TempCleanResult;
+    if (typeof data.freed_bytes !== 'number') return null;
+    return data;
+  } catch (err) {
+    console.error('Temp cleanup failed:', err);
+    return null;
+  }
+}

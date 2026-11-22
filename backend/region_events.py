@@ -1,6 +1,7 @@
 """
 Aether Region to Ask WebSocket Handler
-Captures the selected desktop rectangle and attaches it as an image.
+Captures a selected desktop rectangle or the whole screen and attaches it as
+an image for the next prompt.
 """
 
 import asyncio
@@ -8,7 +9,7 @@ import logging
 from typing import Any, Dict
 
 from .event_router import register_handler
-from .os_hooks.region_capture import capture_region
+from .os_hooks.region_capture import capture_region, capture_screen
 from .tool_events import attach_file
 from .ws_manager import ws_manager
 
@@ -44,5 +45,30 @@ async def _handle_capture_region(payload: Dict[str, Any]) -> None:
 
 
 def register_region_events() -> None:
-    """Registers the screen-region capture handler."""
+    """Registers the region and full-screen capture handlers."""
     register_handler("CAPTURE_REGION", _handle_capture_region)
+    register_handler("CAPTURE_SCREEN", _handle_capture_screen)
+
+
+async def _handle_capture_screen(payload: Dict[str, Any]) -> None:
+    """Saves a full-screen PNG and attaches it to the active session."""
+    loop = asyncio.get_running_loop()
+    try:
+        capture = await loop.run_in_executor(None, capture_screen)
+    except Exception as exc:
+        logger.warning("Screen capture failed: %s", exc)
+        await ws_manager.broadcast("SCREEN_CAPTURE_FAILED", {"message": str(exc)})
+        await ws_manager.broadcast("ERROR", {"message": str(exc)})
+        return
+
+    attached = await attach_file(capture["file_path"], session_title="Screenshot")
+    if not attached:
+        await ws_manager.broadcast(
+            "SCREEN_CAPTURE_FAILED",
+            {"message": "The screen was captured but could not be attached."},
+        )
+        return
+
+    # The overlay was hidden for the shot; the UI shows it again on this.
+    await ws_manager.broadcast("SCREENSHOT_ATTACHED", capture)
+

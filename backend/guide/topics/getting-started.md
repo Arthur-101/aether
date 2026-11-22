@@ -23,7 +23,7 @@ To stop everything from a source checkout, run `stop_aether.bat`. The island hea
 
 ## Open the island
 
-Press **Ctrl + Space** (default) or click the top pill. The island expands to the last tab you used. Press **Esc** or click outside it to collapse.
+Click the top pill to expand the island; it opens on the last tab you used. Press **Esc** or click outside it to collapse. **Alt + Space** (default) opens the universal input bar from anywhere — see [The interface](interface.md).
 
 ## First-run checklist
 

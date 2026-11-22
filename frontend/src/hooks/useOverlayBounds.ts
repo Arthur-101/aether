@@ -55,9 +55,36 @@ export interface OverlayGeometry {
   screenWidth: number;
   screenHeight: number;
   dpr: number;
+  /** True while the rectangle is the whole monitor rather than the idle strip. */
+  fullScreen: boolean;
 }
 
 let geometry: OverlayGeometry | null = null;
+
+/**
+ * Consumers that lay themselves out against the monitor (the radial wheel)
+ * subscribe so they re-render as soon as the target rectangle is published,
+ * instead of waiting for an unrelated state change such as a cursor update.
+ */
+const geometryListeners = new Set<() => void>();
+
+export function subscribeOverlayGeometry(listener: () => void): () => void {
+  geometryListeners.add(listener);
+  return () => {
+    geometryListeners.delete(listener);
+  };
+}
+
+/**
+ * The overlay rectangle, kept live across geometry changes. The window may
+ * still be the idle strip when a fullscreen panel first paints, so panels must
+ * position against this rectangle rather than the current viewport.
+ */
+export function useOverlayGeometry(): OverlayGeometry {
+  const [, bump] = useState(0);
+  useEffect(() => subscribeOverlayGeometry(() => bump((n) => n + 1)), []);
+  return getOverlayGeometry();
+}
 
 function isTauriRuntime(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -73,6 +100,8 @@ function fallbackGeometry(): OverlayGeometry {
     screenWidth: window.innerWidth,
     screenHeight: window.innerHeight,
     dpr,
+    // Outside Tauri there is no idle strip to grow out of.
+    fullScreen: true,
   };
 }
 
@@ -240,6 +269,7 @@ export function useOverlayBounds({
     // it. A grow lands within a frame; a shrink is only applied after the
     // shell's exit animation, so publishing it here is still correct.
     geometry = target;
+    for (const listener of geometryListeners) listener();
     setScreen((current) =>
       current.width === target.screenWidth && current.height === target.screenHeight
         ? current

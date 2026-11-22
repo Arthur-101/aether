@@ -1,6 +1,7 @@
 import React from 'react';
 import { Hourglass, Timer } from 'lucide-react';
 import { useTimeFormat } from '../../hooks/useTimeFormat';
+import type { MediaJob } from '../../types/ipc';
 import { MediaBars } from './MediaBars';
 import { formatClockTime } from './timeFormat';
 import type { ClockTools } from './useClockTools';
@@ -19,6 +20,8 @@ interface NotchIdleProps {
   stats: PillStat[];
   showClock: boolean;
   clockTools: ClockTools;
+  /** A running or queued media job, which takes over the pill. */
+  job: MediaJob | null;
   onOpen: () => void;
 }
 
@@ -29,9 +32,59 @@ export const NotchIdle: React.FC<NotchIdleProps> = ({
   stats,
   showClock,
   clockTools,
+  job,
   onOpen,
 }) => {
   const timeFormat = useTimeFormat();
+
+  // The job is temporary and more useful than the clock: replace the whole
+  // readout with its progress, then fall back to the normal pill on finish.
+  if (job) {
+    const percent =
+      job.progress == null
+        ? null
+        : Math.max(0, Math.min(100, Math.round(job.progress * 100)));
+    const label =
+      job.status === 'queued'
+        ? 'Queued'
+        : job.action === 'COMPRESS'
+          ? 'Compressing'
+          : 'Converting';
+    return (
+      <button
+        type="button"
+        data-aether-island-trigger
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+        aria-label={`${label} ${job.file_name}${
+          percent == null ? '' : `, ${percent} percent`
+        }`}
+        className="focus-inset relative flex h-full w-full items-center justify-center px-3 text-[var(--aether-text-1)]"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--aether-text-3)]">
+            {label}
+          </span>
+          <span className="h-1.5 w-[74px] shrink-0 overflow-hidden rounded-full bg-[var(--aether-surface-3)]">
+            <span
+              className={`block h-full rounded-full bg-[var(--aether-accent)] ${
+                percent == null
+                  ? 'w-1/3 animate-pulse motion-reduce:animate-none'
+                  : 'transition-[width] duration-200'
+              }`}
+              style={percent == null ? undefined : { width: `${percent}%` }}
+            />
+          </span>
+          <span className="shrink-0 font-mono text-[10px] font-semibold tabular-nums text-[var(--aether-text-1)]">
+            {percent == null ? '…' : `${percent}%`}
+          </span>
+        </span>
+      </button>
+    );
+  }
+
   const time = formatClockTime(now, timeFormat);
   const timerVisible = isTimerVisible(clockTools.timer);
   const stopwatchVisible = isStopwatchVisible(clockTools.stopwatch);

@@ -2,8 +2,11 @@ name: Release
 
 # Bump `version` in frontend/package.json, frontend/src-tauri/Cargo.toml, and
 # frontend/src-tauri/tauri.conf.json first, then push the matching `v*` tag (or
-# dispatch this workflow). tauri-action creates the tag/release from the app
-# version and uploads the installer, its updater signature, and latest.json.
+# dispatch this workflow). The same number belongs in `backend/main.py` (the
+# FastAPI version) and `backend/components_manager.py` (`APP_VERSION`, which
+# gates pack compatibility), so bump those in the same commit. tauri-action
+# creates the tag/release from the app version and uploads the installer, its
+# updater signature, and latest.json.
 on:
   workflow_dispatch:
   push:

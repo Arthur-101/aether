@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
 import { isTauri } from '@tauri-apps/api/core';
-import { Info, MonitorUp, PanelTop, SlidersHorizontal, Timer } from 'lucide-react';
+import { Info, Command, MonitorUp, PanelTop, SlidersHorizontal, Timer } from 'lucide-react';
 import type { AIProviderConfig, AppearanceConfig, GeneralConfig } from '../../../types/ipc';
 import { openExternalTarget } from '../../../lib/externalWindows';
+import { fetchCurrencyRates } from '../../../lib/currency';
+import { currencyCodes, currencyLabel } from '../../Island/currencyConvert';
 import {
   SettingsGroup,
   SettingsToggleRow,
@@ -11,6 +13,7 @@ import {
 import {
   settingsCardClass,
   settingsHintClass,
+  settingsInputClass,
   settingsLabelClass,
   settingsMonoInputClass,
   settingsRowClass,
@@ -76,6 +79,25 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   onAiChange,
 }) => {
   const [version, setVersion] = useState('1.0.0');
+  const [currencyOptions, setCurrencyOptions] = useState<string[]>([]);
+  const savedCurrency = general.default_currency || 'USD';
+
+  // The codes come from the same cached daily table the Calculator uses; the
+  // saved code stays selectable even when the table has not been fetched yet.
+  useEffect(() => {
+    let cancelled = false;
+    void fetchCurrencyRates().then((table) => {
+      if (!cancelled && table) setCurrencyOptions(currencyCodes(table.rates));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const currencyList = useMemo(() => {
+    const list = currencyOptions.length ? currencyOptions : ['USD'];
+    return list.includes(savedCurrency) ? list : [savedCurrency, ...list];
+  }, [currencyOptions, savedCurrency]);
   // `tauri dev` serves the UI from Vite, so the debug executable cannot boot
   // without the dev server. Only a packaged build can start with Windows.
   const autostartSupported = !import.meta.env.DEV;
@@ -151,6 +173,40 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             onAppearanceChange({ close_on_outside_click })
           }
         />
+      </SettingsGroup>
+
+      <SettingsGroup
+        icon={<Command size={13} />}
+        title="Universal input"
+        hint="Ctrl+Space opens a text bar for quick answers, conversions and commands."
+      >
+        <div className={settingsCardClass}>
+          <div className={settingsRowClass}>
+            <span className="flex flex-col gap-0.5 pr-3">
+              <label
+                htmlFor="aether-default-currency"
+                className="text-[11px] text-[var(--aether-text-2)]"
+              >
+                Default currency
+              </label>
+              <span className="text-[10px] leading-snug text-[var(--aether-text-3)]">
+                Target when a conversion names only the source, like $1 or 1 dollar.
+              </span>
+            </span>
+            <select
+              id="aether-default-currency"
+              value={savedCurrency}
+              onChange={(event) => onChange({ default_currency: event.target.value })}
+              className={`${settingsInputClass} w-44`}
+            >
+              {currencyList.map((code) => (
+                <option key={code} value={code}>
+                  {currencyLabel(code)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </SettingsGroup>
 
       <SettingsGroup

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildSlices,
   sliceActionLabel,
+  wheelPosition,
 } from '../src/components/RadialWheel/geometry.ts';
 
 const slices = (ext, ask = false) => buildSlices(ext, ask);
@@ -43,5 +44,19 @@ for (const label of ['MP3', 'WAV', 'M4A', 'OGG']) {
 }
 assert.equal(sliceActionLabel('WEBM', false), 'Video → WEBM');
 assert.equal(sliceActionLabel('TXT', false), 'Convert → TXT');
+
+// Placement: centred on the cursor, clamped inside the frame, using the frame
+// origin (a secondary monitor has a non-zero origin) and its dpr.
+const fullHd = { x: 0, y: 0, width: 3840, height: 2160, dpr: 2 };
+assert.deepEqual(wheelPosition(1920, 1080, fullHd), { left: 774, top: 354 });
+assert.deepEqual(wheelPosition(0, 0, fullHd), { left: 8, top: 8 });
+assert.deepEqual(wheelPosition(3840, 2160, fullHd), { left: 1540, top: 700 });
+
+const leftMonitor = { x: -1280, y: 0, width: 1280, height: 1024, dpr: 1 };
+assert.deepEqual(wheelPosition(-100, 200, leftMonitor), { left: 900, top: 14 });
+
+// A frame narrower than the wheel must still keep it on-screen, never negative.
+const strip = { x: 800, y: -1, width: 220, height: 60, dpr: 1 };
+assert.deepEqual(wheelPosition(900, 30, strip), { left: 8, top: 8 });
 
 console.log('wheel geometry checks passed');

@@ -91,6 +91,42 @@ def test_capture_region_rejects_selections_outside_the_desktop(
         )
 
 
+MULTI_MONITOR = [
+    {"left": 0, "top": 0, "width": 3840, "height": 1080},
+    {"left": 0, "top": 0, "width": 1920, "height": 1080},
+    {"left": 1920, "top": 0, "width": 1920, "height": 1080},
+]
+
+
+def test_capture_screen_saves_the_monitor_under_the_point(tmp_path, monkeypatch):
+    monkeypatch.setattr(region_capture, "get_captures_dir", lambda: tmp_path)
+    capture = FakeCapture(MULTI_MONITOR)
+
+    result = region_capture.capture_screen(2400, 500, capture=capture)
+
+    assert capture.boxes == [
+        {"left": 1920, "top": 0, "width": 1920, "height": 1080}
+    ]
+    assert result["width"] == 1920
+    assert result["height"] == 1080
+    assert result["x"] == 1920
+    # Named like a region capture so the orphan sweep covers it.
+    assert region_capture.is_capture_path(result["file_path"])
+
+    with Image.open(result["file_path"]) as image:
+        assert image.size == (1920, 1080)
+
+
+def test_capture_screen_falls_back_to_the_primary_monitor(tmp_path, monkeypatch):
+    monkeypatch.setattr(region_capture, "get_captures_dir", lambda: tmp_path)
+    capture = FakeCapture(MULTI_MONITOR)
+
+    result = region_capture.capture_screen(9000, 9000, capture=capture)
+
+    assert capture.boxes[0]["width"] == 1920
+    assert capture.boxes[0]["left"] == 0
+
+
 def test_is_capture_path_recognizes_only_region_pngs_in_captures(
     tmp_path, monkeypatch
 ):

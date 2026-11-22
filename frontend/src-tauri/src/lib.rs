@@ -39,6 +39,8 @@ pub fn run() {
       autostart::get_autostart,
       autostart::set_autostart,
       external_window::open_external,
+      external_window::remember_foreground_window,
+      external_window::restore_foreground_window,
       overlay::set_overlay_bounds,
       backend::reap_backend_for_update,
       backend::resume_backend_after_failed_update,

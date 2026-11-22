@@ -6,6 +6,7 @@ import {
   Clock,
   Database,
   MessageSquare,
+  Pin,
   Plus,
   Search,
   Trash2,
@@ -25,6 +26,7 @@ interface ChatSessionMenuProps {
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
   onDeleteSession: (id: string) => void;
+  onTogglePin: (id: string, pinned: boolean) => void;
   onRefreshSessions: () => void;
 }
 
@@ -59,6 +61,7 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
   onSelectSession,
   onNewSession,
   onDeleteSession,
+  onTogglePin,
   onRefreshSessions,
 }) => {
   const timeFormat = useTimeFormat();
@@ -204,8 +207,11 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
           <MessageSquare size={13} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
+          <span className="flex items-center gap-1 text-[8.5px] font-semibold uppercase tracking-[0.16em] text-[var(--aether-text-3)]">
             Current session
+            {activeSession?.pinned ? (
+              <Pin size={9} className="text-[var(--aether-accent-text)]" />
+            ) : null}
           </span>
           <span className="block truncate text-[11.5px] font-semibold text-[var(--aether-text-1)]">
             {title}
@@ -322,7 +328,7 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
                       >
                         {active ? <Check size={11} /> : <MessageSquare size={11} />}
                       </span>
-                      <span className="min-w-0 flex-1 pr-6">
+                      <span className="min-w-0 flex-1 pr-12">
                         <span
                           className={`block truncate text-[11px] ${
                             active
@@ -341,8 +347,32 @@ export const ChatSessionMenu: React.FC<ChatSessionMenuProps> = ({
                           {active ? (
                             <span className="text-[var(--aether-accent-text)]">· Active</span>
                           ) : null}
+                          {session.pinned ? (
+                            <span className="text-[var(--aether-accent-text)]">· Pinned</span>
+                          ) : null}
                         </span>
                       </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onTogglePin(session.id, !session.pinned);
+                        }}
+                        title={
+                          session.pinned
+                            ? 'Unpin session'
+                            : 'Pin session (kept past the 15-minute timeout)'
+                        }
+                        aria-label={`${session.pinned ? 'Unpin' : 'Pin'} session ${session.title || 'Untitled Session'}`}
+                        aria-pressed={Boolean(session.pinned)}
+                        className={`absolute right-7 top-1.5 rounded-md p-1 transition hover:bg-[var(--aether-fill-2)] focus-visible:opacity-100 ${
+                          session.pinned
+                            ? 'text-[var(--aether-accent-text)] opacity-100'
+                            : 'text-[var(--aether-text-3)] opacity-0 group-hover:opacity-100'
+                        }`}
+                      >
+                        <Pin size={11} />
+                      </button>
                       <button
                         type="button"
                         onClick={(event) => {
