@@ -70,18 +70,18 @@ as you type, `/` lists every tool, and a screenshot can ride along with the next
 | **Convert as you type** | **Currency and maths** |
 |:--:|:--:|
 | <img src="docs/media/shot-bar-units.png" width="420" alt="The bar converting 5 feet to cm while the text is still being typed." /> | <img src="docs/media/shot-bar-currency.png" width="420" alt="The bar converting 1 dollar to INR at the day's rate." /> |
-| Length, mass, volume, area, speed, temperature, time and data — `5 feet in cm`, `54% of 200`, `$100 in INR`. | Currency uses the day's rate and shows the date it was last updated. |
+| Length, mass, volume, area, speed, temperature, time and data, `5 feet in cm`, `54% of 200`, `$100 in INR`. | Currency uses the day's rate and shows the date it was last updated. |
 
 <p align="center">
   <img src="docs/media/shot-bar-commands.png" width="860" alt="Typing a slash lists every command: settings, models, speed test, new session, theme, mute, volume, brightness and colour picker." />
   <br />
-  <sub><b>Every tool behind a slash</b> — filtered as you type, with the keys that drive the bar along the bottom.</sub>
+  <sub><b>Every tool behind a slash</b>, filtered as you type, with the keys that drive the bar along the bottom.</sub>
 </p>
 
 <p align="center">
   <img src="docs/media/shot-bar-screenshot.png" width="860" alt="A screenshot of the desktop attached to the question what's on my screen, with Aether's answer describing it." />
   <br />
-  <sub><b>Screenshot to ask</b> — <kbd>Ctrl</kbd> + <kbd>S</kbd> or the camera captures the screen under the cursor and attaches it to the next question.</sub>
+  <sub><b>Screenshot to ask</b>, <kbd>Ctrl</kbd> + <kbd>S</kbd> or the camera captures the screen under the cursor and attaches it to the next question.</sub>
 </p>
 
 ---
